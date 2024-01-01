@@ -14,55 +14,50 @@
 
 /**
  * Operations on the RTL2832U demodulator.
- * @param {ConnectionHandle} conn The USB connection handle.
+ * @param {USBDevice} device The USB device.
  * @param {number} ppm The frequency correction factor, in parts per million.
  * @param {number=} opt_gain The optional gain in dB. If unspecified or null, sets auto gain.
  * @constructor
  */
-function RTL2832U(conn, ppm, opt_gain) {
+function RTL2832U(device, ppm, opt_gain) {
 
   /**
    * Frequency of the oscillator crystal.
    */
-  var XTAL_FREQ = 28800000;
+  const XTAL_FREQ = 28800000;
 
   /**
    * Tuner intermediate frequency.
    */
-  var IF_FREQ = 3570000;
+  const IF_FREQ = 3570000;
 
   /**
    * The number of bytes for each sample.
    */
-  var BYTES_PER_SAMPLE = 2;
+  const BYTES_PER_SAMPLE = 2;
 
   /**
    * Communications with the demodulator via USB.
    */
-  var com = new RtlCom(conn);
-
-  /**
-   * A handler for errors. It's a function that receives the error message.
-   */
-  var errorHandler;
+  let com = new RtlCom(device);
 
   /**
    * The tuner used by the dongle.
    */
-  var tuner;
+  let tuner;
 
   /**
    * Initialize the demodulator.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function open(kont) {
-    com.writeEach([
+  async function open() {
+    await com.writeEach([
       [CMD.REG, BLOCK.USB, REG.SYSCTL, 0x09, 1],
       [CMD.REG, BLOCK.USB, REG.EPA_MAXPKT, 0x0200, 2],
       [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0210, 2]
-    ], function() {
-    com.iface.claim(function() {
-    com.writeEach([
+    ]);
+    await com.iface.claim();
+    await com.writeEach([
       [CMD.REG, BLOCK.SYS, REG.DEMOD_CTL_1, 0x22, 1],
       [CMD.REG, BLOCK.SYS, REG.DEMOD_CTL, 0xe8, 1],
       [CMD.DEMODREG, 1, 0x01, 0x14, 1],
@@ -104,150 +99,120 @@ function RTL2832U(conn, ppm, opt_gain) {
       [CMD.DEMODREG, 0, 0x06, 0x80, 1],
       [CMD.DEMODREG, 1, 0xb1, 0x1b, 1],
       [CMD.DEMODREG, 0, 0x0d, 0x83, 1]
-    ], function() {
+    ]);
 
-    var xtalFreq = Math.floor(XTAL_FREQ * (1 + ppm / 1000000));
-    com.i2c.open(function() {
-    R820T.check(com, function(found) {
+    let xtalFreq = Math.floor(XTAL_FREQ * (1 + ppm / 1000000));
+    await com.i2c.open();
+    let found = await R820T.check(com);
     if (found) {
-      tuner = new R820T(com, xtalFreq, throwError);
+      tuner = new R820T(com, xtalFreq);
     }
     if (!tuner) {
-      throwError('Sorry, your USB dongle has an unsupported tuner chip. ' +
-                 'Only the R820T chip is supported.');
-      return;
+      throw 'Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported.';
     }
-    var multiplier = -1 * Math.floor(IF_FREQ * (1<<22) / xtalFreq);
-    com.writeEach([
+    let multiplier = -1 * Math.floor(IF_FREQ * (1 << 22) / xtalFreq);
+    await com.writeEach([
       [CMD.DEMODREG, 1, 0xb1, 0x1a, 1],
       [CMD.DEMODREG, 0, 0x08, 0x4d, 1],
       [CMD.DEMODREG, 1, 0x19, (multiplier >> 16) & 0x3f, 1],
       [CMD.DEMODREG, 1, 0x1a, (multiplier >> 8) & 0xff, 1],
       [CMD.DEMODREG, 1, 0x1b, multiplier & 0xff, 1],
       [CMD.DEMODREG, 1, 0x15, 0x01, 1]
-    ], function() {
-    tuner.init(function() {
-    setGain(opt_gain, function() {
-    com.i2c.close(kont);
-    })})})})})})})});
+    ]);
+    await tuner.init();
+    await setGain(opt_gain);
+    return com.i2c.close();
   }
 
   /**
    * Sets the requested gain.
    * @param {number|null|undefined} gain The gain in dB, or null/undefined
    *     for automatic gain.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function setGain(gain, kont) {
+  function setGain(gain) {
     if (gain == null) {
-      tuner.setAutoGain(kont);
+      return tuner.setAutoGain();
     } else {
-      tuner.setManualGain(gain, kont);
+      return tuner.setManualGain(gain);
     }
   }
 
   /**
    * Set the sample rate.
    * @param {number} rate The sample rate, in samples/sec.
-   * @param {Function} kont The continuation for this function. Receives the
-   *     sample rate that was actually set as its first parameter.
+   * @returns {Promise<number>} a promise that resolves to the sample rate that was actually set.
    */
-  function setSampleRate(rate, kont) {
-    var ratio = Math.floor(XTAL_FREQ * (1 << 22) / rate);
+  async function setSampleRate(rate) {
+    let ratio = Math.floor(XTAL_FREQ * (1 << 22) / rate);
     ratio &= 0x0ffffffc;
-    var realRate = Math.floor(XTAL_FREQ * (1 << 22) / ratio);
-    var ppmOffset = -1 * Math.floor(ppm * (1 << 24) / 1000000);
-    com.writeEach([
+    let realRate = Math.floor(XTAL_FREQ * (1 << 22) / ratio);
+    let ppmOffset = -1 * Math.floor(ppm * (1 << 24) / 1000000);
+    await com.writeEach([
       [CMD.DEMODREG, 1, 0x9f, (ratio >> 16) & 0xffff, 2],
       [CMD.DEMODREG, 1, 0xa1, ratio & 0xffff, 2],
       [CMD.DEMODREG, 1, 0x3e, (ppmOffset >> 8) & 0x3f, 1],
       [CMD.DEMODREG, 1, 0x3f, ppmOffset & 0xff, 1]
-    ], function() {
-    resetDemodulator(function() {
-    kont(realRate);
-    })});
+    ]);
+    await resetDemodulator();
+    return realRate;
   }
 
   /**
    * Resets the demodulator.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function resetDemodulator(kont) {
-    com.writeEach([
+  function resetDemodulator() {
+    return com.writeEach([
       [CMD.DEMODREG, 1, 0x01, 0x14, 1],
       [CMD.DEMODREG, 1, 0x01, 0x10, 1]
-    ], kont);
+    ]);
   }
 
   /**
    * Tunes the device to the given frequency.
    * @param {number} freq The frequency to tune to, in Hertz.
-   * @param {Function} kont The continuation for this function, which receives
-   *     the actual tuned frequency.
+   * @returns {Promise<number>} a promise that resolves to the actual tuned frequency.
    */
-  function setCenterFrequency(freq, kont) {
-    com.i2c.open(function() {
-    tuner.setFrequency(freq + IF_FREQ, function(actualFreq) {
-    com.i2c.close(function() {
-    kont(actualFreq - IF_FREQ);
-    })})});
+  async function setCenterFrequency(freq) {
+    await com.i2c.open();
+    let actualFreq = await tuner.setFrequency(freq + IF_FREQ);
+    await com.i2c.close();
+    return actualFreq - IF_FREQ;
   }
 
   /**
    * Resets the sample buffer. Call this before starting to read samples.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function resetBuffer(kont) {
-    com.writeEach([
+  function resetBuffer() {
+    return com.writeEach([
       [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0210, 2],
       [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0000, 2]
-    ], kont);
+    ]);
   }
 
   /**
    * Reads a block of samples off the device.
    * @param {number} length The number of samples to read.
-   * @param {Function} kont The continuation for this function. It will receive
-   *     as its argument an ArrayBuffer containing the read samples, which you
-   *     can interpret as pairs of unsigned 8-bit integers; the first one is
-   *     the sample's I value, and the second one is its Q value.
+   * @returns {Promise<ArrayBuffer>} a promise that resolves to an ArrayBuffer
+   *     containing the read samples, which you can interpret as pairs of
+   *     unsigned 8-bit integers; the first one is the sample's I value, and
+   *     the second one is its Q value.
    */
-  function readSamples(length, kont) {
-    com.bulk.readBuffer(length * BYTES_PER_SAMPLE, kont);
+  function readSamples(length) {
+    return com.bulk.readBuffer(length * BYTES_PER_SAMPLE);
   }
 
   /**
    * Stops the demodulator.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function close(kont) {
-    com.i2c.open(function() {
-    tuner.close(function() {
-    com.i2c.close(function() {
-    com.iface.release(kont);
-    })})});
-  }
-
-  /**
-   * Handles an error.
-   * @param {string} msg The error message.
-   */
-  function throwError(msg) {
-    if (errorHandler) {
-      errorHandler(msg);
-    } else {
-      throw msg;
-    }
-  }
-
-  /**
-   * Sets a function to call if there's an error communicating with the
-   * demodulator.
-   * @param {Function} func The function to call on error.
-   */
-  function setOnError(func) {
-    errorHandler = func;
-    com.setOnError(throwError);
+  async function close() {
+    await com.i2c.open();
+    await tuner.close();
+    await com.i2c.close();
+    return com.iface.release();
   }
 
   return {
@@ -257,7 +222,6 @@ function RTL2832U(conn, ppm, opt_gain) {
     resetBuffer: resetBuffer,
     readSamples: readSamples,
     close: close,
-    setOnError: setOnError
   };
 }
 

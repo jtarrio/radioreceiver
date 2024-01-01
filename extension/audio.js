@@ -27,9 +27,9 @@ function Player() {
 
   var wavSaver = null;
 
-  var ac = new (window.AudioContext || window.webkitAudioContext)();
-  var gainNode = ac.createGain ? ac.createGain() : ac.createGainNode();
-  gainNode.connect(ac.destination);
+  var ac = undefined;
+  var gainNode = undefined;
+  var gain = 0;
 
   /**
    * Queues the given samples for playing at the appropriate time.
@@ -39,6 +39,12 @@ function Player() {
    * @param {number} squelch The current squelch level.
    */
   function play(leftSamples, rightSamples, level, squelch) {
+    if (ac === undefined) {
+      ac = new AudioContext();
+      gainNode = ac.createGain();
+      gainNode.gain.value = gain;
+      gainNode.connect(ac.destination);
+    }
     var buffer = ac.createBuffer(2, leftSamples.length, OUT_RATE);
     if (level >= squelch) {
       squelchTime = null;
@@ -56,8 +62,8 @@ function Player() {
     source.buffer = buffer;
     source.connect(gainNode);
     lastPlayedAt = Math.max(
-        lastPlayedAt + leftSamples.length / OUT_RATE,
-        ac.currentTime + TIME_BUFFER);
+      lastPlayedAt + leftSamples.length / OUT_RATE,
+      ac.currentTime + TIME_BUFFER);
     source.start(lastPlayedAt);
   }
 
@@ -98,7 +104,10 @@ function Player() {
    * @param {number} volume The volume to set, between 0 and 1.
    */
   function setVolume(volume) {
-    gainNode.gain.value = volume;
+    gain = volume;
+    if (gainNode !== undefined) {
+      gainNode.gain.value = volume;
+    }
   }
 
   return {

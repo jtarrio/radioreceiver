@@ -14,35 +14,25 @@
 
 /**
  * Low-level communications with the RTL2832U-based dongle.
- * @param {ConnectionHandle} conn The USB connection handle.
+ * @param {USBDevice} device The USB device.
  * @constructor
  */
-function RtlCom(conn) {
-
-  /**
-   * Whether to log all USB transfers.
-   */
-  var VERBOSE = false;
+function RtlCom(device) {
 
   /**
    * Set in the control messages' index field for write operations.
    */
-  var WRITE_FLAG = 0x10;
-
-  /**
-   * Function to call if there was an error in USB transfers.
-   */
-  var onError;
+  const WRITE_FLAG = 0x10;
 
   /**
    * Writes a buffer into a dongle's register.
    * @param {number} block The register's block number.
    * @param {number} reg The register number.
    * @param {ArrayBuffer} buffer The buffer to write.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function writeRegBuffer(block, reg, buffer, kont) {
-    writeCtrlMsg(reg, block | WRITE_FLAG, buffer, kont);
+  function writeRegBuffer(block, reg, buffer) {
+    return writeCtrlMsg(reg, block | WRITE_FLAG, buffer);
   }
 
   /**
@@ -50,11 +40,10 @@ function RtlCom(conn) {
    * @param {number} block The register's block number.
    * @param {number} reg The register number.
    * @param {number} length The length in bytes of the buffer to read.
-   * @param {Function} kont The continuation for this function.
-   *     It receives the read buffer.
+   * @returns {Promise<ArrayBuffer>} a Promise that resolves to the read buffer.
    */
-  function readRegBuffer(block, reg, length, kont) {
-    readCtrlMsg(reg, block, length, kont);
+  function readRegBuffer(block, reg, length) {
+    return readCtrlMsg(reg, block, length);
   }
 
   /**
@@ -63,10 +52,10 @@ function RtlCom(conn) {
    * @param {number} reg The register number.
    * @param {number} value The value to write.
    * @param {number} length The width in bytes of this value.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function writeReg(block, reg, value, length, kont) {
-    writeCtrlMsg(reg, block | WRITE_FLAG, numberToBuffer(value, length), kont);
+  function writeReg(block, reg, value, length) {
+    return writeCtrlMsg(reg, block | WRITE_FLAG, numberToBuffer(value, length));
   }
 
   /**
@@ -74,13 +63,10 @@ function RtlCom(conn) {
    * @param {number} block The register's block number.
    * @param {number} reg The register number.
    * @param {number} length The width in bytes of the value to read.
-   * @param {Function} kont The continuation for this function.
-   *     It receives the decoded value.
+   * @returns {Promise<number>} a promise that resolves to the decoded value.
    */
-  function readReg(block, reg, length, kont) {
-    readCtrlMsg(reg, block, length, function(data) {
-      kont(bufferToNumber(data));
-    });
+  async function readReg(block, reg, length) {
+    return bufferToNumber(await readCtrlMsg(reg, block, length));
   }
 
   /**
@@ -89,30 +75,27 @@ function RtlCom(conn) {
    * @param {number} reg The register number.
    * @param {number} value The value to write.
    * @param {number} mask The mask for the value to write.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function writeRegMask(block, reg, value, mask, kont) {
+  async function writeRegMask(block, reg, value, mask) {
     if (mask == 0xff) {
-      writeReg(block, reg, value, 1, kont);
-    } else {
-      readReg(block, reg, 1, function(old) {
-      value &= mask;
-      old &= ~mask;
-      value |= old;
-      writeReg(block, reg, value, 1, kont);
-      });
+      return writeReg(block, reg, value, 1);
     }
+    const old = await readReg(block, reg, 1);
+    value &= mask;
+    old &= ~mask;
+    value |= old;
+    return writeReg(block, reg, value, 1);
   }
 
   /**
    * Reads a value from a demodulator register.
    * @param {number} page The register page number.
    * @param {number} addr The register's address.
-   * @param {Function} kont The continuation for this function.
-   *     It receives the decoded value.
+   * @returns {Promise<number>} a promise that resolves to the value in the register.
    */
-  function readDemodReg(page, addr, kont) {
-    readReg(page, (addr << 8) | 0x20, 1, kont);
+  function readDemodReg(page, addr) {
+    return readReg(page, (addr << 8) | 0x20, 1);
   }
 
   /**
@@ -121,40 +104,38 @@ function RtlCom(conn) {
    * @param {number} addr The register's address.
    * @param {number} value The value to write.
    * @param {number} len The width in bytes of this value.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<number>} a promise that resolves the value that was read back from the register.
    */
-  function writeDemodReg(page, addr, value, len, kont) {
-    writeRegBuffer(page, (addr << 8) | 0x20, numberToBuffer(value, len, true), function() {
-    readDemodReg(0x0a, 0x01, kont);
-    });
+  async function writeDemodReg(page, addr, value, len) {
+    await writeRegBuffer(page, (addr << 8) | 0x20, numberToBuffer(value, len, true));
+    return readDemodReg(0x0a, 0x01);
   }
 
   /**
    * Opens the I2C repeater.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function openI2C(kont) {
-    writeDemodReg(1, 1, 0x18, 1, kont);
+  function openI2C() {
+    return writeDemodReg(1, 1, 0x18, 1);
   }
 
   /**
    * Closes the I2C repeater.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function closeI2C(kont) {
-    writeDemodReg(1, 1, 0x10, 1, kont);
+  function closeI2C() {
+    return writeDemodReg(1, 1, 0x10, 1);
   }
 
   /**
    * Reads a value from an I2C register.
    * @param {number} addr The device's address.
    * @param {number} reg The register number.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<number>} a promise that resolves to the value in the register.
    */
-  function readI2CReg(addr, reg, kont) {
-    writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg]).buffer, function() {
-    readReg(BLOCK.I2C, addr, 1, kont);
-    });
+  async function readI2CReg(addr, reg) {
+    await writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg]).buffer);
+    return readReg(BLOCK.I2C, addr, 1);
   }
 
   /**
@@ -163,10 +144,10 @@ function RtlCom(conn) {
    * @param {number} reg The register number.
    * @param {number} value The value to write.
    * @param {number} len The width in bytes of this value.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function writeI2CReg(addr, reg, value, kont) {
-    writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg, value]).buffer, kont);
+  function writeI2CReg(addr, reg, value) {
+    return writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg, value]).buffer);
   }
 
   /**
@@ -174,12 +155,11 @@ function RtlCom(conn) {
    * @param {number} addr The device's address.
    * @param {number} reg The register number.
    * @param {number} len The number of bytes to read.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<ArrayBuffer>} a promise that resolves to the read buffer.
    */
-  function readI2CRegBuffer(addr, reg, len, kont) {
-    writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg]).buffer, function() {
-    readRegBuffer(BLOCK.I2C, addr, len, kont);
-    });
+  async function readI2CRegBuffer(addr, reg, len) {
+    await writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg]).buffer);
+    return readRegBuffer(BLOCK.I2C, addr, len);
   }
 
   /**
@@ -187,13 +167,13 @@ function RtlCom(conn) {
    * @param {number} addr The device's address.
    * @param {number} reg The register number.
    * @param {ArrayBuffer} buffer The buffer to write.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function writeI2CRegBuffer(addr, reg, buffer, kont) {
-    var data = new Uint8Array(buffer.byteLength + 1);
+  function writeI2CRegBuffer(addr, reg, buffer) {
+    let data = new Uint8Array(buffer.byteLength + 1);
     data[0] = reg;
     data.set(new Uint8Array(buffer), 1);
-    writeRegBuffer(BLOCK.I2C, addr, data.buffer, kont);
+    return writeRegBuffer(BLOCK.I2C, addr, data.buffer);
   }
 
   /**
@@ -202,8 +182,8 @@ function RtlCom(conn) {
    * @return {number} The decoded number.
    */
   function bufferToNumber(buffer) {
-    var len = buffer.byteLength;
-    var dv = new DataView(buffer);
+    let len = buffer.byteLength;
+    let dv = new DataView(buffer);
     if (len == 0) {
       return null;
     } else if (len == 1) {
@@ -223,8 +203,8 @@ function RtlCom(conn) {
    * @param {boolean=} opt_bigEndian Whether to use a big-endian encoding.
    */
   function numberToBuffer(value, len, opt_bigEndian) {
-    var buffer = new ArrayBuffer(len);
-    var dv = new DataView(buffer);
+    let buffer = new ArrayBuffer(len);
+    let dv = new DataView(buffer);
     if (len == 1) {
       dv.setUint8(0, value);
     } else if (len == 2) {
@@ -242,39 +222,20 @@ function RtlCom(conn) {
    * @param {number} value The value field of the control message.
    * @param {number} index The index field of the control message.
    * @param {number} length The number of bytes to read.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<ArrayBuffer>} a promise that resolves to the read buffer.
    */
-  function readCtrlMsg(value, index, length, kont) {
-    var ti = {
-      'requestType': 'vendor',
-      'recipient': 'device',
-      'direction': 'in',
-      'request': 0,
-      'value': value,
-      'index': index,
-      'length': Math.max(8, length)
+  async function readCtrlMsg(value, index, length) {
+    let ti = {
+      requestType: 'vendor',
+      recipient: 'device',
+      request: 0,
+      value: value,
+      index: index
     };
-    chrome.usb.controlTransfer(conn, ti, function(event) {
-      var data = event.data.slice(0, length);
-      if (VERBOSE) {
-        console.log('IN value 0x' + value.toString(16) + ' index 0x' +
-            index.toString(16));
-        console.log('    read -> ' + dumpBuffer(data));
-      }
-      var rc = event.resultCode;
-      if (rc != 0) {
-        var msg = 'USB read failed (value 0x' + value.toString(16) +
-            ' index 0x' + index.toString(16) + '), rc=' + rc +
-            ', lastErrorMessage="' + chrome.runtime.lastError.message + '"';
-        if (onError) {
-          console.error(msg);
-          return onError(msg);
-        } else {
-          throw msg;
-        }
-      }
-      kont(data);
-    });
+    let result = await device.controlTransferIn(ti, Math.max(8, length));
+    let rc = result.status;
+    if (rc == 'ok') return result.data.buffer.slice(0, length);
+    throw 'USB read failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + '), rc=' + rc;
   }
 
   /**
@@ -282,122 +243,74 @@ function RtlCom(conn) {
    * @param {number} value The value field of the control message.
    * @param {number} index The index field of the control message.
    * @param {ArrayBuffer} buffer The buffer to write to the device.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function writeCtrlMsg(value, index, buffer, kont) {
-    var ti = {
-      'requestType': 'vendor',
-      'recipient': 'device',
-      'direction': 'out',
-      'request': 0,
-      'value': value,
-      'index': index,
-      'data': buffer
+  async function writeCtrlMsg(value, index, buffer) {
+    let ti = {
+      requestType: 'vendor',
+      recipient: 'device',
+      request: 0,
+      value: value,
+      index: index
     };
-    chrome.usb.controlTransfer(conn, ti, function(event) {
-      if (VERBOSE) {
-        console.log('OUT value 0x' + value.toString(16) + ' index 0x' +
-            index.toString(16) + ' data ' + dumpBuffer(buffer));
-      }
-      var rc = event.resultCode;
-      if (rc != 0) {
-        var msg = 'USB write failed (value 0x' + value.toString(16) +
-            ' index 0x' + index.toString(16) + ' data ' + dumpBuffer(buffer) +
-            '), rc=' + rc + ', lastErrorMessage="' +
-            chrome.runtime.lastError.message + '"';
-        if (onError) {
-          console.error(msg);
-          return onError(msg);
-        } else {
-          throw msg;
-        }
-      }
-      kont();
-    });
+    let result = await device.controlTransferOut(ti, buffer);
+    let rc = result.status;
+    if (rc == 'ok') return;
+    throw 'USB write failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + ' data ' + dumpBuffer(buffer) + '), rc=' + rc;
   }
 
   /**
    * Does a bulk transfer from the device.
    * @param {number} length The number of bytes to read.
-   * @param {Function} kont The continuation for this function. It receives the
-   *     received buffer.
+   * @returns {Promise<ArrayBuffer>} a promise that resolves to the data that was read.
    */
-  function readBulk(length, kont) {
-    var ti = {
+  async function readBulk(length) {
+    let ti = {
       'direction': 'in',
       'endpoint': 1,
       'length': length
     };
-    chrome.usb.bulkTransfer(conn, ti, function(event) {
-      if (VERBOSE) {
-        console.log('IN BULK requested ' + length + ' received ' + event.data.byteLength);
-      }
-      var rc = event.resultCode;
-      if (rc != 0) {
-        var msg = 'USB bulk read failed (length 0x' + length.toString(16) +
-            '), rc=' + rc + ', lastErrorMessage="' +
-            chrome.runtime.lastError.message + '"';
-        if (onError) {
-          console.error(msg);
-          return onError(msg);
-        } else {
-          throw msg;
-        }
-      }
-      kont(event.data);
-    });
+    let event = await device.transferIn(1, length);
+    let rc = event.status;
+    if (rc == 'ok') return event.data.buffer;
+    throw 'USB bulk read failed (length 0x' + length.toString(16) + '), rc=' + rc;
   }
 
   /**
    * Claims the USB interface.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function claimInterface(kont) {
-    chrome.usb.claimInterface(conn, 0, kont);
+  function claimInterface() {
+    return device.claimInterface(0);
   }
 
   /**
    * Releases the USB interface.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function releaseInterface(kont) {
-    chrome.usb.releaseInterface(conn, 0, kont);
+  function releaseInterface() {
+    return device.releaseInterface(0);
   }
 
   /**
    * Performs several write operations as specified in an array.
    * @param {Array.<Array.<number>>} array The operations to perform.
-   * @param {Function} kont The continuation for this function.
+   * @returns {Promise<void>}
    */
-  function writeEach(array, kont) {
-    var index = 0;
-    function iterate() {
-      if (index >= array.length) {
-        kont();
+  async function writeEach(array) {
+    for (let line of array) {
+      if (line[0] == CMD.REG) {
+        await writeReg(line[1], line[2], line[3], line[4]);
+      } else if (line[0] == CMD.REGMASK) {
+        await writeRegMask(line[1], line[2], line[3], line[4]);
+      } else if (line[0] == CMD.DEMODREG) {
+        await writeDemodReg(line[1], line[2], line[3], line[4]);
+      } else if (line[0] == CMD.I2CREG) {
+        await writeI2CReg(line[1], line[2], line[3]);
       } else {
-        var line = array[index++];
-        if (line[0] == CMD.REG) {
-          writeReg(line[1], line[2], line[3], line[4], iterate);
-        } else if (line[0] == CMD.REGMASK) {
-          writeRegMask(line[1], line[2], line[3], line[4], iterate);
-        } else if (line[0] == CMD.DEMODREG) {
-          writeDemodReg(line[1], line[2], line[3], line[4], iterate);
-        } else if (line[0] == CMD.I2CREG) {
-          writeI2CReg(line[1], line[2], line[3], iterate);
-        } else {
-          throw 'Unsupported operation [' + line + ']';
-        }
+        throw 'Unsupported operation [' + line + ']';
       }
     }
-    iterate();
-  }
-
-  /**
-   * Sets a function to call in case of error.
-   * @param {Function} func The function to call.
-   */
-  function setOnError(func) {
-    onError = func;
   }
 
   /**
@@ -406,9 +319,9 @@ function RtlCom(conn) {
    * @return {string} The string representation of the buffer.
    */
   function dumpBuffer(buffer) {
-    var bytes = [];
-    var arr = new Uint8Array(buffer);
-    for (var i = 0; i < arr.length; ++i) {
+    let bytes = [];
+    let arr = new Uint8Array(buffer);
+    for (let i = 0; i < arr.length; ++i) {
       bytes.push('0x' + arr[i].toString(16));
     }
     return '[' + bytes + ']';
@@ -437,8 +350,7 @@ function RtlCom(conn) {
       claim: claimInterface,
       release: releaseInterface
     },
-    writeEach: writeEach,
-    setOnError: setOnError
+    writeEach: writeEach
   };
 }
 

@@ -17,14 +17,14 @@
  * @constructor
  */
 function RadioController() {
-
-  var TUNERS = [{'vendorId': 0x0bda, 'productId': 0x2832}, 
-                {'vendorId': 0x0bda, 'productId': 0x2838}];
-  var SAMPLE_RATE = 1024000; // Must be a multiple of 512 * BUFS_PER_SEC
-  var BUFS_PER_SEC = 5;
-  var SAMPLES_PER_BUF = Math.floor(SAMPLE_RATE / BUFS_PER_SEC);
-  var NULL_FUNC = function(){};
-  var STATE = {
+  const TUNERS = [
+    { 'vendorId': 0x0bda, 'productId': 0x2832 },
+    { 'vendorId': 0x0bda, 'productId': 0x2838 },
+  ];
+  const SAMPLE_RATE = 1024000; // Must be a multiple of 512 * BUFS_PER_SEC
+  const BUFS_PER_SEC = 5;
+  const SAMPLES_PER_BUF = Math.floor(SAMPLE_RATE / BUFS_PER_SEC);
+  const STATE = {
     OFF: 0,
     STARTING: 1,
     PLAYING: 2,
@@ -32,7 +32,7 @@ function RadioController() {
     CHG_FREQ: 4,
     SCANNING: 5
   };
-  var SUBSTATE = {
+  const SUBSTATE = {
     USB: 1,
     TUNER: 2,
     ALL_ON: 3,
@@ -40,47 +40,43 @@ function RadioController() {
     DETECTING: 5
   };
 
-  var decoder = new Worker('decode-worker.js');
-  var player = new Player();
-  var state = new State(STATE.OFF);
-  var requestingBlocks = 0;
-  var playingBlocks = 0;
-  var mode = {};
-  var frequency = 88500000;
-  var actualFrequency = 0;
-  var stereo = true;
-  var stereoEnabled = true;
-  var volume = 1;
-  var ppm = 0;
-  var actualPpm = 0;
-  var estimatingPpm = false;
-  var offsetCount = -1;
-  var offsetSum = 0;
-  var autoGain = true;
-  var gain = 0;
-  var errorHandler;
-  var tuner;
-  var connection;
-  var ui;
+  let decoder = new Worker('decode-worker.js');
+  let player = new Player();
+  let state = new State(STATE.OFF);
+  let requestingBlocks = 0;
+  let playingBlocks = 0;
+  let mode = {};
+  let frequency = 88500000;
+  let actualFrequency = 0;
+  let stereo = true;
+  let stereoEnabled = true;
+  let volume = 1;
+  let ppm = 0;
+  let actualPpm = 0;
+  let estimatingPpm = false;
+  let offsetCount = -1;
+  let offsetSum = 0;
+  let autoGain = true;
+  let gain = 0;
+  let tuner;
+  let device;
+  let ui;
 
   /**
    * Starts playing the radio.
    * @param {Function=} opt_callback A function to call when the radio
    *     starts playing.
    */
-  function start(opt_callback) {
+  async function start(opt_callback) {
     if (state.state == STATE.OFF) {
       state = new State(STATE.STARTING, SUBSTATE.USB, opt_callback);
-      chrome.permissions.request(
-        {'permissions': [{'usbDevices': TUNERS}]},
-        function(res) {
-          if (!res) {
-            state = new State(STATE.OFF);
-            throwError('This app has no permission to access the USB ports.');
-          } else {
-            processState();
-          }
-        });
+      try {
+        device = await navigator.usb.requestDevice({ filters: TUNERS });
+        processState();
+      } catch (e) {
+        state = new State(STATE.OFF);
+        throw e;
+      }
     } else if (state.state == STATE.STOPPING || state.state == STATE.STARTING) {
       state = new State(STATE.STARTING, state.substate, opt_callback);
     }
@@ -107,7 +103,7 @@ function RadioController() {
    */
   function setFrequency(freq) {
     if (state.state == STATE.PLAYING || state.state == STATE.CHG_FREQ
-        || state.state == STATE.SCANNING) {
+      || state.state == STATE.SCANNING) {
       state = new State(STATE.CHG_FREQ, null, freq);
     } else {
       frequency = freq;
@@ -304,27 +300,6 @@ function RadioController() {
   }
 
   /**
-   * Sets a function to be called when there is an error.
-   * @param {Function} handler The function to call. Its only parameter
-   *      is the error message.
-   */
-  function setOnError(handler) {
-    errorHandler = handler;
-  }
-
-  /**
-   * Handles an error.
-   * @param {string} msg The error message.
-   */
-  function throwError(msg) {
-    if (errorHandler) {
-      errorHandler(msg);
-    } else {
-      throw msg;
-    }
-  }
-
-  /**
    * Starts the decoding pipeline.
    */
   function startPipeline() {
@@ -362,31 +337,27 @@ function RadioController() {
    *
    * At the last substate it transitions into the PLAYING state.
    */
-  function stateStarting() {
+  async function stateStarting() {
     if (state.substate == SUBSTATE.USB) {
       state = new State(STATE.STARTING, SUBSTATE.TUNER, state.param);
-      doFindDevices(0);
+      doOpenDevice()
     } else if (state.substate == SUBSTATE.TUNER) {
       state = new State(STATE.STARTING, SUBSTATE.ALL_ON, state.param);
       actualPpm = ppm;
-      tuner = new RTL2832U(connection, actualPpm, autoGain ? null : gain);
-      tuner.setOnError(throwError);
-      tuner.open(function() {
-      tuner.setSampleRate(SAMPLE_RATE, function(rate) {
+      tuner = new RTL2832U(device, actualPpm, autoGain ? null : gain);
+      await tuner.open();
+      let rate = await tuner.setSampleRate(SAMPLE_RATE);
       offsetSum = 0;
       offsetCount = -1;
-      tuner.setCenterFrequency(frequency, function(actualFreq) {
-      actualFrequency = actualFreq;
+      actualFrequency = await tuner.setCenterFrequency(frequency);
       processState();
-      })})});
     } else if (state.substate == SUBSTATE.ALL_ON) {
       var cb = state.param;
       state = new State(STATE.PLAYING);
-      tuner.resetBuffer(function() {
+      await tuner.resetBuffer();
       cb && cb();
       ui && ui.update();
       startPipeline();
-      });
     }
   }
 
@@ -395,23 +366,9 @@ function RadioController() {
    * list and transitions to the next substate.
    * @param {number} index The first element in the list to find.
    */
-  function doFindDevices(index) {
-    if (index == TUNERS.length) {
-      state = new State(STATE.OFF);
-      throwError('USB tuner device not found. The Radio Receiver ' +
-                 'app needs an RTL2832U-based DVB-T dongle ' +
-                 '(with an R820T tuner chip) to work.');
-    } else {
-      chrome.usb.findDevices(TUNERS[index],
-          function(conns) {
-            if (conns.length == 0) {
-              doFindDevices(index + 1);
-            } else {
-              connection = conns[0];
-              processState();
-            }
-          });
-    }
+  async function doOpenDevice() {
+    await device.open();
+    processState();
   }
 
   /**
@@ -420,19 +377,18 @@ function RadioController() {
    * 2 blocks are in flight all at times, so while one block is being
    * demodulated and played, the next one is already being sampled.
    */
-  function statePlaying() {
+  async function statePlaying() {
     ++requestingBlocks;
-    tuner.readSamples(SAMPLES_PER_BUF, function(data) {
-      --requestingBlocks;
-      if (state.state == STATE.PLAYING) {
-        if (playingBlocks <= 2) {
-          ++playingBlocks;
-          decoder.postMessage(
-              [0, data, stereoEnabled, actualFrequency - frequency], [data]);
-        }
+    let data = await tuner.readSamples(SAMPLES_PER_BUF);
+    --requestingBlocks;
+    if (state.state == STATE.PLAYING) {
+      if (playingBlocks <= 2) {
+        ++playingBlocks;
+        decoder.postMessage(
+          [0, data, stereoEnabled, actualFrequency - frequency], [data]);
       }
-      processState();
-    });
+    }
+    processState();
   }
 
   /**
@@ -442,7 +398,7 @@ function RadioController() {
    * there are no more in-flight blocks it sets the new frequency, resets
    * the buffer and transitions into the PLAYING state.
    */
-  function stateChangeFrequency() {
+  async function stateChangeFrequency() {
     if (requestingBlocks > 0) {
       return;
     }
@@ -451,12 +407,10 @@ function RadioController() {
     offsetSum = 0;
     offsetCount = -1;
     if (Math.abs(actualFrequency - frequency) > 300000) {
-      tuner.setCenterFrequency(frequency, function(actualFreq) {
-      actualFrequency = frequency;
-      tuner.resetBuffer(function() {
+      actualFrequency = await tuner.setCenterFrequency(frequency);
+      await tuner.resetBuffer();
       state = new State(STATE.PLAYING);
       startPipeline();
-      })});
     } else {
       state = new State(STATE.PLAYING);
       startPipeline();
@@ -475,7 +429,7 @@ function RadioController() {
    * station, it will call the setFrequency() function, causing a transition
    * to the TUNING state.
    */
-  function stateScanning() {
+  async function stateScanning() {
     if (requestingBlocks > 0) {
       return;
     }
@@ -492,12 +446,8 @@ function RadioController() {
       offsetSum = 0;
       offsetCount = -1;
       if (Math.abs(actualFrequency - frequency) > 300000) {
-        tuner.setCenterFrequency(frequency, function(actualFreq) {
-        actualFrequency = actualFreq;
-        tuner.resetBuffer(processState);
-        });
-      } else {
-        processState();
+        actualFrequency = await tuner.setCenterFrequency(frequency);
+        await tuner.resetBuffer();
       }
     } else if (state.substate == SUBSTATE.DETECTING) {
       state = new State(STATE.SCANNING, SUBSTATE.TUNING, param);
@@ -506,17 +456,16 @@ function RadioController() {
         'frequency': frequency
       };
       ++requestingBlocks;
-      tuner.readSamples(SAMPLES_PER_BUF, function(data) {
-        --requestingBlocks;
-        if (state.state == STATE.SCANNING) {
-          ++playingBlocks;
-          decoder.postMessage(
-              [0, data, stereoEnabled, actualFrequency - frequency, scanData],
-              [data]);
-        }
-        processState();
-      });
+      let data = await tuner.readSamples(SAMPLES_PER_BUF);
+      --requestingBlocks;
+      if (state.state == STATE.SCANNING) {
+        ++playingBlocks;
+        decoder.postMessage(
+          [0, data, stereoEnabled, actualFrequency - frequency, scanData],
+          [data]);
+      }
     }
+    processState();
   }
 
   /**
@@ -528,21 +477,19 @@ function RadioController() {
    * it has closed the USB device). After the USB substate it will transition
    * to the OFF state.
    */
-  function stateStopping() {
+  async function stateStopping() {
     if (state.substate == SUBSTATE.ALL_ON) {
       if (requestingBlocks > 0) {
         return;
       }
       state = new State(STATE.STOPPING, SUBSTATE.TUNER, state.param);
       ui && ui.update();
-      tuner.close(function() {
-        processState();
-      });
+      await tuner.close();
+      processState();
     } else if (state.substate == SUBSTATE.TUNER) {
       state = new State(STATE.STOPPING, SUBSTATE.USB, state.param);
-      chrome.usb.closeDevice(connection, function() {
-        processState();
-      });
+      await device.close();
+      processState();
     } else if (state.substate == SUBSTATE.USB) {
       var cb = state.param;
       state = new State(STATE.OFF);
@@ -686,6 +633,5 @@ function RadioController() {
     stopRecording: stopRecording,
     isRecording: isRecording,
     setInterface: setInterface,
-    setOnError: setOnError
   };
 }

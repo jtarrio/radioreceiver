@@ -149,15 +149,15 @@ var AuxWindows = (function() {
    * @param {number} height The desired height. 0 to set it automagically.
    */
   function resizeCurrentTo(width, height) {
-    // If the user has set a custom zoom level, resize the window to fit
-    var bounds = chrome.app.window.current().innerBounds;
-    var zoom = (bounds.width / window.innerWidth) || 1;
-    bounds.width = Math.round(width * zoom);
-    if (height) {
-      bounds.height = Math.round(height * zoom);
-    } else {
-      bounds.height = Math.round(document.body.scrollHeight * zoom);
-    }
+    // // If the user has set a custom zoom level, resize the window to fit
+    // var bounds = chrome.app.window.current().innerBounds;
+    // var zoom = (bounds.width / window.innerWidth) || 1;
+    // bounds.width = Math.round(width * zoom);
+    // if (height) {
+    //   bounds.height = Math.round(height * zoom);
+    // } else {
+    //   bounds.height = Math.round(document.body.scrollHeight * zoom);
+    // }
   }
 
   /**

@@ -929,7 +929,6 @@ function Interface(fmRadio) {
     window.addEventListener('keydown', handleShortcut);
     window.addEventListener('keypress', handleShortcut);
     fmRadio.setInterface(this);
-    fmRadio.setOnError(showErrorWindow);
     loadSettings(function() {
       presets.load(displayPresets);
       presets.addListener(displayPresets);

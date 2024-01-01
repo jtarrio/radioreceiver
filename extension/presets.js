@@ -34,22 +34,11 @@ function Presets(opt_presets) {
    * @param {function} callback A function to call after loading the presets.
    */
   function load(callback) {
-    chrome.storage.local.get('presets', function(cfg) {
-      if (cfg['presets']) {
-        importPresets(cfg['presets']);
-        chrome.storage.onChanged.addListener(reload);
-        callback && callback();
-      } else {
-        chrome.storage.sync.get('presets', function(cfg) {
-          var info = cfg['presets'] || {};
-          importPresets(info);
-          save(function() {
-            chrome.storage.onChanged.addListener(reload);
-            callback && callback();
-          });
-        });
-      }
-    });
+    const cfgString = localStorage.getItem('presets');
+    const cfg = cfgString == null ? {} : JSON.parse(cfgString);
+    importPresets(cfg);
+    addEventListener('storage', reload);
+    callback && callback();
   }
 
   /**
@@ -57,23 +46,16 @@ function Presets(opt_presets) {
    * @param {function} callback A function to call after saving the presets.
    */
   function save(callback) {
-    chrome.storage.local.set(exportPresets(), callback);
+    localStorage.setItem('presets', JSON.stringify(exportPresets()));
   }
 
   /**
    * Reloads the presets when someone has modified them.
-   * @param {Object} changes The changes made in the storage area.
-   * @param {string} areaName The area the changes were made in.
+   * @param {StorageEvent} changes The changes made in the storage area.
    */
-  function reload(changes, areaName) {
-    if (areaName != 'local') {
-      return;
-    }
-    var presetChange = changes['presets'];
-    if (!presetChange) {
-      return;
-    }
-    importPresets(presetChange['newValue']);
+  function reload(changes) {
+    if (changes.key != 'presets') return;
+    importPresets(JSON.parse(changes.newValue));
     for (var i = 0; i < listeners.length; ++i) {
       listeners[i]();
     }
