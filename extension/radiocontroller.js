@@ -344,9 +344,8 @@ function RadioController() {
     } else if (state.substate == SUBSTATE.TUNER) {
       state = new State(STATE.STARTING, SUBSTATE.ALL_ON, state.param);
       actualPpm = ppm;
-      tuner = new RTL2832U(device, actualPpm, autoGain ? null : gain);
-      await tuner.open();
-      let rate = await tuner.setSampleRate(SAMPLE_RATE);
+      tuner = await RTL2832U.open(device, actualPpm, autoGain? undefined : gain);
+      await tuner.setSampleRate(SAMPLE_RATE);
       offsetSum = 0;
       offsetCount = -1;
       actualFrequency = await tuner.setCenterFrequency(frequency);

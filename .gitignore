@@ -2,3 +2,4 @@
 *.crx
 *.zip
 nacl-src/pnacl
+node_modules
