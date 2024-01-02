@@ -14,50 +14,60 @@
 
 /**
  * Operations on the RTL2832U demodulator.
+ */
+class RTL2832U {
+
+  /**
  * @param {USBDevice} device The USB device.
  * @param {number} ppm The frequency correction factor, in parts per million.
- * @param {number=} opt_gain The optional gain in dB. If unspecified or null, sets auto gain.
- * @constructor
+ * @param {number|null|undefined} opt_gain The optional gain in dB. If unspecified or null, sets auto gain.
  */
-function RTL2832U(device, ppm, opt_gain) {
+  constructor(device, ppm, opt_gain) {
+    this.com = new RtlCom(device);
+    this.ppm = ppm;
+    this.gain = opt_gain;
+    this.tuner = undefined;
+  }
 
   /**
    * Frequency of the oscillator crystal.
    */
-  const XTAL_FREQ = 28800000;
+  static XTAL_FREQ = 28800000;
 
   /**
    * Tuner intermediate frequency.
    */
-  const IF_FREQ = 3570000;
+  static IF_FREQ = 3570000;
 
   /**
    * The number of bytes for each sample.
    */
-  const BYTES_PER_SAMPLE = 2;
+  static BYTES_PER_SAMPLE = 2;
 
-  /**
-   * Communications with the demodulator via USB.
-   */
-  let com = new RtlCom(device);
+  /** @type {RtlCom} Communications with the demodulator via USB. */
+  com;
 
-  /**
-   * The tuner used by the dongle.
-   */
-  let tuner;
+  /** @type {number} The frequenchy correction factor, in parts per million. */
+  ppm;
+
+  /** @type {number|null|undefined} The optional gain in dB. If unspecified or null, sets auto gain. */
+  gain;
+
+  /** @type {R820T | undefined} The tuner used by the dongle. */
+  tuner;
 
   /**
    * Initialize the demodulator.
    * @returns {Promise<void>}
    */
-  async function open() {
-    await com.writeEach([
+  async open() {
+    await this.com.writeEach([
       [CMD.REG, BLOCK.USB, REG.SYSCTL, 0x09, 1],
       [CMD.REG, BLOCK.USB, REG.EPA_MAXPKT, 0x0200, 2],
       [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0210, 2]
     ]);
-    await com.iface.claim();
-    await com.writeEach([
+    await this.com.claimInterface();
+    await this.com.writeEach([
       [CMD.REG, BLOCK.SYS, REG.DEMOD_CTL_1, 0x22, 1],
       [CMD.REG, BLOCK.SYS, REG.DEMOD_CTL, 0xe8, 1],
       [CMD.DEMODREG, 1, 0x01, 0x14, 1],
@@ -101,17 +111,17 @@ function RTL2832U(device, ppm, opt_gain) {
       [CMD.DEMODREG, 0, 0x0d, 0x83, 1]
     ]);
 
-    let xtalFreq = Math.floor(XTAL_FREQ * (1 + ppm / 1000000));
-    await com.i2c.open();
-    let found = await R820T.check(com);
+    let xtalFreq = Math.floor(RTL2832U.XTAL_FREQ * (1 + this.ppm / 1000000));
+    await this.com.openI2C();
+    let found = await R820T.check(this.com);
     if (found) {
-      tuner = new R820T(com, xtalFreq);
+      this.tuner = new R820T(this.com, xtalFreq);
     }
-    if (!tuner) {
+    if (!this.tuner) {
       throw 'Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported.';
     }
-    let multiplier = -1 * Math.floor(IF_FREQ * (1 << 22) / xtalFreq);
-    await com.writeEach([
+    let multiplier = -1 * Math.floor(RTL2832U.IF_FREQ * (1 << 22) / xtalFreq);
+    await this.com.writeEach([
       [CMD.DEMODREG, 1, 0xb1, 0x1a, 1],
       [CMD.DEMODREG, 0, 0x08, 0x4d, 1],
       [CMD.DEMODREG, 1, 0x19, (multiplier >> 16) & 0x3f, 1],
@@ -119,9 +129,9 @@ function RTL2832U(device, ppm, opt_gain) {
       [CMD.DEMODREG, 1, 0x1b, multiplier & 0xff, 1],
       [CMD.DEMODREG, 1, 0x15, 0x01, 1]
     ]);
-    await tuner.init();
-    await setGain(opt_gain);
-    return com.i2c.close();
+    await this.tuner.init();
+    await this._setGain(this.gain);
+    await this.com.closeI2C();
   }
 
   /**
@@ -130,11 +140,11 @@ function RTL2832U(device, ppm, opt_gain) {
    *     for automatic gain.
    * @returns {Promise<void>}
    */
-  function setGain(gain) {
+  async _setGain(gain) {
     if (gain == null) {
-      return tuner.setAutoGain();
+      await this.tuner.setAutoGain();
     } else {
-      return tuner.setManualGain(gain);
+      await this.tuner.setManualGain(gain);
     }
   }
 
@@ -143,18 +153,18 @@ function RTL2832U(device, ppm, opt_gain) {
    * @param {number} rate The sample rate, in samples/sec.
    * @returns {Promise<number>} a promise that resolves to the sample rate that was actually set.
    */
-  async function setSampleRate(rate) {
-    let ratio = Math.floor(XTAL_FREQ * (1 << 22) / rate);
+  async setSampleRate(rate) {
+    let ratio = Math.floor(RTL2832U.XTAL_FREQ * (1 << 22) / rate);
     ratio &= 0x0ffffffc;
-    let realRate = Math.floor(XTAL_FREQ * (1 << 22) / ratio);
-    let ppmOffset = -1 * Math.floor(ppm * (1 << 24) / 1000000);
-    await com.writeEach([
+    let realRate = Math.floor(RTL2832U.XTAL_FREQ * (1 << 22) / ratio);
+    let ppmOffset = -1 * Math.floor(this.ppm * (1 << 24) / 1000000);
+    await this.com.writeEach([
       [CMD.DEMODREG, 1, 0x9f, (ratio >> 16) & 0xffff, 2],
       [CMD.DEMODREG, 1, 0xa1, ratio & 0xffff, 2],
       [CMD.DEMODREG, 1, 0x3e, (ppmOffset >> 8) & 0x3f, 1],
       [CMD.DEMODREG, 1, 0x3f, ppmOffset & 0xff, 1]
     ]);
-    await resetDemodulator();
+    await this._resetDemodulator();
     return realRate;
   }
 
@@ -162,8 +172,8 @@ function RTL2832U(device, ppm, opt_gain) {
    * Resets the demodulator.
    * @returns {Promise<void>}
    */
-  function resetDemodulator() {
-    return com.writeEach([
+  async _resetDemodulator() {
+    await this.com.writeEach([
       [CMD.DEMODREG, 1, 0x01, 0x14, 1],
       [CMD.DEMODREG, 1, 0x01, 0x10, 1]
     ]);
@@ -174,19 +184,19 @@ function RTL2832U(device, ppm, opt_gain) {
    * @param {number} freq The frequency to tune to, in Hertz.
    * @returns {Promise<number>} a promise that resolves to the actual tuned frequency.
    */
-  async function setCenterFrequency(freq) {
-    await com.i2c.open();
-    let actualFreq = await tuner.setFrequency(freq + IF_FREQ);
-    await com.i2c.close();
-    return actualFreq - IF_FREQ;
+  async setCenterFrequency(freq) {
+    await this.com.openI2C();
+    let actualFreq = await this.tuner.setFrequency(freq + RTL2832U.IF_FREQ);
+    await this.com.closeI2C();
+    return actualFreq - RTL2832U.IF_FREQ;
   }
 
   /**
    * Resets the sample buffer. Call this before starting to read samples.
    * @returns {Promise<void>}
    */
-  function resetBuffer() {
-    return com.writeEach([
+  async resetBuffer() {
+    await this.com.writeEach([
       [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0210, 2],
       [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0000, 2]
     ]);
@@ -200,28 +210,19 @@ function RTL2832U(device, ppm, opt_gain) {
    *     unsigned 8-bit integers; the first one is the sample's I value, and
    *     the second one is its Q value.
    */
-  function readSamples(length) {
-    return com.bulk.readBuffer(length * BYTES_PER_SAMPLE);
+  async readSamples(length) {
+    return this.com.readBulkBuffer(length * RTL2832U.BYTES_PER_SAMPLE);
   }
 
   /**
    * Stops the demodulator.
    * @returns {Promise<void>}
    */
-  async function close() {
-    await com.i2c.open();
-    await tuner.close();
-    await com.i2c.close();
-    return com.iface.release();
+  async close() {
+    await this.com.openI2C();
+    await this.tuner.close();
+    await this.com.closeI2C();
+    await this.com.releaseInterface();
   }
-
-  return {
-    open: open,
-    setSampleRate: setSampleRate,
-    setCenterFrequency: setCenterFrequency,
-    resetBuffer: resetBuffer,
-    readSamples: readSamples,
-    close: close,
-  };
 }
 

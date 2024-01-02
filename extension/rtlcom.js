@@ -13,37 +13,33 @@
 // limitations under the License.
 
 /**
- * Low-level communications with the RTL2832U-based dongle.
- * @param {USBDevice} device The USB device.
- * @constructor
+ * Low-level communications with the RTL2832U-base dongle.
  */
-function RtlCom(device) {
-
+class RtlCom {
   /**
-   * Set in the control messages' index field for write operations.
+   * @param {USBDevice} device 
    */
-  const WRITE_FLAG = 0x10;
+  constructor(device) {
+    this.device = device;
+  }
+
+  /** Set in the control messages' index field for write operations. */
+  static WRITE_FLAG = 0x10;
 
   /**
-   * Writes a buffer into a dongle's register.
-   * @param {number} block The register's block number.
-   * @param {number} reg The register number.
-   * @param {ArrayBuffer} buffer The buffer to write.
+   * Claims the USB interface.
    * @returns {Promise<void>}
    */
-  function writeRegBuffer(block, reg, buffer) {
-    return writeCtrlMsg(reg, block | WRITE_FLAG, buffer);
+  async claimInterface() {
+    await this.device.claimInterface(0);
   }
 
   /**
-   * Reads a buffer from a dongle's register.
-   * @param {number} block The register's block number.
-   * @param {number} reg The register number.
-   * @param {number} length The length in bytes of the buffer to read.
-   * @returns {Promise<ArrayBuffer>} a Promise that resolves to the read buffer.
+   * Releases the USB interface.
+   * @returns {Promise<void>}
    */
-  function readRegBuffer(block, reg, length) {
-    return readCtrlMsg(reg, block, length);
+  async releaseInterface() {
+    await this.device.releaseInterface(0);
   }
 
   /**
@@ -54,8 +50,8 @@ function RtlCom(device) {
    * @param {number} length The width in bytes of this value.
    * @returns {Promise<void>}
    */
-  function writeReg(block, reg, value, length) {
-    return writeCtrlMsg(reg, block | WRITE_FLAG, numberToBuffer(value, length));
+  async writeRegister(block, reg, value, length) {
+    await this._writeCtrlMsg(reg, block | RtlCom.WRITE_FLAG, this._numberToBuffer(value, length));
   }
 
   /**
@@ -65,8 +61,8 @@ function RtlCom(device) {
    * @param {number} length The width in bytes of the value to read.
    * @returns {Promise<number>} a promise that resolves to the decoded value.
    */
-  async function readReg(block, reg, length) {
-    return bufferToNumber(await readCtrlMsg(reg, block, length));
+  async readRegister(block, reg, length) {
+    return this._bufferToNumber(await this._readCtrlMsg(reg, block, length));
   }
 
   /**
@@ -77,25 +73,63 @@ function RtlCom(device) {
    * @param {number} mask The mask for the value to write.
    * @returns {Promise<void>}
    */
-  async function writeRegMask(block, reg, value, mask) {
+  async writeRegMask(block, reg, value, mask) {
     if (mask == 0xff) {
-      return writeReg(block, reg, value, 1);
+      return this.writeRegister(block, reg, value, 1);
     }
-    const old = await readReg(block, reg, 1);
+    const old = await this.readRegister(block, reg, 1);
     value &= mask;
     old &= ~mask;
     value |= old;
-    return writeReg(block, reg, value, 1);
+    return this.writeRegister(block, reg, value, 1);
   }
 
   /**
-   * Reads a value from a demodulator register.
-   * @param {number} page The register page number.
-   * @param {number} addr The register's address.
-   * @returns {Promise<number>} a promise that resolves to the value in the register.
+   * Does a bulk transfer from the device.
+   * @param {number} length The number of bytes to read.
+   * @returns {Promise<ArrayBuffer>} a promise that resolves to the data that was read.
    */
-  function readDemodReg(page, addr) {
-    return readReg(page, (addr << 8) | 0x20, 1);
+  async readBulkBuffer(length) {
+    let ti = {
+      'direction': 'in',
+      'endpoint': 1,
+      'length': length
+    };
+    let event = await this.device.transferIn(1, length);
+    let rc = event.status;
+    if (rc == 'ok') return event.data.buffer;
+    throw 'USB bulk read failed (length 0x' + length.toString(16) + '), rc=' + rc;
+  }
+
+  /**
+   * Performs several write operations as specified in an array.
+   * @param {Array.<Array.<number>>} array The operations to perform.
+   * @returns {Promise<void>}
+   */
+  async writeEach(array) {
+    for (let line of array) {
+      if (line[0] == CMD.REG) {
+        await this.writeRegister(line[1], line[2], line[3], line[4]);
+      } else if (line[0] == CMD.REGMASK) {
+        await this.writeRegMask(line[1], line[2], line[3], line[4]);
+      } else if (line[0] == CMD.DEMODREG) {
+        await this.writeDemodRegister(line[1], line[2], line[3], line[4]);
+      } else if (line[0] == CMD.I2CREG) {
+        await this.writeI2CRegister(line[1], line[2], line[3]);
+      } else {
+        throw 'Unsupported operation [' + line + ']';
+      }
+    }
+  }
+
+  /**
+  * Reads a value from a demodulator register.
+  * @param {number} page The register page number.
+  * @param {number} addr The register's address.
+  * @returns {Promise<number>} a promise that resolves to the value in the register.
+  */
+  async readDemodRegister(page, addr) {
+    return this.readRegister(page, (addr << 8) | 0x20, 1);
   }
 
   /**
@@ -106,25 +140,25 @@ function RtlCom(device) {
    * @param {number} len The width in bytes of this value.
    * @returns {Promise<number>} a promise that resolves the value that was read back from the register.
    */
-  async function writeDemodReg(page, addr, value, len) {
-    await writeRegBuffer(page, (addr << 8) | 0x20, numberToBuffer(value, len, true));
-    return readDemodReg(0x0a, 0x01);
+  async writeDemodRegister(page, addr, value, len) {
+    await this._writeRegBuffer(page, (addr << 8) | 0x20, this._numberToBuffer(value, len, true));
+    return this.readDemodRegister(0x0a, 0x01);
   }
 
   /**
    * Opens the I2C repeater.
    * @returns {Promise<void>}
    */
-  function openI2C() {
-    return writeDemodReg(1, 1, 0x18, 1);
+  async openI2C() {
+    await this.writeDemodRegister(1, 1, 0x18, 1);
   }
 
   /**
    * Closes the I2C repeater.
    * @returns {Promise<void>}
    */
-  function closeI2C() {
-    return writeDemodReg(1, 1, 0x10, 1);
+  async closeI2C() {
+    await this.writeDemodRegister(1, 1, 0x10, 1);
   }
 
   /**
@@ -133,9 +167,9 @@ function RtlCom(device) {
    * @param {number} reg The register number.
    * @returns {Promise<number>} a promise that resolves to the value in the register.
    */
-  async function readI2CReg(addr, reg) {
-    await writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg]).buffer);
-    return readReg(BLOCK.I2C, addr, 1);
+  async readI2CRegister(addr, reg) {
+    await this._writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg]).buffer);
+    return this.readRegister(BLOCK.I2C, addr, 1);
   }
 
   /**
@@ -146,8 +180,8 @@ function RtlCom(device) {
    * @param {number} len The width in bytes of this value.
    * @returns {Promise<void>}
    */
-  function writeI2CReg(addr, reg, value) {
-    return writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg, value]).buffer);
+  async writeI2CRegister(addr, reg, value) {
+    await this._writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg, value]).buffer);
   }
 
   /**
@@ -157,9 +191,9 @@ function RtlCom(device) {
    * @param {number} len The number of bytes to read.
    * @returns {Promise<ArrayBuffer>} a promise that resolves to the read buffer.
    */
-  async function readI2CRegBuffer(addr, reg, len) {
-    await writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg]).buffer);
-    return readRegBuffer(BLOCK.I2C, addr, len);
+  async readI2CRegBuffer(addr, reg, len) {
+    await this._writeRegBuffer(BLOCK.I2C, addr, new Uint8Array([reg]).buffer);
+    return this._readRegBuffer(BLOCK.I2C, addr, len);
   }
 
   /**
@@ -169,11 +203,33 @@ function RtlCom(device) {
    * @param {ArrayBuffer} buffer The buffer to write.
    * @returns {Promise<void>}
    */
-  function writeI2CRegBuffer(addr, reg, buffer) {
+  async writeI2CRegBuffer(addr, reg, buffer) {
     let data = new Uint8Array(buffer.byteLength + 1);
     data[0] = reg;
     data.set(new Uint8Array(buffer), 1);
-    return writeRegBuffer(BLOCK.I2C, addr, data.buffer);
+    await this._writeRegBuffer(BLOCK.I2C, addr, data.buffer);
+  }
+
+  /**
+   * Writes a buffer into a dongle's register.
+   * @param {number} block The register's block number.
+   * @param {number} reg The register number.
+   * @param {ArrayBuffer} buffer The buffer to write.
+   * @returns {Promise<void>}
+   */
+  async _writeRegBuffer(block, reg, buffer) {
+    await this._writeCtrlMsg(reg, block | RtlCom.WRITE_FLAG, buffer);
+  }
+
+  /**
+   * Reads a buffer from a dongle's register.
+   * @param {number} block The register's block number.
+   * @param {number} reg The register number.
+   * @param {number} length The length in bytes of the buffer to read.
+   * @returns {Promise<ArrayBuffer>} a Promise that resolves to the read buffer.
+   */
+  async _readRegBuffer(block, reg, length) {
+    return this._readCtrlMsg(reg, block, length);
   }
 
   /**
@@ -181,7 +237,7 @@ function RtlCom(device) {
    * @param {ArrayBuffer} buffer The buffer to decode.
    * @return {number} The decoded number.
    */
-  function bufferToNumber(buffer) {
+  _bufferToNumber(buffer) {
     let len = buffer.byteLength;
     let dv = new DataView(buffer);
     if (len == 0) {
@@ -202,7 +258,7 @@ function RtlCom(device) {
    * @param {number} len The number of bytes to encode into.
    * @param {boolean=} opt_bigEndian Whether to use a big-endian encoding.
    */
-  function numberToBuffer(value, len, opt_bigEndian) {
+  _numberToBuffer(value, len, opt_bigEndian) {
     let buffer = new ArrayBuffer(len);
     let dv = new DataView(buffer);
     if (len == 1) {
@@ -224,7 +280,7 @@ function RtlCom(device) {
    * @param {number} length The number of bytes to read.
    * @returns {Promise<ArrayBuffer>} a promise that resolves to the read buffer.
    */
-  async function readCtrlMsg(value, index, length) {
+  async _readCtrlMsg(value, index, length) {
     let ti = {
       requestType: 'vendor',
       recipient: 'device',
@@ -232,7 +288,7 @@ function RtlCom(device) {
       value: value,
       index: index
     };
-    let result = await device.controlTransferIn(ti, Math.max(8, length));
+    let result = await this.device.controlTransferIn(ti, Math.max(8, length));
     let rc = result.status;
     if (rc == 'ok') return result.data.buffer.slice(0, length);
     throw 'USB read failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + '), rc=' + rc;
@@ -245,7 +301,7 @@ function RtlCom(device) {
    * @param {ArrayBuffer} buffer The buffer to write to the device.
    * @returns {Promise<void>}
    */
-  async function writeCtrlMsg(value, index, buffer) {
+  async _writeCtrlMsg(value, index, buffer) {
     let ti = {
       requestType: 'vendor',
       recipient: 'device',
@@ -253,64 +309,10 @@ function RtlCom(device) {
       value: value,
       index: index
     };
-    let result = await device.controlTransferOut(ti, buffer);
+    let result = await this.device.controlTransferOut(ti, buffer);
     let rc = result.status;
     if (rc == 'ok') return;
-    throw 'USB write failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + ' data ' + dumpBuffer(buffer) + '), rc=' + rc;
-  }
-
-  /**
-   * Does a bulk transfer from the device.
-   * @param {number} length The number of bytes to read.
-   * @returns {Promise<ArrayBuffer>} a promise that resolves to the data that was read.
-   */
-  async function readBulk(length) {
-    let ti = {
-      'direction': 'in',
-      'endpoint': 1,
-      'length': length
-    };
-    let event = await device.transferIn(1, length);
-    let rc = event.status;
-    if (rc == 'ok') return event.data.buffer;
-    throw 'USB bulk read failed (length 0x' + length.toString(16) + '), rc=' + rc;
-  }
-
-  /**
-   * Claims the USB interface.
-   * @returns {Promise<void>}
-   */
-  function claimInterface() {
-    return device.claimInterface(0);
-  }
-
-  /**
-   * Releases the USB interface.
-   * @returns {Promise<void>}
-   */
-  function releaseInterface() {
-    return device.releaseInterface(0);
-  }
-
-  /**
-   * Performs several write operations as specified in an array.
-   * @param {Array.<Array.<number>>} array The operations to perform.
-   * @returns {Promise<void>}
-   */
-  async function writeEach(array) {
-    for (let line of array) {
-      if (line[0] == CMD.REG) {
-        await writeReg(line[1], line[2], line[3], line[4]);
-      } else if (line[0] == CMD.REGMASK) {
-        await writeRegMask(line[1], line[2], line[3], line[4]);
-      } else if (line[0] == CMD.DEMODREG) {
-        await writeDemodReg(line[1], line[2], line[3], line[4]);
-      } else if (line[0] == CMD.I2CREG) {
-        await writeI2CReg(line[1], line[2], line[3]);
-      } else {
-        throw 'Unsupported operation [' + line + ']';
-      }
-    }
+    throw 'USB write failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + ' data ' + this._dumpBuffer(buffer) + '), rc=' + rc;
   }
 
   /**
@@ -318,7 +320,7 @@ function RtlCom(device) {
    * @param {ArrayBuffer} buffer The buffer to display.
    * @return {string} The string representation of the buffer.
    */
-  function dumpBuffer(buffer) {
+  _dumpBuffer(buffer) {
     let bytes = [];
     let arr = new Uint8Array(buffer);
     for (let i = 0; i < arr.length; ++i) {
@@ -326,32 +328,6 @@ function RtlCom(device) {
     }
     return '[' + bytes + ']';
   }
-
-
-  return {
-    writeRegister: writeReg,
-    readRegister: readReg,
-    writeRegMask: writeRegMask,
-    demod: {
-      readRegister: readDemodReg,
-      writeRegister: writeDemodReg
-    },
-    i2c: {
-      open: openI2C,
-      close: closeI2C,
-      readRegister: readI2CReg,
-      writeRegister: writeI2CReg,
-      readRegBuffer: readI2CRegBuffer
-    },
-    bulk: {
-      readBuffer: readBulk
-    },
-    iface: {
-      claim: claimInterface,
-      release: releaseInterface
-    },
-    writeEach: writeEach
-  };
 }
 
 /**
