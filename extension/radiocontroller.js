@@ -568,23 +568,24 @@ function RadioController() {
    * Starts recording into the given file entry.
    */
   function startRecording(fileEntry) {
-    player.startWriting(fileEntry);
-    ui && ui.update();
+    // player.startWriting(fileEntry);
+    // ui && ui.update();
   }
 
   /**
    * Stops recording.
    */
   function stopRecording() {
-    player.stopWriting();
-    ui && ui.update();
+    // player.stopWriting();
+    // ui && ui.update();
   }
 
   /**
    * Tells whether the radio is currently recording.
    */
   function isRecording() {
-    return player.isWriting();
+    // return player.isWriting();
+    return false;
   }
 
   /**
