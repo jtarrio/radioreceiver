@@ -18,10 +18,10 @@
 class RTL2832U {
 
   /**
- * @param {USBDevice} device The USB device.
- * @param {number} ppm The frequency correction factor, in parts per million.
- * @param {number|null|undefined} opt_gain The optional gain in dB. If unspecified or null, sets auto gain.
- */
+   * @param {USBDevice} device The USB device.
+   * @param {number} ppm The frequency correction factor, in parts per million.
+   * @param {number|null|undefined} opt_gain The optional gain in dB. If unspecified or null, sets auto gain.
+   */
   constructor(device, ppm, opt_gain) {
     this.com = new RtlCom(device);
     this.ppm = ppm;
@@ -61,55 +61,51 @@ class RTL2832U {
    * @returns {Promise<void>}
    */
   async open() {
-    await this.com.writeEach([
-      [CMD.REG, BLOCK.USB, REG.SYSCTL, 0x09, 1],
-      [CMD.REG, BLOCK.USB, REG.EPA_MAXPKT, 0x0200, 2],
-      [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0210, 2]
-    ]);
+    await this.com.writeRegister(BLOCK.USB, REG.SYSCTL, 0x09, 1);
+    await this.com.writeRegister(BLOCK.USB, REG.EPA_MAXPKT, 0x0200, 2);
+    await this.com.writeRegister(BLOCK.USB, REG.EPA_CTL, 0x0210, 2);
     await this.com.claimInterface();
-    await this.com.writeEach([
-      [CMD.REG, BLOCK.SYS, REG.DEMOD_CTL_1, 0x22, 1],
-      [CMD.REG, BLOCK.SYS, REG.DEMOD_CTL, 0xe8, 1],
-      [CMD.DEMODREG, 1, 0x01, 0x14, 1],
-      [CMD.DEMODREG, 1, 0x01, 0x10, 1],
-      [CMD.DEMODREG, 1, 0x15, 0x00, 1],
-      [CMD.DEMODREG, 1, 0x16, 0x0000, 2],
-      [CMD.DEMODREG, 1, 0x16, 0x00, 1],
-      [CMD.DEMODREG, 1, 0x17, 0x00, 1],
-      [CMD.DEMODREG, 1, 0x18, 0x00, 1],
-      [CMD.DEMODREG, 1, 0x19, 0x00, 1],
-      [CMD.DEMODREG, 1, 0x1a, 0x00, 1],
-      [CMD.DEMODREG, 1, 0x1b, 0x00, 1],
-      [CMD.DEMODREG, 1, 0x1c, 0xca, 1],
-      [CMD.DEMODREG, 1, 0x1d, 0xdc, 1],
-      [CMD.DEMODREG, 1, 0x1e, 0xd7, 1],
-      [CMD.DEMODREG, 1, 0x1f, 0xd8, 1],
-      [CMD.DEMODREG, 1, 0x20, 0xe0, 1],
-      [CMD.DEMODREG, 1, 0x21, 0xf2, 1],
-      [CMD.DEMODREG, 1, 0x22, 0x0e, 1],
-      [CMD.DEMODREG, 1, 0x23, 0x35, 1],
-      [CMD.DEMODREG, 1, 0x24, 0x06, 1],
-      [CMD.DEMODREG, 1, 0x25, 0x50, 1],
-      [CMD.DEMODREG, 1, 0x26, 0x9c, 1],
-      [CMD.DEMODREG, 1, 0x27, 0x0d, 1],
-      [CMD.DEMODREG, 1, 0x28, 0x71, 1],
-      [CMD.DEMODREG, 1, 0x29, 0x11, 1],
-      [CMD.DEMODREG, 1, 0x2a, 0x14, 1],
-      [CMD.DEMODREG, 1, 0x2b, 0x71, 1],
-      [CMD.DEMODREG, 1, 0x2c, 0x74, 1],
-      [CMD.DEMODREG, 1, 0x2d, 0x19, 1],
-      [CMD.DEMODREG, 1, 0x2e, 0x41, 1],
-      [CMD.DEMODREG, 1, 0x2f, 0xa5, 1],
-      [CMD.DEMODREG, 0, 0x19, 0x05, 1],
-      [CMD.DEMODREG, 1, 0x93, 0xf0, 1],
-      [CMD.DEMODREG, 1, 0x94, 0x0f, 1],
-      [CMD.DEMODREG, 1, 0x11, 0x00, 1],
-      [CMD.DEMODREG, 1, 0x04, 0x00, 1],
-      [CMD.DEMODREG, 0, 0x61, 0x60, 1],
-      [CMD.DEMODREG, 0, 0x06, 0x80, 1],
-      [CMD.DEMODREG, 1, 0xb1, 0x1b, 1],
-      [CMD.DEMODREG, 0, 0x0d, 0x83, 1]
-    ]);
+    await this.com.writeRegister(BLOCK.SYS, REG.DEMOD_CTL_1, 0x22, 1);
+    await this.com.writeRegister(BLOCK.SYS, REG.DEMOD_CTL, 0xe8, 1);
+    await this.com.writeDemodRegister(1, 0x01, 0x14, 1);
+    await this.com.writeDemodRegister(1, 0x01, 0x10, 1);
+    await this.com.writeDemodRegister(1, 0x15, 0x00, 1);
+    await this.com.writeDemodRegister(1, 0x16, 0x0000, 2);
+    await this.com.writeDemodRegister(1, 0x16, 0x00, 1);
+    await this.com.writeDemodRegister(1, 0x17, 0x00, 1);
+    await this.com.writeDemodRegister(1, 0x18, 0x00, 1);
+    await this.com.writeDemodRegister(1, 0x19, 0x00, 1);
+    await this.com.writeDemodRegister(1, 0x1a, 0x00, 1);
+    await this.com.writeDemodRegister(1, 0x1b, 0x00, 1);
+    await this.com.writeDemodRegister(1, 0x1c, 0xca, 1);
+    await this.com.writeDemodRegister(1, 0x1d, 0xdc, 1);
+    await this.com.writeDemodRegister(1, 0x1e, 0xd7, 1);
+    await this.com.writeDemodRegister(1, 0x1f, 0xd8, 1);
+    await this.com.writeDemodRegister(1, 0x20, 0xe0, 1);
+    await this.com.writeDemodRegister(1, 0x21, 0xf2, 1);
+    await this.com.writeDemodRegister(1, 0x22, 0x0e, 1);
+    await this.com.writeDemodRegister(1, 0x23, 0x35, 1);
+    await this.com.writeDemodRegister(1, 0x24, 0x06, 1);
+    await this.com.writeDemodRegister(1, 0x25, 0x50, 1);
+    await this.com.writeDemodRegister(1, 0x26, 0x9c, 1);
+    await this.com.writeDemodRegister(1, 0x27, 0x0d, 1);
+    await this.com.writeDemodRegister(1, 0x28, 0x71, 1);
+    await this.com.writeDemodRegister(1, 0x29, 0x11, 1);
+    await this.com.writeDemodRegister(1, 0x2a, 0x14, 1);
+    await this.com.writeDemodRegister(1, 0x2b, 0x71, 1);
+    await this.com.writeDemodRegister(1, 0x2c, 0x74, 1);
+    await this.com.writeDemodRegister(1, 0x2d, 0x19, 1);
+    await this.com.writeDemodRegister(1, 0x2e, 0x41, 1);
+    await this.com.writeDemodRegister(1, 0x2f, 0xa5, 1);
+    await this.com.writeDemodRegister(0, 0x19, 0x05, 1);
+    await this.com.writeDemodRegister(1, 0x93, 0xf0, 1);
+    await this.com.writeDemodRegister(1, 0x94, 0x0f, 1);
+    await this.com.writeDemodRegister(1, 0x11, 0x00, 1);
+    await this.com.writeDemodRegister(1, 0x04, 0x00, 1);
+    await this.com.writeDemodRegister(0, 0x61, 0x60, 1);
+    await this.com.writeDemodRegister(0, 0x06, 0x80, 1);
+    await this.com.writeDemodRegister(1, 0xb1, 0x1b, 1);
+    await this.com.writeDemodRegister(0, 0x0d, 0x83, 1);
 
     let xtalFreq = Math.floor(RTL2832U.XTAL_FREQ * (1 + this.ppm / 1000000));
     await this.com.openI2C();
@@ -121,14 +117,12 @@ class RTL2832U {
       throw 'Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported.';
     }
     let multiplier = -1 * Math.floor(RTL2832U.IF_FREQ * (1 << 22) / xtalFreq);
-    await this.com.writeEach([
-      [CMD.DEMODREG, 1, 0xb1, 0x1a, 1],
-      [CMD.DEMODREG, 0, 0x08, 0x4d, 1],
-      [CMD.DEMODREG, 1, 0x19, (multiplier >> 16) & 0x3f, 1],
-      [CMD.DEMODREG, 1, 0x1a, (multiplier >> 8) & 0xff, 1],
-      [CMD.DEMODREG, 1, 0x1b, multiplier & 0xff, 1],
-      [CMD.DEMODREG, 1, 0x15, 0x01, 1]
-    ]);
+    await this.com.writeDemodRegister(1, 0xb1, 0x1a, 1);
+    await this.com.writeDemodRegister(0, 0x08, 0x4d, 1);
+    await this.com.writeDemodRegister(1, 0x19, (multiplier >> 16) & 0x3f, 1);
+    await this.com.writeDemodRegister(1, 0x1a, (multiplier >> 8) & 0xff, 1);
+    await this.com.writeDemodRegister(1, 0x1b, multiplier & 0xff, 1);
+    await this.com.writeDemodRegister(1, 0x15, 0x01, 1);
     await this.tuner.init();
     await this._setGain(this.gain);
     await this.com.closeI2C();
@@ -158,12 +152,10 @@ class RTL2832U {
     ratio &= 0x0ffffffc;
     let realRate = Math.floor(RTL2832U.XTAL_FREQ * (1 << 22) / ratio);
     let ppmOffset = -1 * Math.floor(this.ppm * (1 << 24) / 1000000);
-    await this.com.writeEach([
-      [CMD.DEMODREG, 1, 0x9f, (ratio >> 16) & 0xffff, 2],
-      [CMD.DEMODREG, 1, 0xa1, ratio & 0xffff, 2],
-      [CMD.DEMODREG, 1, 0x3e, (ppmOffset >> 8) & 0x3f, 1],
-      [CMD.DEMODREG, 1, 0x3f, ppmOffset & 0xff, 1]
-    ]);
+    await this.com.writeDemodRegister(1, 0x9f, (ratio >> 16) & 0xffff, 2);
+    await this.com.writeDemodRegister(1, 0xa1, ratio & 0xffff, 2);
+    await this.com.writeDemodRegister(1, 0x3e, (ppmOffset >> 8) & 0x3f, 1);
+    await this.com.writeDemodRegister(1, 0x3f, ppmOffset & 0xff, 1);
     await this._resetDemodulator();
     return realRate;
   }
@@ -173,10 +165,8 @@ class RTL2832U {
    * @returns {Promise<void>}
    */
   async _resetDemodulator() {
-    await this.com.writeEach([
-      [CMD.DEMODREG, 1, 0x01, 0x14, 1],
-      [CMD.DEMODREG, 1, 0x01, 0x10, 1]
-    ]);
+    await this.com.writeDemodRegister(1, 0x01, 0x14, 1);
+    await this.com.writeDemodRegister(1, 0x01, 0x10, 1);
   }
 
   /**
@@ -196,10 +186,8 @@ class RTL2832U {
    * @returns {Promise<void>}
    */
   async resetBuffer() {
-    await this.com.writeEach([
-      [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0210, 2],
-      [CMD.REG, BLOCK.USB, REG.EPA_CTL, 0x0000, 2]
-    ]);
+    await this.com.writeRegister(BLOCK.USB, REG.EPA_CTL, 0x0210, 2);
+    await this.com.writeRegister(BLOCK.USB, REG.EPA_CTL, 0x0000, 2);
   }
 
   /**

@@ -107,19 +107,17 @@ class R820T {
    * @returns {Promise<void>}
    */
   async close() {
-    await this._writeEach([
-      [0x06, 0xb1, 0xff],
-      [0x05, 0xb3, 0xff],
-      [0x07, 0x3a, 0xff],
-      [0x08, 0x40, 0xff],
-      [0x09, 0xc0, 0xff],
-      [0x0a, 0x36, 0xff],
-      [0x0c, 0x35, 0xff],
-      [0x0f, 0x68, 0xff],
-      [0x11, 0x03, 0xff],
-      [0x17, 0xf4, 0xff],
-      [0x19, 0x0c, 0xff]
-    ]);
+    await this._writeRegMask(0x06, 0xb1, 0xff);
+    await this._writeRegMask(0x05, 0xb3, 0xff);
+    await this._writeRegMask(0x07, 0x3a, 0xff);
+    await this._writeRegMask(0x08, 0x40, 0xff);
+    await this._writeRegMask(0x09, 0xc0, 0xff);
+    await this._writeRegMask(0x0a, 0x36, 0xff);
+    await this._writeRegMask(0x0c, 0x35, 0xff);
+    await this._writeRegMask(0x0f, 0x68, 0xff);
+    await this._writeRegMask(0x11, 0x03, 0xff);
+    await this._writeRegMask(0x17, 0xf4, 0xff);
+    await this._writeRegMask(0x19, 0x0c, 0xff);
   }
 
   /**
@@ -127,11 +125,9 @@ class R820T {
    * @returns {Promise<void>}
    */
   async setAutoGain() {
-    await this._writeEach([
-      [0x05, 0x00, 0x10],
-      [0x07, 0x10, 0x10],
-      [0x0c, 0x0b, 0x9f]
-    ]);
+    await this._writeRegMask(0x05, 0x00, 0x10);
+    await this._writeRegMask(0x07, 0x10, 0x10);
+    await this._writeRegMask(0x0c, 0x0b, 0x9f);
   }
 
   /**
@@ -153,13 +149,11 @@ class R820T {
     }
     let lnaValue = Math.floor(step / 2);
     let mixerValue = Math.floor((step - 1) / 2);
-    await this._writeEach([
-      [0x05, 0x10, 0x10],
-      [0x07, 0x00, 0x10],
-      [0x0c, 0x08, 0x9f],
-      [0x05, lnaValue, 0x0f],
-      [0x07, mixerValue, 0x0f]
-    ]);
+    await this._writeRegMask(0x05, 0x10, 0x10);
+    await this._writeRegMask(0x07, 0x00, 0x10);
+    await this._writeRegMask(0x0c, 0x08, 0x9f);
+    await this._writeRegMask(0x05, lnaValue, 0x0f);
+    await this._writeRegMask(0x07, mixerValue, 0x0f);
   }
 
   /**
@@ -169,20 +163,16 @@ class R820T {
   async _calibrateFilter() {
     let firstTry = true;
     while (true) {
-      await this._writeEach([
-        [0x0b, 0x6b, 0x60],
-        [0x0f, 0x04, 0x04],
-        [0x10, 0x00, 0x03]
-      ]);
+      await this._writeRegMask(0x0b, 0x6b, 0x60);
+      await this._writeRegMask(0x0f, 0x04, 0x04);
+      await this._writeRegMask(0x10, 0x00, 0x03);
       await this._setPll(56000000);
       if (!this.hasPllLock) {
         throw "PLL not locked -- cannot tune to the selected frequency.";
       }
-      await this._writeEach([
-        [0x0b, 0x10, 0x10],
-        [0x0b, 0x00, 0x10],
-        [0x0f, 0x00, 0x04]
-      ]);
+      await this._writeRegMask(0x0b, 0x10, 0x10);
+      await this._writeRegMask(0x0b, 0x00, 0x10);
+      await this._writeRegMask(0x0f, 0x00, 0x04);
       let data = await this._readRegBuffer(0x00, 5);
       let arr = new Uint8Array(data);
       let filterCap = arr[4] & 0x0f;
@@ -210,14 +200,12 @@ class R820T {
       }
     }
     let cfg = R820T.MUX_CFGS[i];
-    await this._writeEach([
-      [0x17, cfg[1], 0x08],
-      [0x1a, cfg[2], 0xc3],
-      [0x1b, cfg[3], 0xff],
-      [0x10, 0x00, 0x0b],
-      [0x08, 0x00, 0x3f],
-      [0x09, 0x00, 0x3f]
-    ]);
+    await this._writeRegMask(0x17, cfg[1], 0x08);
+    await this._writeRegMask(0x1a, cfg[2], 0xc3);
+    await this._writeRegMask(0x1b, cfg[3], 0xff);
+    await this._writeRegMask(0x10, 0x00, 0x0b);
+    await this._writeRegMask(0x08, 0x00, 0x3f);
+    await this._writeRegMask(0x09, 0x00, 0x3f);
   }
 
   /**
@@ -227,11 +215,9 @@ class R820T {
    */
   async _setPll(freq) {
     let pllRef = Math.floor(this.xtalFreq);
-    await this._writeEach([
-      [0x10, 0x00, 0x10],
-      [0x1a, 0x00, 0x0c],
-      [0x12, 0x80, 0xe0]
-    ]);
+    await this._writeRegMask(0x10, 0x00, 0x10);
+    await this._writeRegMask(0x1a, 0x00, 0x0c);
+    await this._writeRegMask(0x12, 0x80, 0xe0);
     let divNum = Math.min(6, Math.floor(Math.log(1770000000 / freq) / Math.LN2));
     let mixDiv = 1 << (divNum + 1);
     let data = await this._readRegBuffer(0x00, 5);
@@ -252,15 +238,11 @@ class R820T {
     }
     let ni = Math.floor((nint - 13) / 4);
     let si = (nint - 13) % 4;
-    await this._writeEach([
-      [0x14, ni + (si << 6), 0xff],
-      [0x12, vcoFra == 0 ? 0x08 : 0x00, 0x08]
-    ]);
+    await this._writeRegMask(0x14, ni + (si << 6), 0xff);
+    await this._writeRegMask(0x12, vcoFra == 0 ? 0x08 : 0x00, 0x08);
     let sdm = Math.min(65535, Math.floor(32768 * vcoFra / pllRef));
-    await this._writeEach([
-      [0x16, sdm >> 8, 0xff],
-      [0x15, sdm & 0xff, 0xff]
-    ]);
+    await this._writeRegMask(0x16, sdm >> 8, 0xff);
+    await this._writeRegMask(0x15, sdm & 0xff, 0xff);
     await this._getPllLock();
     await this._writeRegMask(0x1a, 0x08, 0x08);
     return 2 * pllRef * (nint + sdm / 65536) / mixDiv;
@@ -296,11 +278,9 @@ class R820T {
    */
   async _initRegisters(regs) {
     this.shadowRegs = new Uint8Array(regs);
-    let cmds = [];
     for (let i = 0; i < regs.length; ++i) {
-      cmds.push([CMD.I2CREG, 0x34, i + 5, regs[i]]);
+      await this.com.writeI2CRegister(0x34, i + 5, regs[i]);
     }
-    await this.com.writeEach(cmds);
   }
 
   /**
@@ -308,40 +288,36 @@ class R820T {
    * @returns {Promise<void>}
    */
   async _initElectronics() {
-    await this._writeEach([
-      [0x0c, 0x00, 0x0f],
-      [0x13, 49, 0x3f],
-      [0x1d, 0x00, 0x38]
-    ]);
+    await this._writeRegMask(0x0c, 0x00, 0x0f);
+    await this._writeRegMask(0x13, 49, 0x3f);
+    await this._writeRegMask(0x1d, 0x00, 0x38);
     let filterCap = await this._calibrateFilter();
-    await this._writeEach([
-      [0x0a, 0x10 | filterCap, 0x1f],
-      [0x0b, 0x6b, 0xef],
-      [0x07, 0x00, 0x80],
-      [0x06, 0x10, 0x30],
-      [0x1e, 0x40, 0x60],
-      [0x05, 0x00, 0x80],
-      [0x1f, 0x00, 0x80],
-      [0x0f, 0x00, 0x80],
-      [0x19, 0x60, 0x60],
-      [0x1d, 0xe5, 0xc7],
-      [0x1c, 0x24, 0xf8],
-      [0x0d, 0x53, 0xff],
-      [0x0e, 0x75, 0xff],
-      [0x05, 0x00, 0x60],
-      [0x06, 0x00, 0x08],
-      [0x11, 0x38, 0x08],
-      [0x17, 0x30, 0x30],
-      [0x0a, 0x40, 0x60],
-      [0x1d, 0x00, 0x38],
-      [0x1c, 0x00, 0x04],
-      [0x06, 0x00, 0x40],
-      [0x1a, 0x30, 0x30],
-      [0x1d, 0x18, 0x38],
-      [0x1c, 0x24, 0x04],
-      [0x1e, 0x0d, 0x1f],
-      [0x1a, 0x20, 0x30]
-    ]);
+    await this._writeRegMask(0x0a, 0x10 | filterCap, 0x1f);
+    await this._writeRegMask(0x0b, 0x6b, 0xef);
+    await this._writeRegMask(0x07, 0x00, 0x80);
+    await this._writeRegMask(0x06, 0x10, 0x30);
+    await this._writeRegMask(0x1e, 0x40, 0x60);
+    await this._writeRegMask(0x05, 0x00, 0x80);
+    await this._writeRegMask(0x1f, 0x00, 0x80);
+    await this._writeRegMask(0x0f, 0x00, 0x80);
+    await this._writeRegMask(0x19, 0x60, 0x60);
+    await this._writeRegMask(0x1d, 0xe5, 0xc7);
+    await this._writeRegMask(0x1c, 0x24, 0xf8);
+    await this._writeRegMask(0x0d, 0x53, 0xff);
+    await this._writeRegMask(0x0e, 0x75, 0xff);
+    await this._writeRegMask(0x05, 0x00, 0x60);
+    await this._writeRegMask(0x06, 0x00, 0x08);
+    await this._writeRegMask(0x11, 0x38, 0x08);
+    await this._writeRegMask(0x17, 0x30, 0x30);
+    await this._writeRegMask(0x0a, 0x40, 0x60);
+    await this._writeRegMask(0x1d, 0x00, 0x38);
+    await this._writeRegMask(0x1c, 0x00, 0x04);
+    await this._writeRegMask(0x06, 0x00, 0x40);
+    await this._writeRegMask(0x1a, 0x30, 0x30);
+    await this._writeRegMask(0x1d, 0x18, 0x38);
+    await this._writeRegMask(0x1c, 0x24, 0x04);
+    await this._writeRegMask(0x1e, 0x0d, 0x1f);
+    await this._writeRegMask(0x1a, 0x20, 0x30);
   }
 
   /**
@@ -373,23 +349,4 @@ class R820T {
     this.shadowRegs[addr - 5] = val;
     await this.com.writeI2CRegister(0x34, addr, val);
   }
-
-  /**
-   * Perform the write operations given in the array.
-   * @param {Array.<Array.<number>>} array The operations.
-   * @returns {Promise<void>}
-   */
-  async _writeEach(array) {
-    for (let line of array) {
-      await this._writeRegMask(line[0], line[1], line[2]);
-    }
-  }
-
-  // return {
-  //   init: init,
-  //   setFrequency: setFrequency,
-  //   setAutoGain: setAutoGain,
-  //   setManualGain: setManualGain,
-  //   close: close
-  // };
 }

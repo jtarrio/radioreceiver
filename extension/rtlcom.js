@@ -102,27 +102,6 @@ class RtlCom {
   }
 
   /**
-   * Performs several write operations as specified in an array.
-   * @param {Array.<Array.<number>>} array The operations to perform.
-   * @returns {Promise<void>}
-   */
-  async writeEach(array) {
-    for (let line of array) {
-      if (line[0] == CMD.REG) {
-        await this.writeRegister(line[1], line[2], line[3], line[4]);
-      } else if (line[0] == CMD.REGMASK) {
-        await this.writeRegMask(line[1], line[2], line[3], line[4]);
-      } else if (line[0] == CMD.DEMODREG) {
-        await this.writeDemodRegister(line[1], line[2], line[3], line[4]);
-      } else if (line[0] == CMD.I2CREG) {
-        await this.writeI2CRegister(line[1], line[2], line[3]);
-      } else {
-        throw 'Unsupported operation [' + line + ']';
-      }
-    }
-  }
-
-  /**
   * Reads a value from a demodulator register.
   * @param {number} page The register page number.
   * @param {number} addr The register's address.
@@ -331,20 +310,9 @@ class RtlCom {
 }
 
 /**
- * Commands for writeEach.
- */
-CMD = {
-  REG: 1,
-  REGMASK: 2,
-  DEMODREG: 3,
-  I2CREG: 4
-};
-
-/**
  * Register blocks.
  */
 BLOCK = {
-  DEMOD: 0x000,
   USB: 0x100,
   SYS: 0x200,
   I2C: 0x600
