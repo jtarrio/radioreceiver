@@ -52,7 +52,7 @@ class Decoder {
         let data = {
             stereo: out.stereo,
             signalLevel: out.signalLevel,
-            ...(opt_data || {})
+            ...opt_data
         };
         self.postMessage([out.left, out.right, data], [out.left, out.right]);
     }
