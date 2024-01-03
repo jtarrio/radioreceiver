@@ -99,12 +99,10 @@ class RadioController {
     ui;
     /**
      * Starts playing the radio.
-     * @param opt_callback A function to call when the radio
-     *     starts playing.
      */
-    async start(opt_callback) {
+    async start() {
         if (this.state.state == STATE.OFF) {
-            this.state = new State(STATE.STARTING, SUBSTATE.USB, opt_callback);
+            this.state = new State(STATE.STARTING, SUBSTATE.USB);
             try {
                 this.device = await navigator.usb.requestDevice({ filters: RadioController.TUNERS });
                 this.processState();
@@ -115,23 +113,20 @@ class RadioController {
             }
         }
         else if (this.state.state == STATE.STOPPING || this.state.state == STATE.STARTING) {
-            this.state = new State(STATE.STARTING, this.state.substate, opt_callback);
+            this.state = new State(STATE.STARTING, this.state.substate);
         }
     }
     /**
      * Stops playing the radio.
-     * @param opt_callback A function to call after the radio
-     *     stops playing.
      */
-    stop(opt_callback) {
+    stop() {
         if (this.state.state == STATE.OFF) {
-            opt_callback && opt_callback();
         }
         else if (this.state.state == STATE.STARTING || this.state.state == STATE.STOPPING) {
-            this.state = new State(STATE.STOPPING, this.state.substate, opt_callback);
+            this.state = new State(STATE.STOPPING, this.state.substate);
         }
         else {
-            this.state = new State(STATE.STOPPING, SUBSTATE.ALL_ON, opt_callback);
+            this.state = new State(STATE.STOPPING, SUBSTATE.ALL_ON);
         }
     }
     /**
@@ -355,11 +350,11 @@ class RadioController {
      */
     async stateStarting() {
         if (this.state.substate == SUBSTATE.USB) {
-            this.state = new State(STATE.STARTING, SUBSTATE.TUNER, this.state.param);
+            this.state = new State(STATE.STARTING, SUBSTATE.TUNER);
             this.doOpenDevice();
         }
         else if (this.state.substate == SUBSTATE.TUNER) {
-            this.state = new State(STATE.STARTING, SUBSTATE.ALL_ON, this.state.param);
+            this.state = new State(STATE.STARTING, SUBSTATE.ALL_ON);
             this.actualPpm = this.ppm;
             this.tuner = await RTL2832U.open(this.device, this.actualPpm, this.autoGain ? null : this.gain);
             await this.tuner.setSampleRate(RadioController.SAMPLE_RATE);
@@ -369,10 +364,8 @@ class RadioController {
             this.processState();
         }
         else if (this.state.substate == SUBSTATE.ALL_ON) {
-            let cb = this.state.param;
             this.state = new State(STATE.PLAYING);
             await this.tuner.resetBuffer();
-            cb && cb();
             this.ui?.update();
             this.startPipeline();
         }
@@ -494,20 +487,18 @@ class RadioController {
             if (this.requestingBlocks > 0) {
                 return;
             }
-            this.state = new State(STATE.STOPPING, SUBSTATE.TUNER, this.state.param);
+            this.state = new State(STATE.STOPPING, SUBSTATE.TUNER);
             this.ui?.update();
             await this.tuner.close();
             this.processState();
         }
         else if (this.state.substate == SUBSTATE.TUNER) {
-            this.state = new State(STATE.STOPPING, SUBSTATE.USB, this.state.param);
+            this.state = new State(STATE.STOPPING, SUBSTATE.USB);
             await this.device.close();
             this.processState();
         }
         else if (this.state.substate == SUBSTATE.USB) {
-            let cb = this.state.param;
             this.state = new State(STATE.OFF);
-            cb && cb();
             this.ui?.update();
         }
     }
