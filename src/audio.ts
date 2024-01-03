@@ -29,12 +29,12 @@ class Player {
     this.gain = 0;
   }
 
-  lastPlayedAt;
+  lastPlayedAt: number;
   squelchTime: number | null;
-  frameNo;
+  frameNo: number;
   ac: AudioContext | undefined;
   gainNode: GainNode | undefined;
-  gain;
+  gain: number;
 
   /**
    * Queues the given samples for playing at the appropriate time.
