@@ -37,7 +37,7 @@ class Radio extends EventTarget {
         { vendorId: 0x0bda, productId: 0x2838 },
     ];
     static SAMPLE_RATE = 1024000; // Must be a multiple of 512 * BUFS_PER_SEC
-    static BUFS_PER_SEC = 5;
+    static BUFS_PER_SEC = 20;
     static PARALLEL_BUFS = 2;
     static SAMPLES_PER_BUF = Math.floor(Radio.SAMPLE_RATE / Radio.BUFS_PER_SEC);
     async start() {
