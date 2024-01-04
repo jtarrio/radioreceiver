@@ -100,6 +100,10 @@ class RtlCom {
         let rc = result.status;
         if (rc == 'ok' && result.data !== undefined)
             return result.data.buffer;
+        if (rc == 'stall') {
+            await this.device.clearHalt('in', 1);
+            return new ArrayBuffer(length);
+        }
         throw 'USB bulk read failed (length 0x' + length.toString(16) + '), rc=' + rc;
     }
     /**

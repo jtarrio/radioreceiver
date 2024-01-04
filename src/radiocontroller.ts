@@ -28,23 +28,12 @@ class State {
  * High-level radio control functions.
  */
 class RadioController {
-  static TUNERS = [
-    { vendorId: 0x0bda, productId: 0x2832 },
-    { vendorId: 0x0bda, productId: 0x2838 },
-  ];
-  static SAMPLE_RATE = 1024000; // Must be a multiple of 512 * BUFS_PER_SEC
-  static BUFS_PER_SEC = 5;
-  static SAMPLES_PER_BUF = Math.floor(RadioController.SAMPLE_RATE / RadioController.BUFS_PER_SEC);
-
   constructor() {
+    this.radio = new Radio(b => this.receiveSamples(b));
     this.decoder = new Worker('decode-worker.js');
     this.player = new Player();
-    this.state = new State(STATE.OFF);
-    this.requestingBlocks = 0;
-    this.playingBlocks = 0;
     this.mode = {};
     this.frequency = 88500000;
-    this.actualFrequency = 0;
     this.stereo = true;
     this.stereoEnabled = true;
     this.volume = 1;
@@ -62,14 +51,11 @@ class RadioController {
     this.decoder.addEventListener('message', m => this.receiveDemodulated(m));
   }
 
+  radio: Radio;
   decoder: Worker;
   player: Player;
-  state: State;
-  requestingBlocks: number;
-  playingBlocks: number;
   mode: object;
   frequency: number;
-  actualFrequency: number;
   stereo: boolean;
   stereoEnabled: boolean;
   volume: number;
@@ -88,31 +74,15 @@ class RadioController {
   /**
    * Starts playing the radio.
    */
-  async start() {
-    if (this.state.state == STATE.OFF) {
-      this.state = new State(STATE.STARTING, SUBSTATE.USB);
-      try {
-        this.device = await navigator.usb.requestDevice({ filters: RadioController.TUNERS });
-        this.processState();
-      } catch (e) {
-        this.state = new State(STATE.OFF);
-        throw e;
-      }
-    } else if (this.state.state == STATE.STOPPING || this.state.state == STATE.STARTING) {
-      this.state = new State(STATE.STARTING, this.state.substate);
-    }
+  start() {
+    this.radio.start();
   }
 
   /**
    * Stops playing the radio.
    */
   stop() {
-    if (this.state.state == STATE.OFF) {
-    } else if (this.state.state == STATE.STARTING || this.state.state == STATE.STOPPING) {
-      this.state = new State(STATE.STOPPING, this.state.substate);
-    } else {
-      this.state = new State(STATE.STOPPING, SUBSTATE.ALL_ON);
-    }
+    this.radio.stop();
   }
 
   /**
@@ -120,13 +90,8 @@ class RadioController {
    * @param freq The new frequency in Hz.
    */
   setFrequency(freq: number) {
-    if (this.state.state == STATE.PLAYING || this.state.state == STATE.CHG_FREQ
-      || this.state.state == STATE.SCANNING) {
-      this.state = new State(STATE.CHG_FREQ, undefined, freq);
-    } else {
-      this.frequency = freq;
-      this.ui?.update();
-    }
+    this.radio.setFrequency(freq);
+    this.ui?.update();
   }
 
   /**
@@ -134,7 +99,7 @@ class RadioController {
    * @returns The current frequency in Hz.
    */
   getFrequency(): number {
-    return this.frequency;
+    return this.radio.frequency();
   }
 
   /**
@@ -179,15 +144,7 @@ class RadioController {
    *     determines the scanning direction.
    */
   scan(min: number, max: number, step: number) {
-    if (this.state.state == STATE.PLAYING || this.state.state == STATE.SCANNING) {
-      let param = {
-        min: min,
-        max: max,
-        step: step,
-        start: this.frequency
-      };
-      this.state = new State(STATE.SCANNING, SUBSTATE.TUNING, param);
-    }
+    // this.radio.sendMsg(RadioMsg.scan(min,max, step));
   }
 
   /**
@@ -195,7 +152,8 @@ class RadioController {
    * @returns Whether the radio is doing a frequency scan.
    */
   isScanning(): boolean {
-    return this.state.state == STATE.SCANNING;
+    return false;
+    // return this.state.state == STATE.SCANNING;
   }
 
   /**
@@ -203,7 +161,7 @@ class RadioController {
    * @param Whether the radio is currently playing.
    */
   isPlaying() {
-    return this.state.state != STATE.OFF && this.state.state != STATE.STOPPING;
+    return this.radio.isPlaying();
   }
 
   /**
@@ -211,7 +169,7 @@ class RadioController {
    * @param Whether the radio is currently stopping.
    */
   isStopping() {
-    return this.state.state == STATE.STOPPING;
+    return this.radio.isStopping();
   }
 
   /**
@@ -317,198 +275,9 @@ class RadioController {
     this.ui = iface;
   }
 
-  /**
-   * Starts the decoding pipeline.
-   */
-  startPipeline() {
-    // In this way we read one block while we decode and play another.
-    if (this.state.state == STATE.PLAYING) {
-      this.processState();
-    }
-    this.processState();
-  }
-
-  /**
-   * Performs the appropriate action according to the current state.
-   */
-  processState() {
-    switch (this.state.state) {
-      case STATE.STARTING:
-        return this.stateStarting();
-      case STATE.PLAYING:
-        return this.statePlaying();
-      case STATE.CHG_FREQ:
-        return this.stateChangeFrequency();
-      case STATE.SCANNING:
-        return this.stateScanning();
-      case STATE.STOPPING:
-        return this.stateStopping();
-    }
-  }
-
-  /**
-   * STARTING state. Initializes the tuner and starts the decoding pipeline.
-   *
-   * This state has several substates: USB (when it needs to acquire and
-   * initialize the USB device), TUNER (needs to set the sample rate and
-   * tuned frequency), and ALL_ON (needs to start the decoding pipeline).
-   *
-   * At the last substate it transitions into the PLAYING state.
-   */
-  async stateStarting() {
-    if (this.state.substate == SUBSTATE.USB) {
-      this.state = new State(STATE.STARTING, SUBSTATE.TUNER);
-      this.doOpenDevice()
-    } else if (this.state.substate == SUBSTATE.TUNER) {
-      this.state = new State(STATE.STARTING, SUBSTATE.ALL_ON);
-      this.actualPpm = this.ppm;
-      this.tuner = await RTL2832U.open(<USBDevice>this.device, this.actualPpm, this.autoGain ? null : this.gain);
-      await this.tuner.setSampleRate(RadioController.SAMPLE_RATE);
-      this.offsetSum = 0;
-      this.offsetCount = -1;
-      this.actualFrequency = await this.tuner.setCenterFrequency(this.frequency);
-      this.processState();
-    } else if (this.state.substate == SUBSTATE.ALL_ON) {
-      this.state = new State(STATE.PLAYING);
-      await (<RTL2832U>this.tuner).resetBuffer();
-      this.ui?.update();
-      this.startPipeline();
-    }
-  }
-
-  /**
-   * Finds the first matching tuner USB device in the tuner device definition
-   * list and transitions to the next substate.
-   * @param index The first element in the list to find.
-   */
-  async doOpenDevice() {
-    await (<USBDevice>this.device).open();
-    this.processState();
-  }
-
-  /**
-   * PLAYING state. Reads a block of samples from the tuner and plays it.
-   *
-   * 2 blocks are in flight all at times, so while one block is being
-   * demodulated and played, the next one is already being sampled.
-   */
-  async statePlaying() {
-    ++this.requestingBlocks;
-    let data = await (<RTL2832U>this.tuner).readSamples(RadioController.SAMPLES_PER_BUF);
-    --this.requestingBlocks;
-    if (this.state.state == STATE.PLAYING) {
-      if (this.playingBlocks <= 2) {
-        ++this.playingBlocks;
-        this.decoder.postMessage(
-          [0, data, this.stereoEnabled, this.actualFrequency - this.frequency], [data]);
-      }
-    }
-    this.processState();
-  }
-
-  /**
-   * CHG_FREQ state. Changes tuned frequency.
-   *
-   * First it waits until all in-flight blocks have been dealt with. When
-   * there are no more in-flight blocks it sets the new frequency, resets
-   * the buffer and transitions into the PLAYING state.
-   */
-  async stateChangeFrequency() {
-    if (this.requestingBlocks > 0) {
-      return;
-    }
-    this.frequency = this.state.param;
-    this.ui?.update();
-    this.offsetSum = 0;
-    this.offsetCount = -1;
-    if (Math.abs(this.actualFrequency - this.frequency) > 300000) {
-      this.actualFrequency = await (<RTL2832U>this.tuner).setCenterFrequency(this.frequency);
-      await (<RTL2832U>this.tuner).resetBuffer();
-      this.state = new State(STATE.PLAYING);
-      this.startPipeline();
-    } else {
-      this.state = new State(STATE.PLAYING);
-      this.startPipeline();
-    }
-  }
-
-  /**
-   * SCANNING state. Scans for a station.
-   *
-   * First it waits until all in-flight blocks have been dealt with.
-   * Afterwards, it switches between these two substates: TUNING (when it
-   * needs to change to the next frequency), DETECTING (when it needs to
-   * capture one block of samples and detect a station).
-   *
-   * Not included in this function but relevant: if the decoder detects a
-   * station, it will call the setFrequency() function, causing a transition
-   * to the TUNING state.
-   */
-  async stateScanning() {
-    if (this.requestingBlocks > 0) {
-      return;
-    }
-    let param = this.state.param;
-    if (this.state.substate == SUBSTATE.TUNING) {
-      this.frequency += param.step;
-      if (this.frequency > param.max) {
-        this.frequency = param.min;
-      } else if (this.frequency < param.min) {
-        this.frequency = param.max;
-      }
-      this.ui?.update();
-      this.state = new State(STATE.SCANNING, SUBSTATE.DETECTING, param);
-      this.offsetSum = 0;
-      this.offsetCount = -1;
-      if (Math.abs(this.actualFrequency - this.frequency) > 300000) {
-        this.actualFrequency = await (<RTL2832U>this.tuner).setCenterFrequency(this.frequency);
-        await (<RTL2832U>this.tuner).resetBuffer();
-      }
-    } else if (this.state.substate == SUBSTATE.DETECTING) {
-      this.state = new State(STATE.SCANNING, SUBSTATE.TUNING, param);
-      let scanData = {
-        'scanning': true,
-        'frequency': this.frequency
-      };
-      ++this.requestingBlocks;
-      let data = await (<RTL2832U>this.tuner).readSamples(RadioController.SAMPLES_PER_BUF);
-      --this.requestingBlocks;
-      if (this.state.state == STATE.SCANNING) {
-        ++this.playingBlocks;
-        this.decoder.postMessage(
-          [0, data, this.stereoEnabled, this.actualFrequency - this.frequency, scanData],
-          [data]);
-      }
-    }
-    this.processState();
-  }
-
-  /**
-   * STOPPING state. Stops playing and shuts the tuner down.
-   *
-   * This state has several substates: ALL_ON (when it needs to wait until
-   * all in-flight blocks have been vacated and close the tuner), TUNER (when
-   * it has closed the tuner and needs to close the USB device), and USB (when
-   * it has closed the USB device). After the USB substate it will transition
-   * to the OFF state.
-   */
-  async stateStopping() {
-    if (this.state.substate == SUBSTATE.ALL_ON) {
-      if (this.requestingBlocks > 0) {
-        return;
-      }
-      this.state = new State(STATE.STOPPING, SUBSTATE.TUNER);
-      this.ui?.update();
-      await (<RTL2832U>this.tuner).close();
-      this.processState();
-    } else if (this.state.substate == SUBSTATE.TUNER) {
-      this.state = new State(STATE.STOPPING, SUBSTATE.USB);
-      await (<USBDevice>this.device).close();
-      this.processState();
-    } else if (this.state.substate == SUBSTATE.USB) {
-      this.state = new State(STATE.OFF);
-      this.ui?.update();
-    }
+  receiveSamples(data: ArrayBuffer) {
+    this.decoder.postMessage(
+      [0, data, this.stereoEnabled, this.radio.frequencyOffset()], [data]);
   }
 
   /**
@@ -516,33 +285,14 @@ class RadioController {
    * @param msg The data sent by the demodulator.
    */
   receiveDemodulated(msg: MessageEvent) {
-    --this.playingBlocks;
-    let newStereo = msg.data[2]['stereo'];
-    if (newStereo != this.stereo) {
-      this.stereo = newStereo;
+    let [leftData, rightData, { stereo, signalLevel }] = msg.data;
+    if (stereo != this.stereo) {
+      this.stereo = stereo;
       this.ui?.update();
     }
-    let level = msg.data[2]['signalLevel'];
-    let left = new Float32Array(msg.data[0]);
-    let right = new Float32Array(msg.data[1]);
-    this.player.play(left, right, level, this.squelch / 100);
-    if (this.state.state == STATE.SCANNING && msg.data[2]['scanning']) {
-      if (msg.data[2]['signalLevel'] > 0.5) {
-        this.setFrequency(msg.data[2].frequency);
-      }
-    } else if (this.estimatingPpm) {
-      if (this.offsetCount >= 0) {
-        let sum = 0;
-        for (let i = 0; i < left.length; ++i) {
-          sum += left[i];
-        }
-        this.offsetSum += sum / left.length;
-      }
-      ++this.offsetCount;
-      if (this.offsetCount == 50) {
-        this.estimatingPpm = false;
-      }
-    }
+    let left = new Float32Array(leftData);
+    let right = new Float32Array(rightData);
+    this.player.play(left, right, signalLevel, this.squelch / 100);
   }
 
   /**
