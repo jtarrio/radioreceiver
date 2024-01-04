@@ -3,11 +3,18 @@ var RadioState;
 (function (RadioState) {
     RadioState[RadioState["OFF"] = 0] = "OFF";
     RadioState[RadioState["PLAYING"] = 1] = "PLAYING";
+    RadioState[RadioState["SCANNING"] = 2] = "SCANNING";
 })(RadioState || (RadioState = {}));
-class Radio {
-    receiveSamples;
-    constructor(receiveSamples) {
-        this.receiveSamples = receiveSamples;
+class RadioEvent extends CustomEvent {
+    static New(type) {
+        return new RadioEvent('radio', { detail: type });
+    }
+}
+class Radio extends EventTarget {
+    sampleReceiver;
+    constructor(sampleReceiver) {
+        super();
+        this.sampleReceiver = sampleReceiver;
         this.state = RadioState.OFF;
         this.device = undefined;
         this.rtl = undefined;
@@ -31,6 +38,7 @@ class Radio {
     ];
     static SAMPLE_RATE = 1024000; // Must be a multiple of 512 * BUFS_PER_SEC
     static BUFS_PER_SEC = 5;
+    static PARALLEL_BUFS = 2;
     static SAMPLES_PER_BUF = Math.floor(Radio.SAMPLE_RATE / Radio.BUFS_PER_SEC);
     async start() {
         if (this.state != RadioState.OFF)
@@ -42,24 +50,60 @@ class Radio {
         this.rtl = await RTL2832U.open(this.device, this.ppm, this.gain);
         await this.rtl.setSampleRate(Radio.SAMPLE_RATE);
         this.centerFreq = await this.rtl.setCenterFrequency(this.tunedFreq);
-        this.transfers = new RadioTransfers(this.rtl, Radio.SAMPLES_PER_BUF);
-        this.transfers.start(2, this.receiveSamples);
+        this.transfers = new RadioTransfers(this.rtl, this.sampleReceiver, Radio.SAMPLES_PER_BUF);
+        this.transfers.stream(Radio.PARALLEL_BUFS);
         this.state = RadioState.PLAYING;
+        this.dispatchEvent(RadioEvent.New('state'));
     }
     async stop() {
         if (this.state == RadioState.OFF)
             return;
-        await this.transfers.stop();
+        await this.transfers.stopStream();
         await this.rtl.close();
         await this.device.close();
         this.state = RadioState.OFF;
+        this.dispatchEvent(RadioEvent.New('state'));
     }
     async setFrequency(freq) {
-        this.tunedFreq = freq;
-        if (this.state == RadioState.OFF)
+        if (this.state == RadioState.SCANNING) {
+            this.state = RadioState.PLAYING;
             return;
-        if (Math.abs(this.centerFreq - this.tunedFreq) > 300000) {
-            this.centerFreq = await this.rtl.setCenterFrequency(this.tunedFreq);
+        }
+        this.changeFrequency(freq);
+    }
+    async changeFrequency(freq) {
+        this.tunedFreq = freq;
+        if (this.state != RadioState.OFF) {
+            if (Math.abs(this.centerFreq - this.tunedFreq) > 300000) {
+                this.centerFreq = await this.rtl.setCenterFrequency(this.tunedFreq);
+            }
+        }
+        this.dispatchEvent(RadioEvent.New('frequency'));
+    }
+    async scan(min, max, step) {
+        if (this.state != RadioState.PLAYING)
+            return;
+        this.state = RadioState.SCANNING;
+        this.dispatchEvent(RadioEvent.New('state'));
+        await this.transfers.stopStream();
+        while (true) {
+            let frequency = this.frequency() + step;
+            if (frequency > max) {
+                frequency = min;
+            }
+            else if (frequency < min) {
+                frequency = max;
+            }
+            this.changeFrequency(frequency);
+            let hasSignal = await this.transfers.checkForSignal();
+            if (hasSignal && this.state == RadioState.SCANNING)
+                this.state = RadioState.PLAYING;
+            if (this.state != RadioState.SCANNING)
+                break;
+        }
+        this.dispatchEvent(RadioEvent.New('state'));
+        if (this.state == RadioState.PLAYING) {
+            this.transfers.stream(Radio.PARALLEL_BUFS);
         }
     }
     frequency() {
@@ -69,48 +113,52 @@ class Radio {
         return this.centerFreq - this.tunedFreq;
     }
     isPlaying() {
-        return this.state == RadioState.PLAYING;
+        return this.state != RadioState.OFF;
+    }
+    isScanning() {
+        return this.state == RadioState.SCANNING;
     }
 }
 class RadioTransfers {
     rtl;
+    sampleReceiver;
     bufSize;
-    constructor(rtl, bufSize) {
+    constructor(rtl, sampleReceiver, bufSize) {
         this.rtl = rtl;
+        this.sampleReceiver = sampleReceiver;
         this.bufSize = bufSize;
-        this.wanted = 0;
-        this.running = 0;
+        this.buffersWanted = 0;
+        this.buffersRunning = 0;
         this.stopCallback = RadioTransfers.nilCallback;
     }
-    wanted;
-    running;
+    buffersWanted;
+    buffersRunning;
     stopCallback;
-    async start(num, fn) {
-        if (this.running > 0)
-            throw "Transfers are running";
+    async stream(buffers) {
         await this.rtl.resetBuffer();
-        this.wanted = num;
-        while (this.running < this.wanted) {
-            ++this.running;
-            this.readSamples(fn);
+        this.buffersWanted = buffers;
+        while (this.buffersRunning < this.buffersWanted) {
+            ++this.buffersRunning;
+            this.readStream();
         }
     }
-    async stop() {
+    async stopStream() {
         let promise = new Promise(r => { this.stopCallback = r; });
-        this.wanted = 0;
+        this.buffersWanted = 0;
         return promise;
     }
-    async oneShot(fn) {
-        await this.start(1, fn);
-        return this.stop();
+    async checkForSignal() {
+        await this.rtl.resetBuffer();
+        let buffer = await this.rtl.readSamples(this.bufSize);
+        return this.sampleReceiver.checkForSignal(buffer);
     }
-    readSamples(fn) {
+    readStream() {
         this.rtl.readSamples(this.bufSize).then(b => {
-            fn(b);
-            if (this.running <= this.wanted)
-                return this.readSamples(fn);
-            --this.running;
-            if (this.running == 0) {
+            this.sampleReceiver.playStream(b);
+            if (this.buffersRunning <= this.buffersWanted)
+                return this.readStream();
+            --this.buffersRunning;
+            if (this.buffersRunning == 0) {
                 this.stopCallback();
                 this.stopCallback = RadioTransfers.nilCallback;
             }

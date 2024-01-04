@@ -44,7 +44,7 @@ class State {
  */
 class RadioController {
     constructor() {
-        this.radio = new Radio(b => this.receiveSamples(b));
+        this.radio = new Radio(this);
         this.decoder = new Worker('decode-worker.js');
         this.player = new Player();
         this.mode = {};
@@ -60,10 +60,12 @@ class RadioController {
         this.autoGain = true;
         this.gain = 0;
         this.squelch = 0;
+        this.signalCheckResolver = undefined;
         this.tuner = undefined;
         this.device = undefined;
         this.ui = undefined;
         this.decoder.addEventListener('message', m => this.receiveDemodulated(m));
+        this.radio.addEventListener('radio', e => this.getRadioEvent(e));
     }
     radio;
     decoder;
@@ -81,6 +83,7 @@ class RadioController {
     autoGain;
     gain;
     squelch;
+    signalCheckResolver;
     tuner;
     device;
     ui;
@@ -102,6 +105,9 @@ class RadioController {
      */
     setFrequency(freq) {
         this.radio.setFrequency(freq);
+        this.ui?.update();
+    }
+    getRadioEvent(e) {
         this.ui?.update();
     }
     /**
@@ -149,15 +155,14 @@ class RadioController {
      *     determines the scanning direction.
      */
     scan(min, max, step) {
-        // this.radio.sendMsg(RadioMsg.scan(min,max, step));
+        this.radio.scan(min, max, step);
     }
     /**
      * Returns whether the radio is doing a frequency scan.
      * @returns Whether the radio is doing a frequency scan.
      */
     isScanning() {
-        return false;
-        // return this.state.state == STATE.SCANNING;
+        return this.radio.isScanning();
     }
     /**
      * Returns whether the radio is currently playing.
@@ -259,15 +264,23 @@ class RadioController {
     setInterface(iface) {
         this.ui = iface;
     }
-    receiveSamples(data) {
+    playStream(data) {
         this.decoder.postMessage([0, data, this.stereoEnabled, this.radio.frequencyOffset()], [data]);
+    }
+    async checkForSignal(data) {
+        let scanParams = {
+            scanning: true,
+        };
+        let promise = new Promise(r => { this.signalCheckResolver = r; });
+        this.decoder.postMessage([0, data, this.stereoEnabled, this.radio.frequencyOffset(), scanParams], [data]);
+        return promise;
     }
     /**
      * Receives the sound from the demodulator and plays it.
      * @param msg The data sent by the demodulator.
      */
     receiveDemodulated(msg) {
-        let [leftData, rightData, { stereo, signalLevel }] = msg.data;
+        let [leftData, rightData, { stereo, signalLevel, scanning }] = msg.data;
         if (stereo != this.stereo) {
             this.stereo = stereo;
             this.ui?.update();
@@ -275,6 +288,9 @@ class RadioController {
         let left = new Float32Array(leftData);
         let right = new Float32Array(rightData);
         this.player.play(left, right, signalLevel, this.squelch / 100);
+        if (scanning && this.signalCheckResolver) {
+            this.signalCheckResolver(signalLevel > 0.5);
+        }
     }
     /**
      * Starts or stops calculating an estimated frequency correction.
