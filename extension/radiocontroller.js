@@ -167,13 +167,6 @@ class RadioController {
         return this.radio.isPlaying();
     }
     /**
-     * Returns whether the radio is currently stopping.
-     * @param Whether the radio is currently stopping.
-     */
-    isStopping() {
-        return this.radio.isStopping();
-    }
-    /**
      * Returns whether a stereo signal is being decoded.
      * @param Whether a stereo signal is being decoded.
      */
