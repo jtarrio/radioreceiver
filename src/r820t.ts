@@ -68,7 +68,7 @@ class R820T {
    * @returns a promise that resolves to whether the tuner is present.
    */
   static async check(com: RtlCom): Promise<boolean> {
-    let data = await com.readI2CRegister(0x34, 0);
+    let data = await com.getI2CReg(0x34, 0);
     return data == 0x69;
   }
 
@@ -78,7 +78,7 @@ class R820T {
   static async init(com: RtlCom, xtalFreq: number): Promise<R820T> {
     let regs = new Uint8Array(R820T.REGISTERS);
     for (let i = 0; i < regs.length; ++i) {
-      await com.writeI2CRegister(0x34, i + 5, regs[i]);
+      await com.setI2CReg(0x34, i + 5, regs[i]);
     }
     let r820t = new R820T(com, xtalFreq, regs);
     await r820t._initElectronics();
@@ -312,7 +312,7 @@ class R820T {
    * @returns a promise that resolves to an ArrayBuffer with the data.
    */
   async _readRegBuffer(addr: number, length: number): Promise<ArrayBuffer> {
-    let data = await this.com.readI2CRegBuffer(0x34, addr, length);
+    let data = await this.com.getI2CRegBuffer(0x34, addr, length);
     let buf = new Uint8Array(data);
     for (let i = 0; i < buf.length; ++i) {
       let b = buf[i];
@@ -331,6 +331,6 @@ class R820T {
     let rc = this.shadowRegs[addr - 5];
     let val = (rc & ~mask) | (value & mask);
     this.shadowRegs[addr - 5] = val;
-    await this.com.writeI2CRegister(0x34, addr, val);
+    await this.com.setI2CReg(0x34, addr, val);
   }
 }
