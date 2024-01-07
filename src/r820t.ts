@@ -19,29 +19,91 @@ class R820T {
   /**
    * Initial values for registers 0x05-0x1f.
    */
-  static REGISTERS = [0x83, 0x32, 0x75, 0xc0, 0x40, 0xd6, 0x6c, 0xf5, 0x63, 0x75,
-    0x68, 0x6c, 0x83, 0x80, 0x00, 0x0f, 0x00, 0xc0, 0x30, 0x48,
-    0xcc, 0x60, 0x00, 0x54, 0xae, 0x4a, 0xc0];
+  static REGISTERS = [
+    // 0x05
+    // [7] loop through off [6] 0 [5] LNA 1 on [4] LNA gain auto [3:0] LNA gain 3
+    0b10000011,
+    // [7] power detector 1 on [6] power detector 3 off [5] filter gain +3dB [4] 1 [3] 0 [2:0] LNA power 2
+    0b00110010,
+    // [7] 0 [6] mixer power on [5] mixer current normal [4] mixer gain auto [3:0] mixer gain 5
+    0b01110101,
+    // 0x08
+    // [7] mixer buffer power on [6] mixer buffer low current [5:0] image gain adjustment 0
+    0b11000000,
+    // [7] IF filter off [6] IF filter low current [5:0] image phase adjustment 0
+    0b01000000,
+    // [7] channel filter on [6:5] filter power 2 [4] 1 [3:0] filter bandwidth fine tune 6
+    0b11010110,
+    // [7] 0 [6:5] filter bandwidth coarse tune 3 [4] 0 [3:0] high pass filter corner 12
+    0b01101100,
+    // [7] 1 [6] VGA power on [5] 1 [4] VGA gain controlled by pin [3:0] VGA gain 5.5dB
+    0b11110101,
+    // [7:4] LNA agc power detector threshold high 0.94V [3:0] LNA agc power detector threshold low 0.64V 
+    0b01100011,
+    // [7:4] Mixer agc power detector threshold high 1.04V [3:0] Mixer agd power detector threshold low 0.84V
+    0b01110101,
+    // [7] 0 [6:5] LDO 3.0V [4] clock output off [3] 1 [2] 0 [1] internal agc clock on [0] 0
+    0b01101000,
+    // 0x10
+    // [7:5] PLL to mixer divider 1:1 [4] PLL divider 1 [3] xtal swing low [2] 1 [1:0] Internal xtal cap (none)
+    0b01101100,
+    // [7:6] PLL analog regulator 2.0V [5] 0 [4] 0 [3] 0 [2] 0 [1] 1 [0] 1
+    0b10000011,
+    // [7] 1 [6:4] 0 [3] ? [2:0] 0
+    0b10000000,
+    // [7:0] 0
+    0b00000000,
+    // [7:6] SI2C = 0 [5:0] NI2C = 15
+    0b00001111,
+    // [7:0] SDM_IN[16:9]
+    0b00000000,
+    // [7:0] SDM_IN[8:1]
+    0b11000000,
+    // [7:6] PLL digital regulator 1.8V, 8mA [5:4] 1 [3] open drain high-Z [2] 1 [1:0] 0
+    0b00110000,
+    // 0x18
+    // [7] 0 [6] 1 [5:0] -
+    0b01001000,
+    // [7] RF filter power on [6:5] 0 [4] agc_pin = agc_in [3:2] 1 [1:0] -
+    0b11001100,
+    // [7:6] tracking filter bypass [5] 1 [4] 0 [3:2] PLL auto tune 128kHz [1:0] RF filter highest band
+    0b01100000,
+    // [7:4] highest corner for LPNF [3:0] highest corner for LPF
+    0b00000000,
+    // [7:4] power detector 3 TOP 5 [3] 0 [2] 1 [1] - [0] 0
+    0b01010100,
+    // [7:6] 1 [5:3] power detector 1 TOP 5 [2:0] power detector 2 TOP 6
+    0b10101110,
+    // [7] 0 [6] filter extension enable [5:0] power detector timing control 10
+    0b01001010,
+    // [7:6] 1 [5:2] 0 [1:0] -
+    0b11000000];
 
   /**
    * Configurations for the multiplexer in different frequency bands.
    */
   static MUX_CFGS = [
-    [0, 0x08, 0x02, 0xdf],
-    [50, 0x08, 0x02, 0xbe],
-    [55, 0x08, 0x02, 0x8b],
-    [60, 0x08, 0x02, 0x7b],
-    [65, 0x08, 0x02, 0x69],
-    [70, 0x08, 0x02, 0x58],
-    [75, 0x00, 0x02, 0x44],
-    [90, 0x00, 0x02, 0x34],
-    [110, 0x00, 0x02, 0x24],
-    [140, 0x00, 0x02, 0x14],
-    [180, 0x00, 0x02, 0x13],
-    [250, 0x00, 0x02, 0x11],
-    [280, 0x00, 0x02, 0x00],
-    [310, 0x00, 0x41, 0x00],
-    [588, 0x00, 0x40, 0x00]
+    //      +- open drain (1: low Z)
+    //      |       ++- tracking filter (01: bypass)
+    //      |       ||    ++- RF filter (00: high, 01: med, 10: low)
+    //      |       ||    ||    ++++- LPNF (0000: highest)
+    //      |       ||    ||    ||||++++- LPF (0000: highest) 
+    //      v       vv    vv    vvvvvvvv
+    [  0, 0b1000, 0b00000010, 0b11011111],
+    [ 50, 0b1000, 0b00000010, 0b10111110],
+    [ 55, 0b1000, 0b00000010, 0b10001011],
+    [ 60, 0b1000, 0b00000010, 0b01111011],
+    [ 65, 0b1000, 0b00000010, 0b01101001],
+    [ 70, 0b1000, 0b00000010, 0b01011000],
+    [ 75, 0b0000, 0b00000010, 0b01000100],
+    [ 90, 0b0000, 0b00000010, 0b00110100],
+    [110, 0b0000, 0b00000010, 0b00100100],
+    [140, 0b0000, 0b00000010, 0b00010100],
+    [180, 0b0000, 0b00000010, 0b00010011],
+    [250, 0b0000, 0b00000010, 0b00010001],
+    [280, 0b0000, 0b00000010, 0b00000000],
+    [310, 0b0000, 0b01000001, 0b00000000],
+    [588, 0b0000, 0b01000000, 0b00000000]
   ];
 
   /**
@@ -110,26 +172,40 @@ class R820T {
    * Stops the tuner.
    */
   async close() {
-    await this._writeRegMask(0x06, 0xb1, 0xff);
-    await this._writeRegMask(0x05, 0xb3, 0xff);
-    await this._writeRegMask(0x07, 0x3a, 0xff);
-    await this._writeRegMask(0x08, 0x40, 0xff);
-    await this._writeRegMask(0x09, 0xc0, 0xff);
-    await this._writeRegMask(0x0a, 0x36, 0xff);
-    await this._writeRegMask(0x0c, 0x35, 0xff);
-    await this._writeRegMask(0x0f, 0x68, 0xff);
-    await this._writeRegMask(0x11, 0x03, 0xff);
-    await this._writeRegMask(0x17, 0xf4, 0xff);
-    await this._writeRegMask(0x19, 0x0c, 0xff);
+    // [7] power detector 1 off [6] power detector 3 off [5] filter gain [2:0] LNA power 1
+    await this._writeRegMask(0x06, 0b10110001, 0xff);
+    // [7] loop through off [5] lna 1 power off [4] LNA gain manual [3:0] LNA gain 3
+    await this._writeRegMask(0x05, 0b10110011, 0xff);
+    // [6] mixer power off [5] mixer normal current [4] mixer gain auto [3:0] mixer gain 10
+    await this._writeRegMask(0x07, 0b00111010, 0xff);
+    // [7] mixer buffer power off [6] mixer buffer low current [5:0] image gain 0
+    await this._writeRegMask(0x08, 0b01000000, 0xff);
+    // [7] IF filter off [6] IF filter low current [5:0] image phase 0
+    await this._writeRegMask(0x09, 0b11000000, 0xff);
+    // [7] channel filter off [6:5] filter power 1 [3:0] filter bandwidth 6
+    await this._writeRegMask(0x0a, 0b00111010, 0xff);
+    // [6] vga power off [4] vga controlled by pin [3:0] vga gain 5
+    await this._writeRegMask(0x0c, 0b00110101, 0xff);
+    // [4] clock output on [1] internal agc clock on
+    await this._writeRegMask(0x0f, 0b01101000, 0xff);
+    // [7:6] pll analog regulator off
+    await this._writeRegMask(0x11, 0b00000011, 0xff);
+    // [7:6] pll digital regulator off [3] open drain high-Z
+    await this._writeRegMask(0x17, 0b11110100, 0xff);
+    // [7] rf filter power off [4] agc pin = agc_in
+    await this._writeRegMask(0x19, 0b00001100, 0xff);
   }
 
   /**
    * Sets the tuner to automatic gain.
    */
   async setAutoGain() {
-    await this._writeRegMask(0x05, 0x00, 0x10);
-    await this._writeRegMask(0x07, 0x10, 0x10);
-    await this._writeRegMask(0x0c, 0x0b, 0x9f);
+    // [4] lna gain auto
+    await this._writeRegMask(0x05, 0b00000000, 0b00010000);
+    // [4] mixer gain auto
+    await this._writeRegMask(0x07, 0b00010000, 0b00010000);
+    // [4] IF vga mode manual [3:0] IF vga gain 26.5dB
+    await this._writeRegMask(0x0c, 0b00001011, 0b10011111);
   }
 
   /**
@@ -150,11 +226,16 @@ class R820T {
     }
     let lnaValue = Math.floor(step / 2);
     let mixerValue = Math.floor((step - 1) / 2);
-    await this._writeRegMask(0x05, 0x10, 0x10);
-    await this._writeRegMask(0x07, 0x00, 0x10);
-    await this._writeRegMask(0x0c, 0x08, 0x9f);
-    await this._writeRegMask(0x05, lnaValue, 0x0f);
-    await this._writeRegMask(0x07, mixerValue, 0x0f);
+    // [4] lna gain manual
+    await this._writeRegMask(0x05, 0b00010000, 0b00010000);
+    // [4] mixer gain manual
+    await this._writeRegMask(0x07, 0b00000000, 0b00010000);
+    // [4] vga mode manual [3:0] vga gain 16dB
+    await this._writeRegMask(0x0c, 0b00001000, 0b10011111);
+    // [3:0] lna gain
+    await this._writeRegMask(0x05, lnaValue, 0b00001111);
+    // [3:0] mixer gain
+    await this._writeRegMask(0x07, mixerValue, 0b00001111);
   }
 
   /**
@@ -163,20 +244,27 @@ class R820T {
   async _calibrateFilter(): Promise<number> {
     let firstTry = true;
     while (true) {
-      await this._writeRegMask(0x0b, 0x6b, 0x60);
-      await this._writeRegMask(0x0f, 0x04, 0x04);
-      await this._writeRegMask(0x10, 0x00, 0x03);
+      // [6:5] filter bandwidth manual coarse narrowest
+      await this._writeRegMask(0x0b, 0b01100000, 0b01100000);
+      // [2] channel filter calibration clock on
+      await this._writeRegMask(0x0f, 0b00000100, 0b00000100);
+      // [1:0] xtal cap setting -> no cap
+      await this._writeRegMask(0x10, 0b00000000, 0b00000011);
       await this._setPll(56000000);
       if (!this.hasPllLock) {
         throw "PLL not locked -- cannot tune to the selected frequency.";
       }
-      await this._writeRegMask(0x0b, 0x10, 0x10);
-      await this._writeRegMask(0x0b, 0x00, 0x10);
-      await this._writeRegMask(0x0f, 0x00, 0x04);
+      // [4] channel filter calibration start
+      await this._writeRegMask(0x0b, 0b00010000, 0b00010000);
+      // [4] channel filter calibration reset
+      await this._writeRegMask(0x0b, 0b00000000, 0b00010000);
+      // [2] channel filter calibration clock off
+      await this._writeRegMask(0x0f, 0b00000000, 0b00000100);
       let data = await this._readRegBuffer(0x00, 5);
       let arr = new Uint8Array(data);
-      let filterCap = arr[4] & 0x0f;
-      if (filterCap == 0x0f) {
+      // [3:0] filter calibration code
+      let filterCap = arr[4] & 0b00001111;
+      if (filterCap == 0b00001111) {
         filterCap = 0;
       }
       if (filterCap == 0 || !firstTry) {
@@ -198,13 +286,26 @@ class R820T {
         break;
       }
     }
+    //      +- open drain (1: low Z)
+    //      |       ++- tracking filter (01: bypass)
+    //      |       ||    ++- RF filter (00: high, 01: med, 10: low)
+    //      |       ||    ||    ++++- LPNF (0000: highest)
+    //      |       ||    ||    ||||++++- LPF (0000: highest) 
+    //      v       vv    vv    vvvvvvvv
+//  [  0, 0b1000, 0b00000010, 0b11011111],
     let cfg = R820T.MUX_CFGS[i];
-    await this._writeRegMask(0x17, cfg[1], 0x08);
-    await this._writeRegMask(0x1a, cfg[2], 0xc3);
-    await this._writeRegMask(0x1b, cfg[3], 0xff);
-    await this._writeRegMask(0x10, 0x00, 0x0b);
-    await this._writeRegMask(0x08, 0x00, 0x3f);
-    await this._writeRegMask(0x09, 0x00, 0x3f);
+    // [3] open drain
+    await this._writeRegMask(0x17, cfg[1], 0b00001000);
+    // [7:6] tracking filter [1:0] RF filter
+    await this._writeRegMask(0x1a, cfg[2], 0b11000011);
+    // [7:4] LPNF [3:0] LPF
+    await this._writeRegMask(0x1b, cfg[3], 0b11111111);
+    // [3] xtal swing high [1:0] xtal setting no cap
+    await this._writeRegMask(0x10, 0b00000000, 0b00001011);
+    // [5:0] image gain 0
+    await this._writeRegMask(0x08, 0b00000000, 0b00111111);
+    // [5:0] image phase 0
+    await this._writeRegMask(0x09, 0b00000000, 0b00111111);
   }
 
   /**
@@ -214,20 +315,25 @@ class R820T {
    */
   async _setPll(freq: number): Promise<number> {
     let pllRef = Math.floor(this.xtalFreq);
-    await this._writeRegMask(0x10, 0x00, 0x10);
-    await this._writeRegMask(0x1a, 0x00, 0x0c);
-    await this._writeRegMask(0x12, 0x80, 0xe0);
+    // [4] PLL reference divider 1:1
+    await this._writeRegMask(0x10, 0b00000000, 0b00010000);
+    // [3:2] PLL auto tune clock rate 128 kHz
+    await this._writeRegMask(0x1a, 0b00000000, 0b00001100);
+    // [7:5] VCO core power 4 (mid)
+    await this._writeRegMask(0x12, 0b10000000, 0b11100000);
     let divNum = Math.min(6, Math.floor(Math.log(1770000000 / freq) / Math.LN2));
     let mixDiv = 1 << (divNum + 1);
     let data = await this._readRegBuffer(0x00, 5);
     let arr = new Uint8Array(data);
+    // [5:4] VCO fine tune
     let vcoFineTune = (arr[4] & 0x30) >> 4;
     if (vcoFineTune > 2) {
       --divNum;
     } else if (vcoFineTune < 2) {
       ++divNum;
     }
-    await this._writeRegMask(0x10, divNum << 5, 0xe0);
+    // [7:5] pll to mixer divider 0=1/2 1=1/4 2=1/8 3=1/16 4=1/32 5=1/64
+    await this._writeRegMask(0x10, divNum << 5, 0b11100000);
     let vcoFreq = freq * mixDiv;
     let nint = Math.floor(vcoFreq / (2 * pllRef));
     let vcoFra = vcoFreq % (2 * pllRef);
@@ -237,13 +343,18 @@ class R820T {
     }
     let ni = Math.floor((nint - 13) / 4);
     let si = (nint - 13) % 4;
-    await this._writeRegMask(0x14, ni + (si << 6), 0xff);
-    await this._writeRegMask(0x12, vcoFra == 0 ? 0x08 : 0x00, 0x08);
+    // [7:6] si2c [5:0] ni2c
+    await this._writeRegMask(0x14, ni + (si << 6), 0b11111111);
+    // [4] sigma delta dither (0 on)
+    await this._writeRegMask(0x12, vcoFra == 0 ? 0b1000 : 0b0000, 0b00001000);
     let sdm = Math.min(65535, Math.floor(32768 * vcoFra / pllRef));
-    await this._writeRegMask(0x16, sdm >> 8, 0xff);
-    await this._writeRegMask(0x15, sdm & 0xff, 0xff);
+    // SDM high
+    await this._writeRegMask(0x16, sdm >> 8, 0b11111111);
+    // SDM low
+    await this._writeRegMask(0x15, sdm & 0xff, 0b11111111);
     await this._getPllLock();
-    await this._writeRegMask(0x1a, 0x08, 0x08);
+    // [3] PLL auto tune clock rate 8 kHz
+    await this._writeRegMask(0x1a, 0b00001000, 0b00001000);
     return 2 * pllRef * (nint + sdm / 65536) / mixDiv;
   }
 
@@ -256,7 +367,8 @@ class R820T {
     while (true) {
       let data = await this._readRegBuffer(0x00, 3);
       let arr = new Uint8Array(data);
-      if (arr[2] & 0x40) {
+      // [6] pll lock?
+      if (arr[2] & 0b01000000) {
         this.hasPllLock = true;
         return;
       }
@@ -264,7 +376,8 @@ class R820T {
         this.hasPllLock = true;
         return;
       }
-      await this._writeRegMask(0x12, 0x60, 0xe0);
+      // [7:5] VCO core power 3
+      await this._writeRegMask(0x12, 0b01100000, 0b11100000);
       firstTry = false;
     }
   }
@@ -273,36 +386,65 @@ class R820T {
    * Initializes all the components of the tuner.
    */
   async _initElectronics() {
-    await this._writeRegMask(0x0c, 0x00, 0x0f);
-    await this._writeRegMask(0x13, 49, 0x3f);
-    await this._writeRegMask(0x1d, 0x00, 0x38);
+    // [3:0] IF vga -12dB
+    await this._writeRegMask(0x0c, 0b00000000, 0b00001111);
+    // [5:0] VCO bank 49
+    await this._writeRegMask(0x13, 0b00110001, 0b00111111);
+    // [5:3] power detector 1 TOP 0
+    await this._writeRegMask(0x1d, 0b00000000, 0b00111000);
     let filterCap = await this._calibrateFilter();
-    await this._writeRegMask(0x0a, 0x10 | filterCap, 0x1f);
-    await this._writeRegMask(0x0b, 0x6b, 0xef);
-    await this._writeRegMask(0x07, 0x00, 0x80);
-    await this._writeRegMask(0x06, 0x10, 0x30);
-    await this._writeRegMask(0x1e, 0x40, 0x60);
-    await this._writeRegMask(0x05, 0x00, 0x80);
-    await this._writeRegMask(0x1f, 0x00, 0x80);
-    await this._writeRegMask(0x0f, 0x00, 0x80);
-    await this._writeRegMask(0x19, 0x60, 0x60);
-    await this._writeRegMask(0x1d, 0xe5, 0xc7);
-    await this._writeRegMask(0x1c, 0x24, 0xf8);
-    await this._writeRegMask(0x0d, 0x53, 0xff);
-    await this._writeRegMask(0x0e, 0x75, 0xff);
-    await this._writeRegMask(0x05, 0x00, 0x60);
-    await this._writeRegMask(0x06, 0x00, 0x08);
-    await this._writeRegMask(0x11, 0x38, 0x08);
-    await this._writeRegMask(0x17, 0x30, 0x30);
-    await this._writeRegMask(0x0a, 0x40, 0x60);
-    await this._writeRegMask(0x1d, 0x00, 0x38);
-    await this._writeRegMask(0x1c, 0x00, 0x04);
-    await this._writeRegMask(0x06, 0x00, 0x40);
-    await this._writeRegMask(0x1a, 0x30, 0x30);
-    await this._writeRegMask(0x1d, 0x18, 0x38);
-    await this._writeRegMask(0x1c, 0x24, 0x04);
-    await this._writeRegMask(0x1e, 0x0d, 0x1f);
-    await this._writeRegMask(0x1a, 0x20, 0x30);
+    // [4] channel filter high Q [3:0] filter bandwidth manual fine tune
+    await this._writeRegMask(0x0a, 0b00010000 | filterCap, 0b00011111);
+    // [7:5] filter bandwidth coarse 3 [3:0] high pass corner 11
+    await this._writeRegMask(0x0b, 0b01101011, 0b11101111);
+    // [7] mixer sideband lower
+    await this._writeRegMask(0x07, 0b00000000, 0b10000000);
+    // [5] filter gain 0 dB [4] mixer filter 6MHz function on
+    await this._writeRegMask(0x06, 0b00010000, 0b00110000);
+    // [6] filter extension enable [5] channer filter extension @ LNA max
+    await this._writeRegMask(0x1e, 0b01000000, 0b01100000);
+    // [7] loop through on
+    await this._writeRegMask(0x05, 0b00000000, 0b10000000);
+    // [7] loop through attenuation enable
+    await this._writeRegMask(0x1f, 0b00000000, 0b10000000);
+    // [7] filter extension widest off
+    await this._writeRegMask(0x0f, 0b00000000, 0b10000000);
+    // [6:5] RF poly filter current min
+    await this._writeRegMask(0x19, 0b01100000, 0b01100000);
+    // [7:6] LNA narrow band power detector lowest BW [2:0] power detector 2 TOP 5
+    await this._writeRegMask(0x1d, 0b11100101, 0b11000111);
+    // [7:4] power detector 3 TOP 4
+    await this._writeRegMask(0x1c, 0b00100100, 0b11111000);
+    // [7:4] LNA agc power detector voltage threshold high 0.84V [3:0] low 0.64V
+    await this._writeRegMask(0x0d, 0b01010011, 0b11111111);
+    // [7:4] mixer agc power detector voltage threshold high 1.04V [3:0] low 0.84V
+    await this._writeRegMask(0x0e, 0b01110101, 0b11111111);
+    // [6] cable 1 LNA off [5] LNA 1 power on
+    await this._writeRegMask(0x05, 0b00000000, 0b01100000);
+    // [3] cable 2 LNA off
+    await this._writeRegMask(0x06, 0b00000000, 0b00001000);
+    // [3] ?
+    await this._writeRegMask(0x11, 0b00111000, 0b00001000);
+    // [5:4] prescale 45 current 150u
+    await this._writeRegMask(0x17, 0b00110000, 0b00110000);
+    // [6:5] filter power 2
+    await this._writeRegMask(0x0a, 0b01000000, 0b01100000);
+    // [5:3] power detector 1 TOP 0
+    await this._writeRegMask(0x1d, 0b00000000, 0b00111000);
+    // [2] LNA power detector mode normal
+    await this._writeRegMask(0x1c, 0b00000000, 0b00000100);
+    // [6] LNA power detector narrow band off
+    await this._writeRegMask(0x06, 0b00000000, 0b01000000);
+    // [5:4] AGC clock 20ms
+    await this._writeRegMask(0x1a, 0b00110000, 0b00110000);
+    // [5:3] power detector 1 TOP 3
+    await this._writeRegMask(0x1d, 0b00011000, 0b00111000);
+    // [2] LNA power detector 1 low discharge
+    await this._writeRegMask(0x1c, 0b00100100, 0b00000100);
+    // [4:0] LNA discharge current 13
+    await this._writeRegMask(0x1e, 0b00001101, 0b00011111);
+    // [5:4] AGC clock 80 ms
+    await this._writeRegMask(0x1a, 0b00100000, 0b00110000);
   }
 
   /**
