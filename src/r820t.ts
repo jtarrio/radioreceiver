@@ -15,7 +15,7 @@
 /**
  * Operations on the R820T tuner chip.
  */
-class R820T {
+class R820T implements Tuner {
   /**
    * Initial values for registers 0x05-0x1f.
    */
@@ -112,17 +112,20 @@ class R820T {
   static BIT_REVS = [0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
     0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf];
 
+  /** This tuner's intermediate frequency. */
+  static IF_FREQ = 3570000;
+
   /** The RTL communications object. */
-  com: RtlCom;
+  private com: RtlCom;
 
   /** The frequency of the oscillator crystal. */
-  xtalFreq: number;
+  private xtalFreq: number;
 
   /** Whether the PLL in the tuner is locked. */
-  hasPllLock: boolean;
+  private hasPllLock: boolean;
 
   /** Shadow registers 0x05-0x1f, for setting values using masks. */
-  shadowRegs: Uint8Array;
+  private shadowRegs: Uint8Array;
 
   /**
    * Checks if the R820T tuner is present.
@@ -164,8 +167,9 @@ class R820T {
    * @returns a promise that resolves to the actual tuned frequency.
    */
   async setFrequency(freq: number): Promise<number> {
-    await this._setMux(freq);
-    return this._setPll(freq);
+    await this._setMux(freq + R820T.IF_FREQ);
+    let actual = await this._setPll(freq + R820T.IF_FREQ);
+    return actual - R820T.IF_FREQ;
   }
 
   /**
@@ -236,6 +240,10 @@ class R820T {
     await this._writeRegMask(0x05, lnaValue, 0b00001111);
     // [3:0] mixer gain
     await this._writeRegMask(0x07, mixerValue, 0b00001111);
+  }
+
+  setXtalFrequency(xtalFreq: number) {
+    this.xtalFreq = xtalFreq;
   }
 
   /**

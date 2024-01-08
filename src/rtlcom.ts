@@ -25,13 +25,13 @@ class RtlCom {
     /** Set in the control messages' index field for write operations. */
     private static WRITE_FLAG = 0x10;
 
-    /** Claims the USB interface. */
+    /** Claims the USB control interface. */
     async claimInterface() {
         await this.device.claimInterface(0);
     }
 
     /**
-     * Releases the USB interface.
+     * Releases the USB control interface.
      */
     async releaseInterface() {
         await this.device.releaseInterface(0);
@@ -121,6 +121,8 @@ class RtlCom {
 
     /**
      * Opens the I2C repeater.
+     * To avoid interference, the tuner is usually disconnected from the I2C bus.
+     * With the repeater open, the tuner can receive I2C messages.
      */
     async openI2C() {
         await this.setDemodReg(1, 1, 0x18, 1);

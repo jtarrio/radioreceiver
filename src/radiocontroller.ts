@@ -33,7 +33,6 @@ class RadioController {
     this.decoder = new Worker('decode-worker.js');
     this.player = new Player();
     this.mode = {};
-    this.frequency = 88500000;
     this.stereo = true;
     this.stereoEnabled = true;
     this.volume = 1;
@@ -57,7 +56,6 @@ class RadioController {
   decoder: Worker;
   player: Player;
   mode: object;
-  frequency: number;
   stereo: boolean;
   stereoEnabled: boolean;
   volume: number;
@@ -275,7 +273,7 @@ class RadioController {
 
   playStream(data: ArrayBuffer) {
     this.decoder.postMessage(
-      [0, data, this.stereoEnabled, this.radio.frequencyOffset()], [data]);
+      [0, data, this.stereoEnabled, 0], [data]);
   }
 
   async checkForSignal(data: ArrayBuffer): Promise<boolean> {
@@ -284,7 +282,7 @@ class RadioController {
     };
     let promise = new Promise<boolean>(r => { this.signalCheckResolver = r; });
     this.decoder.postMessage(
-      [0, data, this.stereoEnabled, this.radio.frequencyOffset(), scanParams], [data]);
+      [0, data, this.stereoEnabled, 0, scanParams], [data]);
     return promise;
   }
 
@@ -331,7 +329,7 @@ class RadioController {
     if (this.offsetCount > 0) {
       let offset = this.offsetSum / this.offsetCount;
       let freqOffset = 75000 * offset;
-      return Math.round(this.actualPpm - 1e6 * freqOffset / this.frequency);
+      return Math.round(this.actualPpm - 1e6 * freqOffset / this.radio.frequency());
     } else {
       return 0;
     }

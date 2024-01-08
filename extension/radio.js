@@ -22,7 +22,6 @@ class Radio extends EventTarget {
         this.ppm = 0;
         this.gain = null;
         this.tunedFreq = 88500000;
-        this.centerFreq = 0;
     }
     state;
     device;
@@ -31,7 +30,6 @@ class Radio extends EventTarget {
     ppm;
     gain;
     tunedFreq;
-    centerFreq;
     static TUNERS = [
         { vendorId: 0x0bda, productId: 0x2832 },
         { vendorId: 0x0bda, productId: 0x2838 },
@@ -47,9 +45,11 @@ class Radio extends EventTarget {
             this.device = await navigator.usb.requestDevice({ filters: Radio.TUNERS });
         }
         await this.device.open();
-        this.rtl = await RTL2832U.open(this.device, this.ppm, this.gain);
+        this.rtl = await RTL2832U.open(this.device);
+        await this.rtl.setFrequencyCorrection(this.ppm);
+        await this.rtl.setGain(this.gain);
         await this.rtl.setSampleRate(Radio.SAMPLE_RATE);
-        this.centerFreq = await this.rtl.setCenterFrequency(this.tunedFreq);
+        await this.rtl.setCenterFrequency(this.tunedFreq);
         this.transfers = new RadioTransfers(this.rtl, this.sampleReceiver, Radio.SAMPLES_PER_BUF);
         this.transfers.stream(Radio.PARALLEL_BUFS);
         this.state = RadioState.PLAYING;
@@ -69,19 +69,17 @@ class Radio extends EventTarget {
             this.state = RadioState.PLAYING;
             return;
         }
-        this.changeFrequency(freq);
+        await this.changeFrequency(freq);
     }
     async changeFrequency(freq) {
         this.tunedFreq = freq;
         if (this.state != RadioState.OFF) {
-            if (Math.abs(this.centerFreq - this.tunedFreq) > 300000) {
-                this.centerFreq = await this.rtl.setCenterFrequency(this.tunedFreq);
-            }
+            await this.rtl.setCenterFrequency(this.tunedFreq);
         }
         this.dispatchEvent(RadioEvent.New('frequency'));
     }
     async scan(min, max, step) {
-        if (this.state != RadioState.PLAYING)
+        if (this.state == RadioState.OFF)
             return;
         this.state = RadioState.SCANNING;
         this.dispatchEvent(RadioEvent.New('state'));
@@ -108,9 +106,6 @@ class Radio extends EventTarget {
     }
     frequency() {
         return this.tunedFreq;
-    }
-    frequencyOffset() {
-        return this.centerFreq - this.tunedFreq;
     }
     isPlaying() {
         return this.state != RadioState.OFF;
