@@ -289,13 +289,6 @@ class R820T implements Tuner {
         break;
       }
     }
-    //      +- open drain (1: low Z)
-    //      |       ++- tracking filter (01: bypass)
-    //      |       ||    ++- RF filter (00: high, 01: med, 10: low)
-    //      |       ||    ||    ++++- LPNF (0000: highest)
-    //      |       ||    ||    ||||++++- LPF (0000: highest) 
-    //      v       vv    vv    vvvvvvvv
-//  [  0, 0b1000, 0b00000010, 0b11011111],
     let cfg = R820T.MUX_CFGS[i];
     // [3] open drain
     await this._writeRegMask(0x17, cfg[1], 0b00001000);
