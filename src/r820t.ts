@@ -244,7 +244,7 @@ class R820T implements Tuner {
   /**
    * Calibrates the filters.
    */
-  async _calibrateFilter(): Promise<number> {
+  private async _calibrateFilter(): Promise<number> {
     let firstTry = true;
     while (true) {
       // [6:5] filter bandwidth manual coarse narrowest
@@ -281,7 +281,7 @@ class R820T implements Tuner {
    * Sets the multiplexer's frequency.
    * @param freq The frequency to set.
    */
-  async _setMux(freq: number) {
+  private async _setMux(freq: number) {
     let freqMhz = freq / 1000000;
     let i;
     for (i = 0; i < R820T.MUX_CFGS.length - 1; ++i) {
@@ -316,7 +316,7 @@ class R820T implements Tuner {
    * @param freq The frequency to set.
    * @returns a promise that resolves to the actual frequency set, or to 0 if the frequency is not achievable.
    */
-  async _setPll(freq: number): Promise<number> {
+  private async _setPll(freq: number): Promise<number> {
     let pllRef = Math.floor(this.xtalFreq);
     // [4] PLL reference divider 1:1
     await this._writeRegMask(0x10, 0b00000000, 0b00010000);
@@ -365,7 +365,7 @@ class R820T implements Tuner {
    * Checks whether the PLL has achieved lock.
    * @param firstTry Whether this is the first try to achieve lock.
    */
-  async _getPllLock() {
+  private async _getPllLock() {
     let firstTry = true;
     while (true) {
       let data = await this._readRegBuffer(0x00, 3);
@@ -388,7 +388,7 @@ class R820T implements Tuner {
   /**
    * Initializes all the components of the tuner.
    */
-  async _initElectronics() {
+  private async _initElectronics() {
     // [3:0] IF vga -12dB
     await this._writeRegMask(0x0c, 0b00000000, 0b00001111);
     // [5:0] VCO bank 49
@@ -456,7 +456,7 @@ class R820T implements Tuner {
    * @param length The number of registers to read.
    * @returns a promise that resolves to an ArrayBuffer with the data.
    */
-  async _readRegBuffer(addr: number, length: number): Promise<ArrayBuffer> {
+  private async _readRegBuffer(addr: number, length: number): Promise<ArrayBuffer> {
     let data = await this.com.getI2CRegBuffer(0x34, addr, length);
     let buf = new Uint8Array(data);
     for (let i = 0; i < buf.length; ++i) {
@@ -472,7 +472,7 @@ class R820T implements Tuner {
    * @param value The value to write.
    * @param mask A mask that specifies which bits to write.
    */
-  async _writeRegMask(addr: number, value: number, mask: number) {
+  private async _writeRegMask(addr: number, value: number, mask: number) {
     let rc = this.shadowRegs[addr - 5];
     let val = (rc & ~mask) | (value & mask);
     this.shadowRegs[addr - 5] = val;
