@@ -241,6 +241,10 @@ class R820T implements Tuner {
     this.xtalFreq = xtalFreq;
   }
 
+  getIntermediateFrequency(): number {
+    return R820T.IF_FREQ;
+  }
+
   /**
    * Calibrates the filters.
    */
