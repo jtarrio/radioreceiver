@@ -154,7 +154,7 @@ class R820T implements Tuner {
    * @param com The RTL communications object.
    * @param xtalFreq The frequency of the oscillator crystal.
    */
-  constructor(com: RtlCom, xtalFreq: number, shadowRegs: Uint8Array) {
+  private constructor(com: RtlCom, xtalFreq: number, shadowRegs: Uint8Array) {
     this.com = com;
     this.xtalFreq = xtalFreq;
     this.hasPllLock = false;
