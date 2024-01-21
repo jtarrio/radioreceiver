@@ -204,21 +204,17 @@ class R820T {
      * @param gain The tuner's gain, in dB.
      */
     async setManualGain(gain) {
-        let step = 0;
-        if (gain <= 15) {
-            step = Math.round(1.36 + gain * (1.1118 + gain * (-0.0786 + gain * 0.0027)));
-        }
-        else {
-            step = Math.round(1.2068 + gain * (0.6875 + gain * (-0.01011 + gain * 0.0001587)));
-        }
-        if (step < 0) {
-            step = 0;
-        }
-        else if (step > 30) {
-            step = 30;
-        }
-        let lnaValue = Math.floor(step / 2);
-        let mixerValue = Math.floor((step - 1) / 2);
+        // Experimentally, LNA goes in 2.3dB steps, Mixer in 1.2dB steps.
+        let fullsteps = Math.floor(gain / 3.5);
+        let halfsteps = gain - 3.5 * fullsteps >= 2.3 ? 1 : 0;
+        if (fullsteps < 0)
+            fullsteps = 0;
+        if (fullsteps > 15)
+            fullsteps = 15;
+        if (fullsteps == 15)
+            halfsteps = 0;
+        let lnaValue = fullsteps + halfsteps;
+        let mixerValue = fullsteps;
         // [4] lna gain manual
         await this._writeRegMask(0x05, 0b00010000, 0b00010000);
         // [4] mixer gain manual
@@ -232,6 +228,9 @@ class R820T {
     }
     setXtalFrequency(xtalFreq) {
         this.xtalFreq = xtalFreq;
+    }
+    getIntermediateFrequency() {
+        return R820T.IF_FREQ;
     }
     /**
      * Calibrates the filters.
@@ -280,13 +279,6 @@ class R820T {
                 break;
             }
         }
-        //      +- open drain (1: low Z)
-        //      |       ++- tracking filter (01: bypass)
-        //      |       ||    ++- RF filter (00: high, 01: med, 10: low)
-        //      |       ||    ||    ++++- LPNF (0000: highest)
-        //      |       ||    ||    ||||++++- LPF (0000: highest) 
-        //      v       vv    vv    vvvvvvvv
-        //  [  0, 0b1000, 0b00000010, 0b11011111],
         let cfg = R820T.MUX_CFGS[i];
         // [3] open drain
         await this._writeRegMask(0x17, cfg[1], 0b00001000);
