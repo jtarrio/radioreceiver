@@ -1,4 +1,13 @@
 {
+  "name": "radioreceiver",
+  "description": "A website that lets you listen to the radio from your browser using an RTL-SDR tuner.",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jacobo Tarrio <jtarrio@gmail.com>",
+  "license": "Apache-2.0",
   "devDependencies": {
     "typescript": "^5.3.3"
   },
