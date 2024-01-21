@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { RtlCom } from './rtlcom';
+import { Tuner } from './tuner';
+
 /**
  * Operations on the R820T tuner chip.
  */
-class R820T implements Tuner {
+export class R820T implements Tuner {
   /**
    * Initial values for registers 0x05-0x1f.
    */

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import * as DSP from './dsp';
+
 /**
  * @fileoverview A demodulator for single-sideband modulated signals.
  */
@@ -19,7 +21,7 @@
 /**
  * A class to implement a SSB demodulator.
  */
-class Demodulator_SSB {
+export class Demodulator_SSB {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
@@ -29,13 +31,13 @@ class Demodulator_SSB {
   constructor(inRate: number, outRate: number, bandwidth: number, upper: boolean) {
     const INTER_RATE = 48000;
 
-    this.demodulator = new SSBDemodulator(inRate, INTER_RATE, bandwidth, upper, 151);
-    let filterCoefs = getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
-    this.downSampler = new Downsampler(INTER_RATE, outRate, filterCoefs);
+    this.demodulator = new DSP.SSBDemodulator(inRate, INTER_RATE, bandwidth, upper, 151);
+    let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
+    this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
   }
 
-  demodulator: SSBDemodulator;
-  downSampler: Downsampler;
+  demodulator: DSP.SSBDemodulator;
+  downSampler: DSP.Downsampler;
 
   /**
    * Demodulates the signal.

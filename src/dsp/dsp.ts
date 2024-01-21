@@ -24,7 +24,7 @@
  * @param length The filter kernel's length. Should be an odd number.
  * @returns The FIR coefficients for the filter.
  */
-function getLowPassFIRCoeffs(sampleRate: number, halfAmplFreq: number, length: number): Float32Array {
+export function getLowPassFIRCoeffs(sampleRate: number, halfAmplFreq: number, length: number): Float32Array {
   length += (length + 1) % 2;
   let freq = halfAmplFreq / sampleRate;
   let coefs = new Float32Array(length);
@@ -45,25 +45,6 @@ function getLowPassFIRCoeffs(sampleRate: number, halfAmplFreq: number, length: n
     coefs[i] /= sum;
   }
   return coefs;
-}
-
-/**
- * Multiplies an array that represents a signal by a sinusoidal.
- * @param samples The array to multiply.
- * @param sampleRate The signal's sample rate.
- * @param freq The frequency to multiply by.
- * @param cosine Whether to use cosine (sine otherwise).
- * @returns The multiplied array.
- */
-function multiplyArray(samples: Float32Array, sampleRate: number, freq: number, cosine: boolean): Float32Array {
-  let out = new Float32Array(samples.length);
-  let angFreq = 2 * Math.PI * freq / sampleRate;
-  let center = Math.floor(out.length / 2);
-  for (let i = 0; i < out.length; ++i) {
-    let angle = angFreq * (center - i);
-    out[i] = samples[i] * (cosine ? Math.cos(angle) : Math.sin(angle));
-  }
-  return out;
 }
 
 /**
@@ -140,7 +121,7 @@ class FIRFilter {
 /**
  * Applies a low-pass filter and resamples to a lower sample rate.
  */
-class Downsampler {
+export class Downsampler {
   /**
    * @param inRate The input signal's sample rate.
    * @param outRate The output signal's sample rate.
@@ -173,7 +154,7 @@ class Downsampler {
 /**
  * A class to demodulate IQ-interleaved samples into a raw audio signal.
  */
-class SSBDemodulator {
+export class SSBDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
    * @param outRate The sample rate for the output audio.
@@ -255,7 +236,7 @@ class SSBDemodulator {
 /**
  * A class to demodulate IQ-interleaved samples into a raw audio signal.
  */
-class AMDemodulator {
+export class AMDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
    * @param outRate The sample rate for the output audio.
@@ -320,7 +301,7 @@ class AMDemodulator {
 /**
  * A class to demodulate IQ-interleaved samples into a raw audio signal.
  */
-class FMDemodulator {
+export class FMDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
    * @param outRate The sample rate for the output audio.
@@ -406,7 +387,7 @@ class FMDemodulator {
 /**
  * Demodulates the stereo signal in a demodulated FM signal.
  */
-class StereoSeparator {
+export class StereoSeparator {
   /**
    * @param sampleRate The sample rate for the input signal.
    * @param pilotFreq The frequency of the pilot tone.
@@ -473,7 +454,7 @@ class StereoSeparator {
 /**
  * A de-emphasis filter with the given time constant.
  */
-class Deemphasizer {
+export class Deemphasizer {
   /**
    * @param sampleRate The signal's sample rate.
    * @param timeConstant_uS The filter's time constant in microseconds.
@@ -561,7 +542,7 @@ function average(arr: Float32Array): number {
  * @returns An array that contains first the I stream
  *     and next the Q stream.
  */
-function iqSamplesFromUint8(buffer: ArrayBuffer, rate: number): [Float32Array, Float32Array] {
+export function iqSamplesFromUint8(buffer: ArrayBuffer, rate: number): [Float32Array, Float32Array] {
   let arr = new Uint8Array(buffer);
   let len = arr.length / 2;
   let outI = new Float32Array(len);
@@ -583,7 +564,7 @@ function iqSamplesFromUint8(buffer: ArrayBuffer, rate: number): [Float32Array, F
  * @returns An array containing the I stream, Q stream,
  *     final cosine and final sine.
  */
-function shiftFrequency(IQ: [Float32Array, Float32Array], freq: number, sampleRate: number, cosine: number, sine: number): [Float32Array, Float32Array, number, number] {
+export function shiftFrequency(IQ: [Float32Array, Float32Array], freq: number, sampleRate: number, cosine: number, sine: number): [Float32Array, Float32Array, number, number] {
   let deltaCos = Math.cos(2 * Math.PI * freq / sampleRate);
   let deltaSin = Math.sin(2 * Math.PI * freq / sampleRate);
   let I = IQ[0];

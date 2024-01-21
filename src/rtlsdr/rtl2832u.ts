@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { R820T } from "./r820t";
+import { RtlCom } from "./rtlcom";
+import { Tuner } from "./tuner";
+
 /**
  * Operations on the RTL2832U demodulator.
  */
-class RTL2832U {
+export class RTL2832U {
 
   /**
    * Frequency of the oscillator crystal.
@@ -252,14 +256,4 @@ class RTL2832U {
     await this.com.closeI2C();
     await this.com.releaseInterface();
   }
-}
-
-/** Functions common to all tuner implementations. */
-interface Tuner {
-  setFrequency(freq: number): Promise<number>;
-  setAutoGain(): Promise<void>;
-  setManualGain(gain: number): Promise<void>;
-  setXtalFrequency(xtalFreq: number): void;
-  getIntermediateFrequency(): number;
-  close(): Promise<void>;
 }

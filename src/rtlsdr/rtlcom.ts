@@ -15,7 +15,7 @@
 /**
  * Low-level communications with the RTL2832U-base dongle.
  */
-class RtlCom {
+export class RtlCom {
     constructor(device: USBDevice) {
         this.device = device;
     }

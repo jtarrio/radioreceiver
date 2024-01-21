@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import * as DSP from './dsp';
+
 /**
  * @fileoverview A demodulator for amplitude modulated signals.
  */
@@ -19,7 +21,7 @@
 /**
  * A class to implement an AM demodulator.
  */
-class Demodulator_AM {
+export class Demodulator_AM {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
@@ -28,13 +30,13 @@ class Demodulator_AM {
   constructor(inRate: number, outRate: number, bandwidth: number) {
     const INTER_RATE = 48000;
     let filterF = bandwidth / 2;
-    this.demodulator = new AMDemodulator(inRate, INTER_RATE, filterF, 351);
-    let filterCoefs = getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
-    this.downSampler = new Downsampler(INTER_RATE, outRate, filterCoefs);
+    this.demodulator = new DSP.AMDemodulator(inRate, INTER_RATE, filterF, 351);
+    let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
+    this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
   }
 
-  demodulator: AMDemodulator;
-  downSampler: Downsampler;
+  demodulator: DSP.AMDemodulator;
+  downSampler: DSP.Downsampler;
 
   /**
    * Demodulates the signal.

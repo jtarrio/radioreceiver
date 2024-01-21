@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import * as DSP from './dsp';
+
 /**
  * @fileoverview A demodulator for wideband FM signals.
  */
@@ -19,7 +21,7 @@
 /**
  * A class to implement a Wideband FM demodulator.
  */
-class Demodulator_WBFM {
+export class Demodulator_WBFM {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
@@ -31,21 +33,21 @@ class Demodulator_WBFM {
     const PILOT_FREQ = 19000;
     const DEEMPH_TC = 50;
 
-    this.demodulator = new FMDemodulator(inRate, INTER_RATE, MAX_F, FILTER, 51);
-    let filterCoefs = getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
-    this.monoSampler = new Downsampler(INTER_RATE, outRate, filterCoefs);
-    this.stereoSampler = new Downsampler(INTER_RATE, outRate, filterCoefs);
-    this.stereoSeparator = new StereoSeparator(INTER_RATE, PILOT_FREQ);
-    this.leftDeemph = new Deemphasizer(outRate, DEEMPH_TC);
-    this.rightDeemph = new Deemphasizer(outRate, DEEMPH_TC);
+    this.demodulator = new DSP.FMDemodulator(inRate, INTER_RATE, MAX_F, FILTER, 51);
+    let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
+    this.monoSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
+    this.stereoSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
+    this.stereoSeparator = new DSP.StereoSeparator(INTER_RATE, PILOT_FREQ);
+    this.leftDeemph = new DSP.Deemphasizer(outRate, DEEMPH_TC);
+    this.rightDeemph = new DSP.Deemphasizer(outRate, DEEMPH_TC);
   }
 
-  demodulator: FMDemodulator;
-  monoSampler: Downsampler;
-  stereoSampler: Downsampler;
-  stereoSeparator: StereoSeparator;
-  leftDeemph: Deemphasizer;
-  rightDeemph: Deemphasizer;
+  demodulator: DSP.FMDemodulator;
+  monoSampler: DSP.Downsampler;
+  stereoSampler: DSP.Downsampler;
+  stereoSeparator: DSP.StereoSeparator;
+  leftDeemph: DSP.Deemphasizer;
+  rightDeemph: DSP.Deemphasizer;
 
   /**
    * Demodulates the signal.

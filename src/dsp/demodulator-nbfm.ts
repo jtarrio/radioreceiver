@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import * as DSP from './dsp';
+
 /**
  * @fileoverview A demodulator for narrowband FM signals.
  */
@@ -19,7 +21,7 @@
 /**
  * A class to implement a Narrowband FM demodulator.
  */
-class Demodulator_NBFM {
+export class Demodulator_NBFM {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
@@ -30,13 +32,13 @@ class Demodulator_NBFM {
     let interRate = 48000 * multiple;
     let filterF = maxF * 0.8;
 
-    this.demodulator = new FMDemodulator(inRate, interRate, maxF, filterF, Math.floor(50 * 7 / multiple));
-    let filterCoefs = getLowPassFIRCoeffs(interRate, 8000, 41);
-    this.downSampler = new Downsampler(interRate, outRate, filterCoefs);
+    this.demodulator = new DSP.FMDemodulator(inRate, interRate, maxF, filterF, Math.floor(50 * 7 / multiple));
+    let filterCoefs = DSP.getLowPassFIRCoeffs(interRate, 8000, 41);
+    this.downSampler = new DSP.Downsampler(interRate, outRate, filterCoefs);
   }
 
-  demodulator: FMDemodulator;
-  downSampler: Downsampler;
+  demodulator: DSP.FMDemodulator;
+  downSampler: DSP.Downsampler;
 
   /**
    * Demodulates the signal.

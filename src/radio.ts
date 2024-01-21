@@ -4,7 +4,7 @@ enum RadioState {
 
 interface RadioSampleReceiver {
     playStream(buffer: ArrayBuffer): void;
-    checkForSignal(buffer: ArrayBuffer): Promise<boolean>;
+checkForSignal(buffer: ArrayBuffer): Promise<boolean>;
 }
 
 type RadioEventType = 'state' | 'frequency';
