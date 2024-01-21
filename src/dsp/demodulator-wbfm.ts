@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Demodulated, Demodulator } from './demodulator';
 import * as DSP from './dsp';
 
 /**
@@ -21,7 +22,7 @@ import * as DSP from './dsp';
 /**
  * A class to implement a Wideband FM demodulator.
  */
-export class Demodulator_WBFM {
+export class Demodulator_WBFM implements Demodulator {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
@@ -56,7 +57,7 @@ export class Demodulator_WBFM {
    * @param inStereo Whether to try decoding the stereo signal.
    * @return The demodulated audio signal.
    */
-  demodulate(samplesI: Float32Array, samplesQ: Float32Array, inStereo: boolean): { left: ArrayBuffer; right: ArrayBuffer; stereo: boolean; signalLevel: number; } {
+  demodulate(samplesI: Float32Array, samplesQ: Float32Array, inStereo: boolean): Demodulated {
     let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
     let leftAudio = this.monoSampler.downsample(demodulated);
     let rightAudio = new Float32Array(leftAudio);
@@ -77,8 +78,8 @@ export class Demodulator_WBFM {
     this.leftDeemph.inPlace(leftAudio);
     this.rightDeemph.inPlace(rightAudio);
     return {
-      left: leftAudio.buffer,
-      right: rightAudio.buffer,
+      left: leftAudio,
+      right: rightAudio,
       stereo: stereoOut,
       signalLevel: this.demodulator.getRelSignalPower()
     };

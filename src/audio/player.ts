@@ -15,10 +15,10 @@
 /**
  * A class to play a series of sample buffers at a constant rate.
  */
-class Player {
-  static OUT_RATE = 48000;
-  static TIME_BUFFER = 0.05;
-  static SQUELCH_TAIL = 0.3;
+export class Player {
+  private static OUT_RATE = 48000;
+  private static TIME_BUFFER = 0.05;
+  private static SQUELCH_TAIL = 0.3;
 
   constructor() {
     this.lastPlayedAt = -1;
@@ -59,9 +59,6 @@ class Player {
     if (this.squelchTime === null || this.lastPlayedAt - this.squelchTime < Player.SQUELCH_TAIL) {
       buffer.getChannelData(0).set(leftSamples);
       buffer.getChannelData(1).set(rightSamples);
-      // if (this.wavSaver != null) {
-      //   this.wavSaver.writeSamples(leftSamples, rightSamples);
-      // }
     }
     let source = this.ac.createBufferSource();
     source.buffer = buffer;
@@ -71,38 +68,6 @@ class Player {
       this.ac.currentTime + Player.TIME_BUFFER);
     source.start(this.lastPlayedAt);
   }
-
-  // /**
-  //  * Starts recording a WAV file into the given entry.
-  //  * @param entry A file entry for the new WAV file.
-  //  */
-  // startWriting(writer: FileEntry) {
-  //   if (this.wavSaver) {
-  //     this.wavSaver.finish();
-  //   }
-  //   this.wavSaver = new WavSaver(writer);
-  // }
-
-  // /**
-  //  * Stops recording a WAV file.
-  //  */
-  // stopWriting() {
-  //   if (this.wavSaver) {
-  //     this.wavSaver.finish();
-  //     this.wavSaver = null;
-  //   }
-  // }
-
-  // /**
-  //  * Tells whether we're recording a WAV file.
-  //  * @returns Whether a WAV file is being recorded.
-  //  */
-  // isWriting(): boolean {
-  //   if (this.wavSaver && this.wavSaver.hasFinished()) {
-  //     this.wavSaver = null;
-  //   }
-  //   return wavSaver != null;
-  // }
 
   /**
    * Sets the volume for playing samples.

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Demodulated, Demodulator } from './demodulator';
 import * as DSP from './dsp';
 
 /**
@@ -21,7 +22,7 @@ import * as DSP from './dsp';
 /**
  * A class to implement a SSB demodulator.
  */
-export class Demodulator_SSB {
+export class Demodulator_SSB implements Demodulator {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
@@ -45,12 +46,12 @@ export class Demodulator_SSB {
    * @param samplesQ The Q components of the samples.
    * @return The demodulated audio signal.
    */
-  demodulate(samplesI: Float32Array, samplesQ: Float32Array): { left: ArrayBuffer; right: ArrayBuffer; stereo: boolean; signalLevel: number; } {
+  demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
     let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
     let audio = this.downSampler.downsample(demodulated);
     return {
-      left: audio.buffer,
-      right: new Float32Array(audio).buffer,
+      left: audio,
+      right: new Float32Array(audio),
       stereo: false,
       signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17)
     };
