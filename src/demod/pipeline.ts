@@ -15,11 +15,13 @@ export class DemodPipeline implements SampleReceiver {
         this.mode = { modulation: 'WBFM' };
         this.demodulator = this.getDemodulator(this.mode);
         this.player = new Player();
+        this.stereo = false;
     }
 
     private mode: Mode;
     private demodulator: Demodulator;
     private player: Player;
+    private stereo: boolean;
 
     setVolume(volume: number) {
         this.player.setVolume(volume);
@@ -32,6 +34,14 @@ export class DemodPipeline implements SampleReceiver {
 
     getMode(): Mode {
         return this.mode;
+    }
+
+    setStereo(stereo: boolean) {
+        this.stereo = stereo;
+    }
+
+    getStereo(): boolean {
+        return this.stereo
     }
 
     private getDemodulator(mode: Mode): Demodulator {
@@ -59,7 +69,7 @@ export class DemodPipeline implements SampleReceiver {
 
     private demod(samples: ArrayBuffer): number {
         let [I, Q] = DSP.iqSamplesFromUint8(samples, DemodPipeline.IN_RATE);
-        let { left, right, signalLevel } = this.demodulator.demodulate(I, Q, true);
+        let { left, right, signalLevel } = this.demodulator.demodulate(I, Q, this.stereo);
         this.player.play(left, right, signalLevel, 0);
         return signalLevel;
     }

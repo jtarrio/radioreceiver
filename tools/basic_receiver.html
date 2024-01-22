@@ -12,6 +12,15 @@
         <button id="elStop">Stop</button>
         Frequency: <input type="number" id="elFreq" min="27000000" max="1700000000" value="93900000">
         Volume: <input type="number" id="elVolume" min="0" max="100" value="100"> (0-100)
+        Stereo: <input type="checkbox" id="elStereo">
+    </fieldset>
+    <fieldset>
+        <legend>Band scan</legend>
+        Min: <input type="number" id="elScanMin" min="27000000" max="1700000000" value="88500000">
+        Max: <input type="number" id="elScanMax" min="27000000" max="1700000000" value="108000000">
+        Step: <input type="number" id="elScanStep" value="100000">
+        <button id="elScanUp">Scan up</button>
+        <button id="elScanDown">Scan down</button>
     </fieldset>
     <fieldset>
         <legend>Mode</legend>
@@ -30,14 +39,6 @@
         <legend>Tuner parameters</legend>
         Gain: <input type="checkbox" id="elAutoGain">Auto <input type="number" id="elGain" min="0" max="50" value="20"> dB
         Frequency correction: <input type="number" id="elPpm" min="-500" max="500" value="0"> PPM
-    </fieldset>
-    <fieldset>
-        <legend>Band limits</legend>
-        Min: <input type="number" id="elScanMin" min="27000000" max="1700000000" value="88500000">
-        Max: <input type="number" id="elScanMax" min="27000000" max="1700000000" value="108000000">
-        Step: <input type="number" id="elScanStep" value="100000">
-        <button id="elScanUp">Scan up</button>
-        <button id="elScanDown">Scan down</button>
     </fieldset>
 </body>
 

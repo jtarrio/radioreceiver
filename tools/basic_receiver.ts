@@ -10,6 +10,7 @@ type Controls = {
     stop: HTMLButtonElement;
     freq: HTMLInputElement;
     volume: HTMLInputElement;
+    stereo: HTMLInputElement;
     modulation: HTMLSelectElement;
     ctrAm: HTMLElement;
     bwAm: HTMLInputElement;
@@ -33,6 +34,7 @@ function getControls(): Controls {
         stop: document.getElementById('elStop') as HTMLButtonElement,
         freq: document.getElementById('elFreq') as HTMLInputElement,
         volume: document.getElementById('elVolume') as HTMLInputElement,
+        stereo: document.getElementById('elStereo') as HTMLInputElement,
         modulation: document.getElementById('elModulation') as HTMLSelectElement,
         ctrAm: document.getElementById('elCtrAm') as HTMLElement,
         bwAm: document.getElementById('elBwAm') as HTMLInputElement,
@@ -56,6 +58,7 @@ function attachEvents(controls: Controls) {
     controls.stop.addEventListener('click', _ => radio.stop());
     controls.freq.addEventListener('change', _ => radio.setFrequency(Number(controls.freq.value)));
     controls.volume.addEventListener('change', _ => pipeline.setVolume(Number(controls.volume.value) / 100));
+    controls.volume.addEventListener('change', _ => pipeline.setStereo(controls.stereo.checked));
 
     controls.modulation.addEventListener('change', _ => {
         controls.ctrAm.hidden = controls.modulation.value != 'AM';
@@ -119,6 +122,8 @@ function main() {
     let controls = getControls();
     attachEvents(controls);
 
+    pipeline.setMode(getMode(controls));
+    pipeline.setStereo(controls.stereo.checked);
     pipeline.setVolume(1);
     radio.setFrequency(Number(controls.freq.value));
     pipeline.setVolume(Number(controls.volume.value) / 100);

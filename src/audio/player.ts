@@ -79,5 +79,9 @@ export class Player {
       this.gainNode.gain.value = volume;
     }
   }
+
+  getVolume(): number {
+    return this.gain;
+  }
 }
 
