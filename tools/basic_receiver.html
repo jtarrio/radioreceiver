@@ -14,6 +14,19 @@
         Volume: <input type="number" id="elVolume" min="0" max="100" value="100"> (0-100)
     </fieldset>
     <fieldset>
+        <legend>Mode</legend>
+        Modulation: <select id="elModulation">
+            <option value="WBFM" selected>FM</option>
+            <option value="AM">AM</option>
+            <option value="NBFM">NBFM</option>
+            <option value="LSB">LSB</option>
+            <option value="USB">USB</option>
+        </select>
+        <span id="elCtrAm" hidden>Bandwidth: <input type="number" id="elBwAm" value="10000"></span>
+        <span id="elCtrSsb" hidden>Bandwidth: <input type="number" id="elBwSsb" value="2800"></span>
+        <span id="elCtrNbfm" hidden>MaxF: <input type="number" id="elMaxfNbfm" value="2500"></span>
+    </fieldset>
+    <fieldset>
         <legend>Tuner parameters</legend>
         Gain: <input type="checkbox" id="elAutoGain">Auto <input type="number" id="elGain" min="0" max="50" value="20"> dB
         Frequency correction: <input type="number" id="elPpm" min="-500" max="500" value="0"> PPM

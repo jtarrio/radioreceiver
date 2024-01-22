@@ -1,4 +1,7 @@
-import { Demodulator } from './demodulator';
+import { Demodulator, Mode } from './demodulator';
+import { Demodulator_AM } from './demodulator-am';
+import { Demodulator_NBFM } from './demodulator-nbfm';
+import { Demodulator_SSB } from './demodulator-ssb';
 import { Demodulator_WBFM } from './demodulator-wbfm';
 import { Player } from '../audio/player';
 import { SampleReceiver } from '../radio/sample_receiver';
@@ -9,15 +12,41 @@ export class DemodPipeline implements SampleReceiver {
     private static OUT_RATE = 48000;
 
     constructor() {
-        this.demodulator = new Demodulator_WBFM(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE);
+        this.mode = { modulation: 'WBFM' };
+        this.demodulator = this.getDemodulator(this.mode);
         this.player = new Player();
     }
 
+    private mode: Mode;
     private demodulator: Demodulator;
     private player: Player;
 
     setVolume(volume: number) {
         this.player.setVolume(volume);
+    }
+
+    setMode(mode: Mode) {
+        this.mode = mode;
+        this.demodulator = this.getDemodulator(this.mode);
+    }
+
+    getMode(): Mode {
+        return this.mode;
+    }
+
+    private getDemodulator(mode: Mode): Demodulator {
+        switch (mode.modulation) {
+            case 'AM':
+                return new Demodulator_AM(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE, mode.bandwidth);
+            case 'NBFM':
+                return new Demodulator_NBFM(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE, mode.maxF);
+            case 'WBFM':
+                return new Demodulator_WBFM(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE);
+            case 'LSB':
+                return new Demodulator_SSB(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE, mode.bandwidth, false);
+            case 'USB':
+                return new Demodulator_SSB(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE, mode.bandwidth, true);
+        }
     }
 
     receiveSamples(samples: ArrayBuffer): void {
@@ -30,7 +59,7 @@ export class DemodPipeline implements SampleReceiver {
 
     private demod(samples: ArrayBuffer): number {
         let [I, Q] = DSP.iqSamplesFromUint8(samples, DemodPipeline.IN_RATE);
-        let {left, right, signalLevel} = this.demodulator.demodulate(I, Q, true);
+        let { left, right, signalLevel } = this.demodulator.demodulate(I, Q, true);
         this.player.play(left, right, signalLevel, 0);
         return signalLevel;
     }

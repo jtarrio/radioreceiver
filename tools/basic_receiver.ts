@@ -1,5 +1,6 @@
+import { Mode } from '../src/demod/demodulator';
 import { DemodPipeline } from '../src/demod/pipeline';
-import { Radio, RadioEvent } from '../src/radio/radio';
+import { Radio } from '../src/radio/radio';
 
 let pipeline = new DemodPipeline();
 let radio = new Radio(pipeline);
@@ -9,6 +10,13 @@ type Controls = {
     stop: HTMLButtonElement;
     freq: HTMLInputElement;
     volume: HTMLInputElement;
+    modulation: HTMLSelectElement;
+    ctrAm: HTMLElement;
+    bwAm: HTMLInputElement;
+    ctrSsb: HTMLElement;
+    bwSsb: HTMLInputElement;
+    ctrNbfm: HTMLElement;
+    maxfNbfm: HTMLInputElement;
     autoGain: HTMLInputElement;
     gain: HTMLInputElement;
     ppm: HTMLInputElement;
@@ -25,6 +33,13 @@ function getControls(): Controls {
         stop: document.getElementById('elStop') as HTMLButtonElement,
         freq: document.getElementById('elFreq') as HTMLInputElement,
         volume: document.getElementById('elVolume') as HTMLInputElement,
+        modulation: document.getElementById('elModulation') as HTMLSelectElement,
+        ctrAm: document.getElementById('elCtrAm') as HTMLElement,
+        bwAm: document.getElementById('elBwAm') as HTMLInputElement,
+        ctrSsb: document.getElementById('elCtrSsb') as HTMLElement,
+        bwSsb: document.getElementById('elBwSsb') as HTMLInputElement,
+        ctrNbfm: document.getElementById('elCtrNbfm') as HTMLElement,
+        maxfNbfm: document.getElementById('elMaxfNbfm') as HTMLInputElement,
         autoGain: document.getElementById('elAutoGain') as HTMLInputElement,
         gain: document.getElementById('elGain') as HTMLInputElement,
         ppm: document.getElementById('elPpm') as HTMLInputElement,
@@ -37,10 +52,21 @@ function getControls(): Controls {
 }
 
 function attachEvents(controls: Controls) {
-    controls.start?.addEventListener('click', _ => radio.start());
-    controls.stop?.addEventListener('click', _ => radio.stop());
-    controls.freq?.addEventListener('change', _ => radio.setFrequency(Number(controls.freq.value)));
-    controls.volume?.addEventListener('change', _ => pipeline.setVolume(Number(controls.volume.value) / 100));
+    controls.start.addEventListener('click', _ => radio.start());
+    controls.stop.addEventListener('click', _ => radio.stop());
+    controls.freq.addEventListener('change', _ => radio.setFrequency(Number(controls.freq.value)));
+    controls.volume.addEventListener('change', _ => pipeline.setVolume(Number(controls.volume.value) / 100));
+
+    controls.modulation.addEventListener('change', _ => {
+        controls.ctrAm.hidden = controls.modulation.value != 'AM';
+        controls.ctrNbfm.hidden = controls.modulation.value != 'NBFM';
+        controls.ctrSsb.hidden = controls.modulation.value != 'LSB' && controls.modulation.value != 'USB';
+        pipeline.setMode(getMode(controls));
+    });
+    controls.bwAm.addEventListener('change', _ => pipeline.setMode(getMode(controls)));
+    controls.bwSsb.addEventListener('change', _ => pipeline.setMode(getMode(controls)));
+    controls.maxfNbfm.addEventListener('change', _ => pipeline.setMode(getMode(controls)));
+
     controls.autoGain.addEventListener('change', _ => {
         controls.gain.disabled = controls.autoGain.checked;
         if (controls.autoGain.checked) {
@@ -71,6 +97,22 @@ function attachEvents(controls: Controls) {
                 break;
         }
     });
+}
+
+function getMode(controls: Controls): Mode {
+    switch (controls.modulation.value) {
+        case 'AM':
+            return { modulation: 'AM', bandwidth: Number(controls.bwAm.value) };
+        case 'NBFM':
+            return { modulation: 'NBFM', maxF: Number(controls.maxfNbfm.value) };
+        case 'LSB':
+            return { modulation: 'LSB', bandwidth: Number(controls.bwSsb.value) };
+        case 'USB':
+            return { modulation: 'USB', bandwidth: Number(controls.bwSsb.value) };
+        case 'WBFM':
+        default:
+            return { modulation: 'WBFM' };
+    }
 }
 
 function main() {

@@ -49,6 +49,22 @@
         return coefs;
     }
     /**
+     * Returns coefficients for a Hilbert transform.
+     * @param length The length of the kernel.
+     * @returns The kernel coefficients.
+     */
+    function getHilbertCoeffs(length) {
+        length += (length + 1) % 2;
+        let center = Math.floor(length / 2);
+        let out = new Float32Array(length);
+        for (let i = 0; i < out.length; ++i) {
+            if ((i % 2) == 0) {
+                out[i] = 2 / (Math.PI * (center - i));
+            }
+        }
+        return out;
+    }
+    /**
      * An object to apply a FIR filter to a sequence of samples.
      */
     class FIRFilter {
@@ -125,6 +141,141 @@
                 outArr[i] = this.filter.get(Math.floor(readFrom));
             }
             return outArr;
+        }
+    }
+    /**
+     * A class to demodulate IQ-interleaved samples into a raw audio signal.
+     */
+    class SSBDemodulator {
+        /**
+         * @param inRate The sample rate for the input signal.
+         * @param outRate The sample rate for the output audio.
+         * @param filterFreq The bandwidth of the sideband.
+         * @param upper Whether we are demodulating the upper sideband.
+         * @param kernelLen The length of the filter kernel.
+         */
+        constructor(inRate, outRate, filterFreq, upper, kernelLen) {
+            let coefs = getLowPassFIRCoeffs(inRate, 10000, kernelLen);
+            this.downsamplerI = new Downsampler(inRate, outRate, coefs);
+            this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
+            let coefsHilbert = getHilbertCoeffs(kernelLen);
+            this.filterDelay = new FIRFilter(coefsHilbert);
+            this.filterHilbert = new FIRFilter(coefsHilbert);
+            let coefsSide = getLowPassFIRCoeffs(outRate, filterFreq, kernelLen);
+            this.filterSide = new FIRFilter(coefsSide);
+            this.hilbertMul = upper ? -1 : 1;
+            this.powerLongAvg = new ExpAverage(outRate * 5);
+            this.powerShortAvg = new ExpAverage(outRate * 0.5);
+            this.sigRatio = inRate / outRate;
+            this.relSignalPower = 0;
+        }
+        downsamplerI;
+        downsamplerQ;
+        filterDelay;
+        filterHilbert;
+        filterSide;
+        hilbertMul;
+        powerLongAvg;
+        powerShortAvg;
+        sigRatio;
+        relSignalPower;
+        /**
+         * Demodulates the given I/Q samples.
+         * @param samplesI The I component of the samples to demodulate.
+         * @param samplesQ The Q component of the samples to demodulate.
+         * @returns The demodulated sound.
+         */
+        demodulateTuned(samplesI, samplesQ) {
+            let I = this.downsamplerI.downsample(samplesI);
+            let Q = this.downsamplerQ.downsample(samplesQ);
+            let specSqrSum = 0;
+            let sigSqrSum = 0;
+            this.filterDelay.loadSamples(I);
+            this.filterHilbert.loadSamples(Q);
+            let prefilter = new Float32Array(I.length);
+            for (let i = 0; i < prefilter.length; ++i) {
+                prefilter[i] = this.filterDelay.getDelayed(i) + this.filterHilbert.get(i) * this.hilbertMul;
+            }
+            this.filterSide.loadSamples(prefilter);
+            let out = new Float32Array(I.length);
+            for (let i = 0; i < out.length; ++i) {
+                let sig = this.filterSide.get(i);
+                let power = sig * sig;
+                sigSqrSum += power;
+                let stPower = this.powerShortAvg.add(power);
+                let ltPower = this.powerLongAvg.add(power);
+                let multi = 0.9 * Math.max(1, Math.sqrt(2 / Math.min(1 / 128, Math.max(ltPower, stPower))));
+                out[i] = multi * this.filterSide.get(i);
+                let origIndex = Math.floor(i * this.sigRatio);
+                let origI = samplesI[origIndex];
+                let origQ = samplesQ[origIndex];
+                specSqrSum += origI * origI + origQ * origQ;
+            }
+            this.relSignalPower = sigSqrSum / specSqrSum;
+            return out;
+        }
+        getRelSignalPower() {
+            return this.relSignalPower;
+        }
+    }
+    /**
+     * A class to demodulate IQ-interleaved samples into a raw audio signal.
+     */
+    class AMDemodulator {
+        /**
+         * @param inRate The sample rate for the input signal.
+         * @param outRate The sample rate for the output audio.
+         * @param filterFreq The frequency of the low-pass filter.
+         * @param kernelLen The length of the filter kernel.
+         */
+        constructor(inRate, outRate, filterFreq, kernelLen) {
+            let coefs = getLowPassFIRCoeffs(inRate, filterFreq, kernelLen);
+            this.downsamplerI = new Downsampler(inRate, outRate, coefs);
+            this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
+            this.sigRatio = inRate / outRate;
+            this.relSignalPower = 0;
+        }
+        downsamplerI;
+        downsamplerQ;
+        sigRatio;
+        relSignalPower;
+        /**
+         * Demodulates the given I/Q samples.
+         * @param samplesI The I component of the samples to demodulate.
+         * @param samplesQ The Q component of the samples to demodulate.
+         * @returns The demodulated sound.
+         */
+        demodulateTuned(samplesI, samplesQ) {
+            let I = this.downsamplerI.downsample(samplesI);
+            let Q = this.downsamplerQ.downsample(samplesQ);
+            let iAvg = average(I);
+            let qAvg = average(Q);
+            let out = new Float32Array(I.length);
+            let specSqrSum = 0;
+            let sigSqrSum = 0;
+            let sigSum = 0;
+            for (let i = 0; i < out.length; ++i) {
+                let iv = I[i] - iAvg;
+                let qv = Q[i] - qAvg;
+                let power = iv * iv + qv * qv;
+                let ampl = Math.sqrt(power);
+                out[i] = ampl;
+                let origIndex = Math.floor(i * this.sigRatio);
+                let origI = samplesI[origIndex];
+                let origQ = samplesQ[origIndex];
+                specSqrSum += origI * origI + origQ * origQ;
+                sigSqrSum += power;
+                sigSum += ampl;
+            }
+            let halfPoint = sigSum / out.length;
+            for (let i = 0; i < out.length; ++i) {
+                out[i] = (out[i] - halfPoint) / halfPoint;
+            }
+            this.relSignalPower = sigSqrSum / specSqrSum;
+            return out;
+        }
+        getRelSignalPower() {
+            return this.relSignalPower;
         }
     }
     /**
@@ -335,6 +486,18 @@
         }
     }
     /**
+     * Calculates the average of an array.
+     * @param arr The array to calculate its average.
+     * @returns The average value.
+     */
+    function average(arr) {
+        let sum = 0;
+        for (let i = 0; i < arr.length; ++i) {
+            sum += arr[i];
+        }
+        return sum / arr.length;
+    }
+    /**
      * Converts the given buffer of unsigned 8-bit samples into a pair of 32-bit
      *     floating-point sample streams.
      * @param buffer A buffer containing the unsigned 8-bit samples.
@@ -352,6 +515,163 @@
             outQ[i] = arr[2 * i + 1] / 128 - 0.995;
         }
         return [outI, outQ];
+    }
+
+    // Copyright 2014 Google Inc. All rights reserved.
+    //
+    // Licensed under the Apache License, Version 2.0 (the "License");
+    // you may not use this file except in compliance with the License.
+    // You may obtain a copy of the License at
+    //
+    //     http://www.apache.org/licenses/LICENSE-2.0
+    //
+    // Unless required by applicable law or agreed to in writing, software
+    // distributed under the License is distributed on an "AS IS" BASIS,
+    // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    // See the License for the specific language governing permissions and
+    // limitations under the License.
+    /**
+     * @fileoverview A demodulator for amplitude modulated signals.
+     */
+    /**
+     * A class to implement an AM demodulator.
+     */
+    class Demodulator_AM {
+        /**
+         * @param inRate The sample rate of the input samples.
+         * @param outRate The sample rate of the output audio.
+         * @param bandwidth The bandwidth of the input signal.
+         */
+        constructor(inRate, outRate, bandwidth) {
+            const INTER_RATE = 48000;
+            let filterF = bandwidth / 2;
+            this.demodulator = new AMDemodulator(inRate, INTER_RATE, filterF, 351);
+            let filterCoefs = getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
+            this.downSampler = new Downsampler(INTER_RATE, outRate, filterCoefs);
+        }
+        demodulator;
+        downSampler;
+        /**
+         * Demodulates the signal.
+         * @param samplesI The I components of the samples.
+         * @param samplesQ The Q components of the samples.
+         * @returns The demodulated audio signal.
+         */
+        demodulate(samplesI, samplesQ) {
+            let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
+            let audio = this.downSampler.downsample(demodulated);
+            return {
+                left: audio,
+                right: new Float32Array(audio),
+                stereo: false,
+                signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17)
+            };
+        }
+    }
+
+    // Copyright 2014 Google Inc. All rights reserved.
+    //
+    // Licensed under the Apache License, Version 2.0 (the "License");
+    // you may not use this file except in compliance with the License.
+    // You may obtain a copy of the License at
+    //
+    //     http://www.apache.org/licenses/LICENSE-2.0
+    //
+    // Unless required by applicable law or agreed to in writing, software
+    // distributed under the License is distributed on an "AS IS" BASIS,
+    // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    // See the License for the specific language governing permissions and
+    // limitations under the License.
+    /**
+     * @fileoverview A demodulator for narrowband FM signals.
+     */
+    /**
+     * A class to implement a Narrowband FM demodulator.
+     */
+    class Demodulator_NBFM {
+        /**
+         * @param inRate The sample rate of the input samples.
+         * @param outRate The sample rate of the output audio.
+         * @param maxF The frequency shift for maximum amplitude.
+         */
+        constructor(inRate, outRate, maxF) {
+            let multiple = 1 + Math.floor((maxF - 1) * 7 / 75000);
+            let interRate = 48000 * multiple;
+            let filterF = maxF * 0.8;
+            this.demodulator = new FMDemodulator(inRate, interRate, maxF, filterF, Math.floor(50 * 7 / multiple));
+            let filterCoefs = getLowPassFIRCoeffs(interRate, 8000, 41);
+            this.downSampler = new Downsampler(interRate, outRate, filterCoefs);
+        }
+        demodulator;
+        downSampler;
+        /**
+         * Demodulates the signal.
+         * @param samplesI The I components of the samples.
+         * @param samplesQ The Q components of the samples.
+         * @returns The demodulated audio signal.
+         */
+        demodulate(samplesI, samplesQ) {
+            let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
+            let audio = this.downSampler.downsample(demodulated);
+            return {
+                left: audio,
+                right: new Float32Array(audio),
+                stereo: false,
+                signalLevel: this.demodulator.getRelSignalPower()
+            };
+        }
+    }
+
+    // Copyright 2014 Google Inc. All rights reserved.
+    //
+    // Licensed under the Apache License, Version 2.0 (the "License");
+    // you may not use this file except in compliance with the License.
+    // You may obtain a copy of the License at
+    //
+    //     http://www.apache.org/licenses/LICENSE-2.0
+    //
+    // Unless required by applicable law or agreed to in writing, software
+    // distributed under the License is distributed on an "AS IS" BASIS,
+    // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    // See the License for the specific language governing permissions and
+    // limitations under the License.
+    /**
+     * @fileoverview A demodulator for single-sideband modulated signals.
+     */
+    /**
+     * A class to implement a SSB demodulator.
+     */
+    class Demodulator_SSB {
+        /**
+         * @param inRate The sample rate of the input samples.
+         * @param outRate The sample rate of the output audio.
+         * @param bandwidth The bandwidth of the input signal.
+         * @param upper Whether to demodulate the upper sideband (lower otherwise).
+         */
+        constructor(inRate, outRate, bandwidth, upper) {
+            const INTER_RATE = 48000;
+            this.demodulator = new SSBDemodulator(inRate, INTER_RATE, bandwidth, upper, 151);
+            let filterCoefs = getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
+            this.downSampler = new Downsampler(INTER_RATE, outRate, filterCoefs);
+        }
+        demodulator;
+        downSampler;
+        /**
+         * Demodulates the signal.
+         * @param samplesI The I components of the samples.
+         * @param samplesQ The Q components of the samples.
+         * @return The demodulated audio signal.
+         */
+        demodulate(samplesI, samplesQ) {
+            let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
+            let audio = this.downSampler.downsample(demodulated);
+            return {
+                left: audio,
+                right: new Float32Array(audio),
+                stereo: false,
+                signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17)
+            };
+        }
     }
 
     // Copyright 2013 Google Inc. All rights reserved.
@@ -513,13 +833,36 @@
         static IN_RATE = 1024000;
         static OUT_RATE = 48000;
         constructor() {
-            this.demodulator = new Demodulator_WBFM(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE);
+            this.mode = { modulation: 'WBFM' };
+            this.demodulator = this.getDemodulator(this.mode);
             this.player = new Player();
         }
+        mode;
         demodulator;
         player;
         setVolume(volume) {
             this.player.setVolume(volume);
+        }
+        setMode(mode) {
+            this.mode = mode;
+            this.demodulator = this.getDemodulator(this.mode);
+        }
+        getMode() {
+            return this.mode;
+        }
+        getDemodulator(mode) {
+            switch (mode.modulation) {
+                case 'AM':
+                    return new Demodulator_AM(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE, mode.bandwidth);
+                case 'NBFM':
+                    return new Demodulator_NBFM(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE, mode.maxF);
+                case 'WBFM':
+                    return new Demodulator_WBFM(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE);
+                case 'LSB':
+                    return new Demodulator_SSB(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE, mode.bandwidth, false);
+                case 'USB':
+                    return new Demodulator_SSB(DemodPipeline.IN_RATE, DemodPipeline.OUT_RATE, mode.bandwidth, true);
+            }
         }
         receiveSamples(samples) {
             this.demod(samples);
@@ -1095,14 +1438,13 @@
          */
         async getSamples(length) {
             let result = await this.device.transferIn(1, length);
-            let rc = result.status;
-            if (rc == 'ok' && result.data !== undefined)
+            if (result.status == 'ok')
                 return result.data.buffer;
-            if (rc == 'stall') {
+            if (result.status == 'stall') {
                 await this.device.clearHalt('in', 1);
                 return new ArrayBuffer(length);
             }
-            throw 'USB bulk read failed (length 0x' + length.toString(16) + '), rc=' + rc;
+            throw `USB bulk read failed (length 0x${length.toString(16)}) status=${result.status}`;
         }
         /**
          * Opens the I2C repeater.
@@ -1217,11 +1559,18 @@
                 value: value,
                 index: index
             };
-            let result = await this.device.controlTransferIn(ti, Math.max(8, length));
-            let rc = result.status;
-            if (rc == 'ok' && result.data !== undefined)
-                return result.data.buffer.slice(0, length);
-            throw 'USB read failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + '), rc=' + rc;
+            let retry = true;
+            while (true) {
+                let result = await this.device.controlTransferIn(ti, Math.max(8, length));
+                if (result.status == 'ok')
+                    return result.data.buffer.slice(0, length);
+                if (result.status == 'babble' || !retry) {
+                    throw `USB read failed (value 0x${value.toString(16)} index 0x${index.toString(16)} status=${result.status})`;
+                }
+                await this.device.clearHalt('in', 0);
+                await this.device.clearHalt('in', 1);
+                retry = false;
+            }
         }
         /**
          * Sends a USB control message to write to the device.
@@ -1237,11 +1586,18 @@
                 value: value,
                 index: index
             };
-            let result = await this.device.controlTransferOut(ti, buffer);
-            let rc = result.status;
-            if (rc == 'ok')
-                return;
-            throw 'USB write failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + ' data ' + this._dumpBuffer(buffer) + '), rc=' + rc;
+            let retry = true;
+            while (true) {
+                let result = await this.device.controlTransferOut(ti, buffer);
+                if (result.status == 'ok')
+                    return;
+                if (result.status == 'babble' || !retry) {
+                    throw `USB write failed (value 0x${value.toString(16)} index 0x${index.toString(16)} data ${this._dumpBuffer(buffer)} status=${result.status})`;
+                }
+                await this.device.clearHalt('in', 0);
+                await this.device.clearHalt('in', 1);
+                retry = false;
+            }
         }
         /**
          * Returns a string representation of a buffer.
@@ -1795,6 +2151,13 @@
             stop: document.getElementById('elStop'),
             freq: document.getElementById('elFreq'),
             volume: document.getElementById('elVolume'),
+            modulation: document.getElementById('elModulation'),
+            ctrAm: document.getElementById('elCtrAm'),
+            bwAm: document.getElementById('elBwAm'),
+            ctrSsb: document.getElementById('elCtrSsb'),
+            bwSsb: document.getElementById('elBwSsb'),
+            ctrNbfm: document.getElementById('elCtrNbfm'),
+            maxfNbfm: document.getElementById('elMaxfNbfm'),
             autoGain: document.getElementById('elAutoGain'),
             gain: document.getElementById('elGain'),
             ppm: document.getElementById('elPpm'),
@@ -1806,10 +2169,19 @@
         };
     }
     function attachEvents(controls) {
-        controls.start?.addEventListener('click', _ => radio.start());
-        controls.stop?.addEventListener('click', _ => radio.stop());
-        controls.freq?.addEventListener('change', _ => radio.setFrequency(Number(controls.freq.value)));
-        controls.volume?.addEventListener('change', _ => pipeline.setVolume(Number(controls.volume.value) / 100));
+        controls.start.addEventListener('click', _ => radio.start());
+        controls.stop.addEventListener('click', _ => radio.stop());
+        controls.freq.addEventListener('change', _ => radio.setFrequency(Number(controls.freq.value)));
+        controls.volume.addEventListener('change', _ => pipeline.setVolume(Number(controls.volume.value) / 100));
+        controls.modulation.addEventListener('change', _ => {
+            controls.ctrAm.hidden = controls.modulation.value != 'AM';
+            controls.ctrNbfm.hidden = controls.modulation.value != 'NBFM';
+            controls.ctrSsb.hidden = controls.modulation.value != 'LSB' && controls.modulation.value != 'USB';
+            pipeline.setMode(getMode(controls));
+        });
+        controls.bwAm.addEventListener('change', _ => pipeline.setMode(getMode(controls)));
+        controls.bwSsb.addEventListener('change', _ => pipeline.setMode(getMode(controls)));
+        controls.maxfNbfm.addEventListener('change', _ => pipeline.setMode(getMode(controls)));
         controls.autoGain.addEventListener('change', _ => {
             controls.gain.disabled = controls.autoGain.checked;
             if (controls.autoGain.checked) {
@@ -1840,6 +2212,21 @@
                     break;
             }
         });
+    }
+    function getMode(controls) {
+        switch (controls.modulation.value) {
+            case 'AM':
+                return { modulation: 'AM', bandwidth: Number(controls.bwAm.value) };
+            case 'NBFM':
+                return { modulation: 'NBFM', maxF: Number(controls.maxfNbfm.value) };
+            case 'LSB':
+                return { modulation: 'LSB', bandwidth: Number(controls.bwSsb.value) };
+            case 'USB':
+                return { modulation: 'USB', bandwidth: Number(controls.bwSsb.value) };
+            case 'WBFM':
+            default:
+                return { modulation: 'WBFM' };
+        }
     }
     function main() {
         let controls = getControls();
