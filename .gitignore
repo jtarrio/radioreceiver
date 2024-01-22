@@ -1,5 +1,2 @@
-*.pem
-*.crx
-*.zip
-nacl-src/pnacl
+dist
 node_modules
