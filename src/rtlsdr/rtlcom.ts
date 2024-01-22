@@ -234,10 +234,17 @@ export class RtlCom {
             value: value,
             index: index
         };
-        let result = await this.device.controlTransferIn(ti, Math.max(8, length));
-        let rc = result.status;
-        if (rc == 'ok' && result.data !== undefined) return result.data.buffer.slice(0, length);
-        throw 'USB read failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + '), rc=' + rc;
+        let retry = true;
+        while (true) {
+            let result = await this.device.controlTransferIn(ti, Math.max(8, length));
+            if (result.status == 'ok') return result.data!.buffer.slice(0, length);
+            if (result.status == 'babble' || !retry) {
+                throw `USB read failed (value 0x${value.toString(16)} index 0x${index.toString(16)} status=${result.status})`;
+            }
+            await this.device.clearHalt('in', 0);
+            await this.device.clearHalt('in', 1);
+            retry = false;
+        }
     }
 
     /**
@@ -254,10 +261,17 @@ export class RtlCom {
             value: value,
             index: index
         };
-        let result = await this.device.controlTransferOut(ti, buffer);
-        let rc = result.status;
-        if (rc == 'ok') return;
-        throw 'USB write failed (value 0x' + value.toString(16) + ' index 0x' + index.toString(16) + ' data ' + this._dumpBuffer(buffer) + '), rc=' + rc;
+        let retry = true;
+        while (true) {
+            let result = await this.device.controlTransferOut(ti, buffer);
+            if (result.status == 'ok') return;
+            if (result.status == 'babble' || !retry) {
+                throw `USB write failed (value 0x${value.toString(16)} index 0x${index.toString(16)} data ${this._dumpBuffer(buffer)} status=${result.status})`;
+            }
+            await this.device.clearHalt('in', 0);
+            await this.device.clearHalt('in', 1);
+            retry = false;
+        }
     }
 
     /**
