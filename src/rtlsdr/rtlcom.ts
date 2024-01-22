@@ -110,13 +110,12 @@ export class RtlCom {
      */
     async getSamples(length: number): Promise<ArrayBuffer> {
         let result = await this.device.transferIn(1, length);
-        let rc = result.status;
-        if (rc == 'ok' && result.data !== undefined) return result.data.buffer;
-        if (rc == 'stall') {
+        if (result.status == 'ok') return result.data!.buffer;
+        if (result.status == 'stall') {
             await this.device.clearHalt('in', 1);
             return new ArrayBuffer(length);
         }
-        throw 'USB bulk read failed (length 0x' + length.toString(16) + '), rc=' + rc;
+        throw `USB bulk read failed (length 0x${length.toString(16)}) status=${result.status}`;
     }
 
     /**
