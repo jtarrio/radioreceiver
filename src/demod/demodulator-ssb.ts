@@ -13,37 +13,38 @@
 // limitations under the License.
 
 import { Demodulated, Demodulator } from './demodulator';
-import * as DSP from './dsp';
+import * as DSP from '../dsp/dsp';
 
 /**
- * @fileoverview A demodulator for amplitude modulated signals.
+ * @fileoverview A demodulator for single-sideband modulated signals.
  */
 
 /**
- * A class to implement an AM demodulator.
+ * A class to implement a SSB demodulator.
  */
-export class Demodulator_AM implements Demodulator {
+export class Demodulator_SSB implements Demodulator {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
    * @param bandwidth The bandwidth of the input signal.
+   * @param upper Whether to demodulate the upper sideband (lower otherwise).
    */
-  constructor(inRate: number, outRate: number, bandwidth: number) {
+  constructor(inRate: number, outRate: number, bandwidth: number, upper: boolean) {
     const INTER_RATE = 48000;
-    let filterF = bandwidth / 2;
-    this.demodulator = new DSP.AMDemodulator(inRate, INTER_RATE, filterF, 351);
+
+    this.demodulator = new DSP.SSBDemodulator(inRate, INTER_RATE, bandwidth, upper, 151);
     let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
     this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
   }
 
-  demodulator: DSP.AMDemodulator;
+  demodulator: DSP.SSBDemodulator;
   downSampler: DSP.Downsampler;
 
   /**
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
    * @param samplesQ The Q components of the samples.
-   * @returns The demodulated audio signal.
+   * @return The demodulated audio signal.
    */
   demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
     let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
@@ -56,3 +57,4 @@ export class Demodulator_AM implements Demodulator {
     };
   }
 }
+

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Demodulated, Demodulator } from './demodulator';
-import * as DSP from './dsp';
+import * as DSP from '../dsp/dsp';
 
 /**
  * @fileoverview A demodulator for wideband FM signals.

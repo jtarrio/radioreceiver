@@ -1,5 +1,6 @@
-import { RTL2832U } from "../rtlsdr/rtl2832u";
-import { Channel } from "./msgqueue";
+import { RTL2832U } from '../rtlsdr/rtl2832u';
+import { Channel } from './msgqueue';
+import { SampleReceiver } from './sample_receiver';
 
 type Message =
     { type: 'start' } |
@@ -12,11 +13,6 @@ type Message =
 export type RadioEventType =
     Message |
     { type: 'stop_scan', frequency: number };
-
-export interface SampleReceiver {
-    receiveSamples(samples: ArrayBuffer): void;
-    checkForSignal(samples: ArrayBuffer): Promise<boolean>;
-}
 
 export class RadioEvent extends CustomEvent<RadioEventType> {
     constructor(e: RadioEventType) {
@@ -91,10 +87,14 @@ export class Radio extends EventTarget {
         let transfers: Transfers;
         let rtl: RTL2832U;
         let scan: { min: number, max: number, step: number };
+        let msgPromise: Promise<Message> | undefined;
+        let transferPromise: Promise<boolean> | undefined;
         while (true) {
+            if (msgPromise === undefined) msgPromise = this.channel.receive();
             switch (this.state) {
                 case State.OFF: {
-                    let msg = await this.channel.receive();
+                    let msg = await msgPromise;
+                    msgPromise = undefined;
                     if (msg.type == 'frequency') {
                         this.dispatchEvent(new RadioEvent(msg));
                         this.frequency = msg.value;
@@ -113,9 +113,9 @@ export class Radio extends EventTarget {
                     }
                     await this.device!.open();
                     rtl = await RTL2832U.open(this.device!);
+                    await rtl.setSampleRate(Radio.SAMPLE_RATE);
                     await rtl.setFrequencyCorrection(this.ppm);
                     await rtl.setGain(this.gain);
-                    await rtl.setSampleRate(Radio.SAMPLE_RATE);
                     await rtl.setCenterFrequency(this.frequency);
                     await rtl.resetBuffer();
                     transfers = new Transfers(rtl, this.sampleReceiver);
@@ -125,7 +125,8 @@ export class Radio extends EventTarget {
                     break;
                 }
                 case State.PLAYING: {
-                    let msg = await this.channel.receive();
+                    let msg = await msgPromise;
+                    msgPromise = undefined;
                     switch (msg.type) {
                         case 'frequency':
                             this.frequency = msg.value;
@@ -147,6 +148,7 @@ export class Radio extends EventTarget {
                             await transfers!.stopStream();
                             this.dispatchEvent(new RadioEvent(msg));
                             this.state = State.SCANNING;
+                            break;
                         case 'stop':
                             await transfers!.stopStream();
                             await rtl!.close();
@@ -157,24 +159,29 @@ export class Radio extends EventTarget {
                         default:
                         // do nothing.
                     }
+                    break;
                 }
                 case State.SCANNING: {
-                    let msg = await Promise.any([transfers!.oneShot(), this.channel.receive()]);
-                    if (msg === false) {
+                    if (transferPromise === undefined) {
                         let newFreq = this.frequency + scan!.step;
                         if (newFreq > scan!.max) newFreq = scan!.min;
                         if (newFreq < scan!.min) newFreq = scan!.max;
                         this.frequency = newFreq;
                         await rtl!.setCenterFrequency(this.frequency);
                         this.dispatchEvent(new RadioEvent({ type: 'frequency', value: this.frequency }));
+                        transferPromise = transfers!.oneShot();
+                    }
+                    let msg = await Promise.any([transferPromise, msgPromise]);
+                    if ('boolean' === typeof msg) {
+                        transferPromise = undefined;
+                        if (msg === true) {
+                            this.dispatchEvent(new RadioEvent({ type: 'stop_scan', frequency: this.frequency }));
+                            this.state = State.PLAYING;
+                            transfers!.startStream();
+                        }
                         continue;
                     }
-                    this.dispatchEvent(new RadioEvent({ type: 'stop_scan', frequency: this.frequency }));
-                    if (msg === true) {
-                        this.state = State.PLAYING;
-                        transfers!.startStream();
-                        continue;
-                    }
+                    msgPromise = undefined;
                     if (msg.type == 'scan') {
                         scan = { min: msg.min, max: msg.max, step: msg.step };
                         this.dispatchEvent(new RadioEvent(msg));
@@ -208,9 +215,16 @@ export class Radio extends EventTarget {
                         default:
                         // do nothing.
                     }
+                    break;
                 }
             }
         }
+    }
+
+    addEventListener(type: string, callback: (e: RadioEvent) => void | null, options?: boolean | AddEventListenerOptions | undefined): void;
+    addEventListener(type: string, callback: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions | undefined): void;
+    addEventListener(type: string, callback: any, options?: boolean | AddEventListenerOptions | undefined): void {
+        super.addEventListener(type, callback as EventListenerOrEventListenerObject | null, options);
     }
 }
 

@@ -13,38 +13,39 @@
 // limitations under the License.
 
 import { Demodulated, Demodulator } from './demodulator';
-import * as DSP from './dsp';
+import * as DSP from '../dsp/dsp';
 
 /**
- * @fileoverview A demodulator for single-sideband modulated signals.
+ * @fileoverview A demodulator for narrowband FM signals.
  */
 
 /**
- * A class to implement a SSB demodulator.
+ * A class to implement a Narrowband FM demodulator.
  */
-export class Demodulator_SSB implements Demodulator {
+export class Demodulator_NBFM implements Demodulator {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
-   * @param bandwidth The bandwidth of the input signal.
-   * @param upper Whether to demodulate the upper sideband (lower otherwise).
+   * @param maxF The frequency shift for maximum amplitude.
    */
-  constructor(inRate: number, outRate: number, bandwidth: number, upper: boolean) {
-    const INTER_RATE = 48000;
+  constructor(inRate: number, outRate: number, maxF: number) {
+    let multiple = 1 + Math.floor((maxF - 1) * 7 / 75000);
+    let interRate = 48000 * multiple;
+    let filterF = maxF * 0.8;
 
-    this.demodulator = new DSP.SSBDemodulator(inRate, INTER_RATE, bandwidth, upper, 151);
-    let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
-    this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
+    this.demodulator = new DSP.FMDemodulator(inRate, interRate, maxF, filterF, Math.floor(50 * 7 / multiple));
+    let filterCoefs = DSP.getLowPassFIRCoeffs(interRate, 8000, 41);
+    this.downSampler = new DSP.Downsampler(interRate, outRate, filterCoefs);
   }
 
-  demodulator: DSP.SSBDemodulator;
+  demodulator: DSP.FMDemodulator;
   downSampler: DSP.Downsampler;
 
   /**
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
    * @param samplesQ The Q components of the samples.
-   * @return The demodulated audio signal.
+   * @returns The demodulated audio signal.
    */
   demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
     let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
@@ -53,7 +54,7 @@ export class Demodulator_SSB implements Demodulator {
       left: audio,
       right: new Float32Array(audio),
       stereo: false,
-      signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17)
+      signalLevel: this.demodulator.getRelSignalPower()
     };
   }
 }

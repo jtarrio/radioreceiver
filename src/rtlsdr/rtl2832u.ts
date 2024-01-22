@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { R820T } from "./r820t";
-import { RtlCom } from "./rtlcom";
-import { Tuner } from "./tuner";
+import { R820T } from './r820t';
+import { RtlCom } from './rtlcom';
+import { Tuner } from './tuner';
 
 /**
  * Operations on the RTL2832U demodulator.
