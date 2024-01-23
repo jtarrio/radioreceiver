@@ -12,31 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Demodulated, Demodulator } from './demodulator';
+import { Demodulated, ModulationScheme } from './scheme';
 import * as DSP from '../dsp/dsp';
 
 /**
- * @fileoverview A demodulator for amplitude modulated signals.
+ * @fileoverview A demodulator for narrowband FM signals.
  */
 
 /**
- * A class to implement an AM demodulator.
+ * A class to implement a Narrowband FM demodulator.
  */
-export class Demodulator_AM implements Demodulator {
+export class SchemeNBFM implements ModulationScheme {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
-   * @param bandwidth The bandwidth of the input signal.
+   * @param maxF The frequency shift for maximum amplitude.
    */
-  constructor(inRate: number, outRate: number, bandwidth: number) {
-    const INTER_RATE = 48000;
-    let filterF = bandwidth / 2;
-    this.demodulator = new DSP.AMDemodulator(inRate, INTER_RATE, filterF, 351);
-    let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
-    this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
+  constructor(inRate: number, outRate: number, maxF: number) {
+    let multiple = 1 + Math.floor((maxF - 1) * 7 / 75000);
+    let interRate = 48000 * multiple;
+    let filterF = maxF * 0.8;
+
+    this.demodulator = new DSP.FMDemodulator(inRate, interRate, maxF, filterF, Math.floor(50 * 7 / multiple));
+    let filterCoefs = DSP.getLowPassFIRCoeffs(interRate, 8000, 41);
+    this.downSampler = new DSP.Downsampler(interRate, outRate, filterCoefs);
   }
 
-  demodulator: DSP.AMDemodulator;
+  demodulator: DSP.FMDemodulator;
   downSampler: DSP.Downsampler;
 
   /**
@@ -52,7 +54,8 @@ export class Demodulator_AM implements Demodulator {
       left: audio,
       right: new Float32Array(audio),
       stereo: false,
-      signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17)
+      signalLevel: this.demodulator.getRelSignalPower()
     };
   }
 }
+

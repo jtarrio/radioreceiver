@@ -6,7 +6,7 @@ type Message =
     { type: 'start' } |
     { type: 'stop' } |
     { type: 'frequency', value: number } |
-    { type: 'ppm', value: number } |
+    { type: 'frequencyCorrection', value: number } |
     { type: 'gain', value: number | null } |
     { type: 'scan', min: number, max: number, step: number };
 
@@ -31,7 +31,7 @@ export class Radio extends EventTarget {
         this.device = undefined;
         this.state = State.OFF;
         this.channel = new Channel<Message>();
-        this.ppm = 0;
+        this.frequencyCorrection = 0;
         this.gain = null;
         this.frequency = 88500000;
         this.runLoop();
@@ -40,7 +40,7 @@ export class Radio extends EventTarget {
     private device?: USBDevice;
     private state: State;
     private channel: Channel<Message>;
-    private ppm: number;
+    private frequencyCorrection: number;
     private gain: number | null;
     private frequency: number;
 
@@ -76,12 +76,24 @@ export class Radio extends EventTarget {
         this.channel.send({ type: 'frequency', value: freq });
     }
 
-    async setPpm(ppm: number) {
-        this.channel.send({ type: 'ppm', value: ppm });
+    getFrequency(): number {
+        return this.frequency;
+    }
+
+    async setFrequencyCorrection(ppm: number) {
+        this.channel.send({ type: 'frequencyCorrection', value: ppm });
+    }
+
+    getFrequencyCorrection(): number {
+        return this.frequencyCorrection;
     }
 
     async setGain(gain: number | null) {
         this.channel.send({ type: 'gain', value: gain });
+    }
+
+    getGain(): number | null {
+        return this.gain;
     }
 
     private async runLoop() {
@@ -101,8 +113,8 @@ export class Radio extends EventTarget {
                             this.dispatchEvent(new RadioEvent(msg));
                             this.frequency = msg.value;
                         }
-                        if (msg.type == 'ppm') {
-                            this.ppm = msg.value;
+                        if (msg.type == 'frequencyCorrection') {
+                            this.frequencyCorrection = msg.value;
                             this.dispatchEvent(new RadioEvent(msg));
                         }
                         if (msg.type == 'gain') {
@@ -116,7 +128,7 @@ export class Radio extends EventTarget {
                         await this.device!.open();
                         rtl = await RTL2832U.open(this.device!);
                         await rtl.setSampleRate(Radio.SAMPLE_RATE);
-                        await rtl.setFrequencyCorrection(this.ppm);
+                        await rtl.setFrequencyCorrection(this.frequencyCorrection);
                         await rtl.setGain(this.gain);
                         await rtl.setCenterFrequency(this.frequency);
                         await rtl.resetBuffer();
@@ -140,9 +152,9 @@ export class Radio extends EventTarget {
                                 await rtl!.setGain(this.gain);
                                 this.dispatchEvent(new RadioEvent(msg));
                                 break;
-                            case 'ppm':
-                                this.ppm = msg.value;
-                                await rtl!.setFrequencyCorrection(this.ppm);
+                            case 'frequencyCorrection':
+                                this.frequencyCorrection = msg.value;
+                                await rtl!.setFrequencyCorrection(this.frequencyCorrection);
                                 this.dispatchEvent(new RadioEvent(msg));
                                 break;
                             case 'scan':
@@ -209,9 +221,9 @@ export class Radio extends EventTarget {
                                 await rtl!.setGain(this.gain);
                                 this.dispatchEvent(new RadioEvent(msg));
                                 break;
-                            case 'ppm':
-                                this.ppm = msg.value;
-                                await rtl!.setFrequencyCorrection(this.ppm);
+                            case 'frequencyCorrection':
+                                this.frequencyCorrection = msg.value;
+                                await rtl!.setFrequencyCorrection(this.frequencyCorrection);
                                 this.dispatchEvent(new RadioEvent(msg));
                                 break;
                             default:

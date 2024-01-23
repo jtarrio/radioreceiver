@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Demodulated, Demodulator } from './demodulator';
+import { Demodulated, ModulationScheme } from './scheme';
 import * as DSP from '../dsp/dsp';
 
 /**
@@ -22,7 +22,7 @@ import * as DSP from '../dsp/dsp';
 /**
  * A class to implement a Wideband FM demodulator.
  */
-export class Demodulator_WBFM implements Demodulator {
+export class SchemeWBFM implements ModulationScheme {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.

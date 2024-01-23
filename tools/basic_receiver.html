@@ -25,6 +25,7 @@
         Frequency: <input type="number" id="elFreq" min="27000000" max="1700000000" value="93900000">
         Volume: <input type="number" id="elVolume" min="0" max="100" value="100"> (0-100)
         Stereo: <input type="checkbox" id="elStereo">
+        Squelch: <input type="number" id="elSquelch" value="0"> (0-100)
     </fieldset>
     <fieldset>
         <legend>Band scan</legend>
@@ -51,6 +52,7 @@
         <legend>Tuner parameters</legend>
         Gain: <input type="checkbox" id="elAutoGain">Auto <input type="number" id="elGain" min="0" max="50" value="20"> dB
         Frequency correction: <input type="number" id="elPpm" min="-500" max="500" value="0"> PPM
+        Signal level: <progress id="elSignalLevel" min="0" max="100" value="0"></progress>
     </fieldset>
     <fieldset>
         <legend>Events</legend>
