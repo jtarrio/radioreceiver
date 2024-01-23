@@ -12,7 +12,8 @@ type Message =
 
 export type RadioEventType =
     Message |
-    { type: 'stop_scan', frequency: number };
+    { type: 'stop_scan', frequency: number } |
+    { type: 'error', exception: any };
 
 export class RadioEvent extends CustomEvent<RadioEventType> {
     constructor(e: RadioEventType) {
@@ -91,132 +92,136 @@ export class Radio extends EventTarget {
         let transferPromise: Promise<boolean> | undefined;
         while (true) {
             if (msgPromise === undefined) msgPromise = this.channel.receive();
-            switch (this.state) {
-                case State.OFF: {
-                    let msg = await msgPromise;
-                    msgPromise = undefined;
-                    if (msg.type == 'frequency') {
-                        this.dispatchEvent(new RadioEvent(msg));
-                        this.frequency = msg.value;
-                    }
-                    if (msg.type == 'ppm') {
-                        this.ppm = msg.value;
-                        this.dispatchEvent(new RadioEvent(msg));
-                    }
-                    if (msg.type == 'gain') {
-                        this.dispatchEvent(new RadioEvent(msg));
-                        this.gain = msg.value;
-                    }
-                    if (msg.type != 'start') continue;
-                    if (this.device === undefined) {
-                        this.device = await navigator.usb.requestDevice({ filters: Radio.TUNERS });
-                    }
-                    await this.device!.open();
-                    rtl = await RTL2832U.open(this.device!);
-                    await rtl.setSampleRate(Radio.SAMPLE_RATE);
-                    await rtl.setFrequencyCorrection(this.ppm);
-                    await rtl.setGain(this.gain);
-                    await rtl.setCenterFrequency(this.frequency);
-                    await rtl.resetBuffer();
-                    transfers = new Transfers(rtl, this.sampleReceiver);
-                    transfers.startStream();
-                    this.state = State.PLAYING;
-                    this.dispatchEvent(new RadioEvent(msg));
-                    break;
-                }
-                case State.PLAYING: {
-                    let msg = await msgPromise;
-                    msgPromise = undefined;
-                    switch (msg.type) {
-                        case 'frequency':
+            try {
+                switch (this.state) {
+                    case State.OFF: {
+                        let msg = await msgPromise;
+                        msgPromise = undefined;
+                        if (msg.type == 'frequency') {
+                            this.dispatchEvent(new RadioEvent(msg));
                             this.frequency = msg.value;
-                            await rtl!.setCenterFrequency(this.frequency);
-                            this.dispatchEvent(new RadioEvent(msg));
-                            break;
-                        case 'gain':
-                            this.gain = msg.value;
-                            await rtl!.setGain(this.gain);
-                            this.dispatchEvent(new RadioEvent(msg));
-                            break;
-                        case 'ppm':
+                        }
+                        if (msg.type == 'ppm') {
                             this.ppm = msg.value;
-                            await rtl!.setFrequencyCorrection(this.ppm);
                             this.dispatchEvent(new RadioEvent(msg));
-                            break;
-                        case 'scan':
+                        }
+                        if (msg.type == 'gain') {
+                            this.dispatchEvent(new RadioEvent(msg));
+                            this.gain = msg.value;
+                        }
+                        if (msg.type != 'start') continue;
+                        if (this.device === undefined) {
+                            this.device = await navigator.usb.requestDevice({ filters: Radio.TUNERS });
+                        }
+                        await this.device!.open();
+                        rtl = await RTL2832U.open(this.device!);
+                        await rtl.setSampleRate(Radio.SAMPLE_RATE);
+                        await rtl.setFrequencyCorrection(this.ppm);
+                        await rtl.setGain(this.gain);
+                        await rtl.setCenterFrequency(this.frequency);
+                        await rtl.resetBuffer();
+                        transfers = new Transfers(rtl, this.sampleReceiver, this);
+                        transfers.startStream();
+                        this.state = State.PLAYING;
+                        this.dispatchEvent(new RadioEvent(msg));
+                        break;
+                    }
+                    case State.PLAYING: {
+                        let msg = await msgPromise;
+                        msgPromise = undefined;
+                        switch (msg.type) {
+                            case 'frequency':
+                                this.frequency = msg.value;
+                                await rtl!.setCenterFrequency(this.frequency);
+                                this.dispatchEvent(new RadioEvent(msg));
+                                break;
+                            case 'gain':
+                                this.gain = msg.value;
+                                await rtl!.setGain(this.gain);
+                                this.dispatchEvent(new RadioEvent(msg));
+                                break;
+                            case 'ppm':
+                                this.ppm = msg.value;
+                                await rtl!.setFrequencyCorrection(this.ppm);
+                                this.dispatchEvent(new RadioEvent(msg));
+                                break;
+                            case 'scan':
+                                scan = { min: msg.min, max: msg.max, step: msg.step };
+                                await transfers!.stopStream();
+                                this.dispatchEvent(new RadioEvent(msg));
+                                this.state = State.SCANNING;
+                                break;
+                            case 'stop':
+                                await transfers!.stopStream();
+                                await rtl!.close();
+                                await this.device!.close();
+                                this.state = State.OFF;
+                                this.dispatchEvent(new RadioEvent(msg));
+                                break;
+                            default:
+                            // do nothing.
+                        }
+                        break;
+                    }
+                    case State.SCANNING: {
+                        if (transferPromise === undefined) {
+                            let newFreq = this.frequency + scan!.step;
+                            if (newFreq > scan!.max) newFreq = scan!.min;
+                            if (newFreq < scan!.min) newFreq = scan!.max;
+                            this.frequency = newFreq;
+                            await rtl!.setCenterFrequency(this.frequency);
+                            this.dispatchEvent(new RadioEvent({ type: 'frequency', value: this.frequency }));
+                            transferPromise = transfers!.oneShot();
+                        }
+                        let msg = await Promise.any([transferPromise, msgPromise]);
+                        if ('boolean' === typeof msg) {
+                            transferPromise = undefined;
+                            if (msg === true) {
+                                this.dispatchEvent(new RadioEvent({ type: 'stop_scan', frequency: this.frequency }));
+                                this.state = State.PLAYING;
+                                transfers!.startStream();
+                            }
+                            continue;
+                        }
+                        msgPromise = undefined;
+                        if (msg.type == 'scan') {
                             scan = { min: msg.min, max: msg.max, step: msg.step };
-                            await transfers!.stopStream();
                             this.dispatchEvent(new RadioEvent(msg));
-                            this.state = State.SCANNING;
-                            break;
-                        case 'stop':
-                            await transfers!.stopStream();
+                            continue;
+                        }
+                        if (msg.type == 'stop') {
                             await rtl!.close();
                             await this.device!.close();
                             this.state = State.OFF;
                             this.dispatchEvent(new RadioEvent(msg));
-                            break;
-                        default:
-                        // do nothing.
-                    }
-                    break;
-                }
-                case State.SCANNING: {
-                    if (transferPromise === undefined) {
-                        let newFreq = this.frequency + scan!.step;
-                        if (newFreq > scan!.max) newFreq = scan!.min;
-                        if (newFreq < scan!.min) newFreq = scan!.max;
-                        this.frequency = newFreq;
-                        await rtl!.setCenterFrequency(this.frequency);
-                        this.dispatchEvent(new RadioEvent({ type: 'frequency', value: this.frequency }));
-                        transferPromise = transfers!.oneShot();
-                    }
-                    let msg = await Promise.any([transferPromise, msgPromise]);
-                    if ('boolean' === typeof msg) {
-                        transferPromise = undefined;
-                        if (msg === true) {
-                            this.dispatchEvent(new RadioEvent({ type: 'stop_scan', frequency: this.frequency }));
-                            this.state = State.PLAYING;
-                            transfers!.startStream();
+                            continue;
                         }
-                        continue;
+                        this.state = State.PLAYING;
+                        transfers!.startStream();
+                        switch (msg.type) {
+                            case 'frequency':
+                                this.frequency = msg.value;
+                                await rtl!.setCenterFrequency(this.frequency);
+                                this.dispatchEvent(new RadioEvent(msg));
+                                break;
+                            case 'gain':
+                                this.gain = msg.value;
+                                await rtl!.setGain(this.gain);
+                                this.dispatchEvent(new RadioEvent(msg));
+                                break;
+                            case 'ppm':
+                                this.ppm = msg.value;
+                                await rtl!.setFrequencyCorrection(this.ppm);
+                                this.dispatchEvent(new RadioEvent(msg));
+                                break;
+                            default:
+                            // do nothing.
+                        }
+                        break;
                     }
-                    msgPromise = undefined;
-                    if (msg.type == 'scan') {
-                        scan = { min: msg.min, max: msg.max, step: msg.step };
-                        this.dispatchEvent(new RadioEvent(msg));
-                        continue;
-                    }
-                    if (msg.type == 'stop') {
-                        await rtl!.close();
-                        await this.device!.close();
-                        this.state = State.OFF;
-                        this.dispatchEvent(new RadioEvent(msg));
-                        continue;
-                    }
-                    this.state = State.PLAYING;
-                    transfers!.startStream();
-                    switch (msg.type) {
-                        case 'frequency':
-                            this.frequency = msg.value;
-                            await rtl!.setCenterFrequency(this.frequency);
-                            this.dispatchEvent(new RadioEvent(msg));
-                            break;
-                        case 'gain':
-                            this.gain = msg.value;
-                            await rtl!.setGain(this.gain);
-                            this.dispatchEvent(new RadioEvent(msg));
-                            break;
-                        case 'ppm':
-                            this.ppm = msg.value;
-                            await rtl!.setFrequencyCorrection(this.ppm);
-                            this.dispatchEvent(new RadioEvent(msg));
-                            break;
-                        default:
-                        // do nothing.
-                    }
-                    break;
                 }
+            } catch (e) {
+                this.dispatchEvent(new RadioEvent({ type: 'error', exception: e }));
             }
         }
     }
@@ -229,7 +234,7 @@ export class Radio extends EventTarget {
 }
 
 class Transfers {
-    constructor(private rtl: RTL2832U, private sampleReceiver: SampleReceiver) {
+    constructor(private rtl: RTL2832U, private sampleReceiver: SampleReceiver, private radio: Radio) {
         this.buffersWanted = 0;
         this.buffersRunning = 0;
         this.stopCallback = Transfers.nilCallback;
@@ -271,6 +276,10 @@ class Transfers {
                 this.stopCallback();
                 this.stopCallback = Transfers.nilCallback;
             }
+        }).catch(e => {
+            let error = new Error(`Stream transfer error: ${e}`, { 'cause': e });
+            let event = new RadioEvent({ type: 'error', exception: error });
+            this.radio.dispatchEvent(event);
         });
     }
 

@@ -2,6 +2,18 @@
 <html>
 
 <head>
+    <style>
+        #elEventLog {
+            border: 1px solid grey;
+            box-sizing: border-box;
+            font-family: monospace;
+            height: 10em;
+            overflow: scroll;
+            padding: 4px;
+            width: 100%;
+            white-space: pre;
+        }
+    </style>
     <script src="basic_receiver.js"></script>
 </head>
 
@@ -39,6 +51,10 @@
         <legend>Tuner parameters</legend>
         Gain: <input type="checkbox" id="elAutoGain">Auto <input type="number" id="elGain" min="0" max="50" value="20"> dB
         Frequency correction: <input type="number" id="elPpm" min="-500" max="500" value="0"> PPM
+    </fieldset>
+    <fieldset>
+        <legend>Events</legend>
+        <div id="elEventLog"></div>
     </fieldset>
 </body>
 

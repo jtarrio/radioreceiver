@@ -262,7 +262,7 @@ export class R820T implements Tuner {
       await this._writeRegMask(0x10, 0b00000000, 0b00000011);
       await this._setPll(56000000);
       if (!this.hasPllLock) {
-        throw 'PLL not locked -- cannot tune to the selected frequency.';
+        throw new Error('PLL not locked -- cannot tune to the selected frequency.');
       }
       // [4] channel filter calibration start
       await this._writeRegMask(0x0b, 0b00010000, 0b00010000);

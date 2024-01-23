@@ -129,8 +129,8 @@ export class RTL2832U {
     let found = await R820T.check(com);
     await com.closeI2C();
     if (!found) {
-      com.releaseInterface();
-      throw 'Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported.';
+      await com.releaseInterface();
+      throw new Error('Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported.');
     }
     // [0] disable zero-IF input [1] enable DC estimation [3] enable IQ compensation [4] enable IQ estimation
     await com.setDemodReg(1, 0xb1, 0b00011010, 1);

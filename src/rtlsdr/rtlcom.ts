@@ -115,7 +115,7 @@ export class RtlCom {
             await this.device.clearHalt('in', 1);
             return new ArrayBuffer(length);
         }
-        throw `USB bulk read failed (length 0x${length.toString(16)}) status=${result.status}`;
+        throw new Error(`USB bulk read failed length 0x${length.toString(16)} status=${result.status}`);
     }
 
     /**
@@ -142,7 +142,11 @@ export class RtlCom {
      * @param length The width in bytes of this value.
      */
     private async _setReg(block: number, reg: number, value: number, length: number) {
-        await this._writeCtrlMsg(reg, block | RtlCom.WRITE_FLAG, this._numberToBuffer(value, length));
+        try {
+            await this._writeCtrlMsg(reg, block | RtlCom.WRITE_FLAG, this._numberToBuffer(value, length));
+        } catch {
+            throw new Error(`setReg failed block=0x${block.toString(16)} reg=${reg.toString(16)} value=${value.toString(16)} length=${length}`);
+        }
     }
 
     /**
@@ -153,7 +157,11 @@ export class RtlCom {
      * @returns a promise that resolves to the decoded value.
      */
     private async _getReg(block: number, reg: number, length: number): Promise<number> {
-        return this._bufferToNumber(await this._readCtrlMsg(reg, block, length));
+        try {
+            return this._bufferToNumber(await this._readCtrlMsg(reg, block, length));
+        } catch {
+            throw new Error(`getReg failed block=0x${block.toString(16)} reg=${reg.toString(16)} length=${length}`);
+        }
     }
 
     /**
@@ -163,7 +171,11 @@ export class RtlCom {
      * @param buffer The buffer to write.
      */
     private async _setRegBuffer(block: number, reg: number, buffer: ArrayBuffer) {
-        await this._writeCtrlMsg(reg, block | RtlCom.WRITE_FLAG, buffer);
+        try {
+            await this._writeCtrlMsg(reg, block | RtlCom.WRITE_FLAG, buffer);
+        } catch {
+            throw new Error(`setRegBuffer failed block=0x${block.toString(16)} reg=${reg.toString(16)}`);
+        }
     }
 
     /**
@@ -174,7 +186,11 @@ export class RtlCom {
      * @returns a Promise that resolves to the read buffer.
      */
     private async _getRegBuffer(block: number, reg: number, length: number): Promise<ArrayBuffer> {
-        return this._readCtrlMsg(reg, block, length);
+        try {
+            return this._readCtrlMsg(reg, block, length);
+        } catch {
+            throw new Error(`getRegBuffer failed block=0x${block.toString(16)} reg=${reg.toString(16)} length=${length}`);
+        }
     }
 
     /**
@@ -194,7 +210,7 @@ export class RtlCom {
         } else if (len == 4) {
             return dv.getUint32(0, true);
         }
-        throw 'Cannot parse ' + len + '-byte number';
+        throw new Error(`Cannot parse ${len}-byte number`);
     }
 
     /**
@@ -213,7 +229,7 @@ export class RtlCom {
         } else if (len == 4) {
             dv.setUint32(0, value, !opt_bigEndian);
         } else {
-            throw 'Cannot write ' + len + '-byte number';
+            throw new Error(`Cannot write ${len}-byte number`);
         }
         return buffer;
     }
@@ -233,17 +249,9 @@ export class RtlCom {
             value: value,
             index: index
         };
-        let retry = true;
-        while (true) {
-            let result = await this.device.controlTransferIn(ti, Math.max(8, length));
-            if (result.status == 'ok') return result.data!.buffer.slice(0, length);
-            if (result.status == 'babble' || !retry) {
-                throw `USB read failed (value 0x${value.toString(16)} index 0x${index.toString(16)} status=${result.status})`;
-            }
-            await this.device.clearHalt('in', 0);
-            await this.device.clearHalt('in', 1);
-            retry = false;
-        }
+        let result = await this.device.controlTransferIn(ti, Math.max(8, length));
+        if (result.status == 'ok') return result.data!.buffer.slice(0, length);
+        throw new Error(`USB read failed value=0x${value.toString(16)} index=0x${index.toString(16)} status=${result.status}`);
     }
 
     /**
@@ -260,31 +268,9 @@ export class RtlCom {
             value: value,
             index: index
         };
-        let retry = true;
-        while (true) {
-            let result = await this.device.controlTransferOut(ti, buffer);
-            if (result.status == 'ok') return;
-            if (result.status == 'babble' || !retry) {
-                throw `USB write failed (value 0x${value.toString(16)} index 0x${index.toString(16)} data ${this._dumpBuffer(buffer)} status=${result.status})`;
-            }
-            await this.device.clearHalt('in', 0);
-            await this.device.clearHalt('in', 1);
-            retry = false;
-        }
-    }
-
-    /**
-     * Returns a string representation of a buffer.
-     * @param buffer The buffer to display.
-     * @return The string representation of the buffer.
-     */
-    private _dumpBuffer(buffer: ArrayBuffer): string {
-        let bytes: string[] = [];
-        let arr = new Uint8Array(buffer);
-        for (let i = 0; i < arr.length; ++i) {
-            bytes.push('0x' + arr[i].toString(16));
-        }
-        return '[' + bytes.join(', ') + ']';
+        let result = await this.device.controlTransferOut(ti, buffer);
+        if (result.status == 'ok') return;
+        throw new Error(`USB write failed value=0x${value.toString(16)} index=0x${index.toString(16)} status=${result.status}`);
     }
 }
 

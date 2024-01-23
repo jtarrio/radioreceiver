@@ -11,6 +11,11 @@ type Controls = {
     freq: HTMLInputElement;
     volume: HTMLInputElement;
     stereo: HTMLInputElement;
+    scanMin: HTMLInputElement;
+    scanMax: HTMLInputElement;
+    scanStep: HTMLInputElement;
+    scanUp: HTMLButtonElement;
+    scanDown: HTMLButtonElement;
     modulation: HTMLSelectElement;
     ctrAm: HTMLElement;
     bwAm: HTMLInputElement;
@@ -21,11 +26,7 @@ type Controls = {
     autoGain: HTMLInputElement;
     gain: HTMLInputElement;
     ppm: HTMLInputElement;
-    scanMin: HTMLInputElement;
-    scanMax: HTMLInputElement;
-    scanStep: HTMLInputElement;
-    scanUp: HTMLButtonElement;
-    scanDown: HTMLButtonElement;
+    eventLog: HTMLElement;
 };
 
 function getControls(): Controls {
@@ -35,6 +36,11 @@ function getControls(): Controls {
         freq: document.getElementById('elFreq') as HTMLInputElement,
         volume: document.getElementById('elVolume') as HTMLInputElement,
         stereo: document.getElementById('elStereo') as HTMLInputElement,
+        scanMin: document.getElementById('elScanMin') as HTMLInputElement,
+        scanMax: document.getElementById('elScanMax') as HTMLInputElement,
+        scanStep: document.getElementById('elScanStep') as HTMLInputElement,
+        scanUp: document.getElementById('elScanUp') as HTMLButtonElement,
+        scanDown: document.getElementById('elScanDown') as HTMLButtonElement,
         modulation: document.getElementById('elModulation') as HTMLSelectElement,
         ctrAm: document.getElementById('elCtrAm') as HTMLElement,
         bwAm: document.getElementById('elBwAm') as HTMLInputElement,
@@ -45,11 +51,7 @@ function getControls(): Controls {
         autoGain: document.getElementById('elAutoGain') as HTMLInputElement,
         gain: document.getElementById('elGain') as HTMLInputElement,
         ppm: document.getElementById('elPpm') as HTMLInputElement,
-        scanMin: document.getElementById('elScanMin') as HTMLInputElement,
-        scanMax: document.getElementById('elScanMax') as HTMLInputElement,
-        scanStep: document.getElementById('elScanStep') as HTMLInputElement,
-        scanUp: document.getElementById('elScanUp') as HTMLButtonElement,
-        scanDown: document.getElementById('elScanDown') as HTMLButtonElement,
+        eventLog: document.getElementById('elEventLog') as HTMLElement,
     };
 }
 
@@ -59,6 +61,9 @@ function attachEvents(controls: Controls) {
     controls.freq.addEventListener('change', _ => radio.setFrequency(Number(controls.freq.value)));
     controls.volume.addEventListener('change', _ => pipeline.setVolume(Number(controls.volume.value) / 100));
     controls.volume.addEventListener('change', _ => pipeline.setStereo(controls.stereo.checked));
+
+    controls.scanUp.addEventListener('click', _ => radio.scan(Number(controls.scanMin.value), Number(controls.scanMax.value), Number(controls.scanStep.value)));
+    controls.scanDown.addEventListener('click', _ => radio.scan(Number(controls.scanMin.value), Number(controls.scanMax.value), -Number(controls.scanStep.value)));
 
     controls.modulation.addEventListener('change', _ => {
         controls.ctrAm.hidden = controls.modulation.value != 'AM';
@@ -80,11 +85,9 @@ function attachEvents(controls: Controls) {
     });
     controls.gain.addEventListener('change', _ => radio.setGain(Number(controls.gain.value)));
     controls.ppm.addEventListener('change', _ => radio.setPpm(Number(controls.ppm.value)));
-    controls.scanUp.addEventListener('click', _ => radio.scan(Number(controls.scanMin.value), Number(controls.scanMax.value), Number(controls.scanStep.value)));
-    controls.scanDown.addEventListener('click', _ => radio.scan(Number(controls.scanMin.value), Number(controls.scanMax.value), -Number(controls.scanStep.value)));
 
     radio.addEventListener('radio', e => {
-        console.log('Radio event: ', e.detail);
+        controls.eventLog.textContent = new Date().toLocaleTimeString() + ' ' + JSON.stringify(e.detail) + '\n' + controls.eventLog.textContent;
         switch (e.detail.type) {
             case 'frequency':
                 controls.freq.value = String(e.detail.value);
@@ -97,6 +100,9 @@ function attachEvents(controls: Controls) {
                 break;
             case 'ppm':
                 controls.ppm.value = String(e.detail.value);
+                break;
+            case 'error':
+                console.log(e.detail.exception);
                 break;
         }
     });
