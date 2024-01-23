@@ -49,7 +49,7 @@ export class RTL2832U {
     let com = new RtlCom(device);
     await com.claimInterface();
 
-    RTL2832U._init(com);
+    await RTL2832U._init(com);
     let tuner = await RTL2832U._findTuner(com);
     let rtl = new RTL2832U(com, tuner);
     await rtl.setGain(rtl.gain);
