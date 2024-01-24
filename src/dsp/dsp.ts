@@ -52,7 +52,7 @@ export function getLowPassFIRCoeffs(sampleRate: number, halfAmplFreq: number, le
  * @param length The length of the kernel.
  * @returns The kernel coefficients.
  */
-function getHilbertCoeffs(length: number): Float32Array {
+export function getHilbertCoeffs(length: number): Float32Array {
   length += (length + 1) % 2;
   let center = Math.floor(length / 2);
   let out = new Float32Array(length);
@@ -67,7 +67,7 @@ function getHilbertCoeffs(length: number): Float32Array {
 /**
  * An object to apply a FIR filter to a sequence of samples.
  */
-class FIRFilter {
+export class FIRFilter {
   /**
    * @param coefficients The coefficients of the filter to apply.
    */
