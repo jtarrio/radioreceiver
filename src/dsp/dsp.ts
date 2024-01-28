@@ -459,23 +459,26 @@ export class Deemphasizer {
    * @param sampleRate The signal's sample rate.
    * @param timeConstant_uS The filter's time constant in microseconds.
    */
-  constructor(sampleRate: number, timeConstant_uS: number) {
-    this.alpha = 1 / (1 + sampleRate * timeConstant_uS / 1e6);
+  constructor(public sampleRate: number, public timeConstant_uS: number) {
+    this.alpha = 1 - Math.exp(-1 / (sampleRate * timeConstant_uS / 1e6));
     this.val = 0;
   }
 
-  alpha: number;
-  val: number;
+  private alpha: number;
+  private val: number;
 
   /**
    * Deemphasizes the given samples in place.
    * @param samples The samples to deemphasize.
    */
   inPlace(samples: Float32Array) {
+    const alpha = this.alpha;
+    let val = this.val;
     for (let i = 0; i < samples.length; ++i) {
-      this.val = this.val + this.alpha * (samples[i] - this.val);
-      samples[i] = this.val;
+      val += alpha * (samples[i] - val);
+      samples[i] = val;
     }
+    this.val = val;
   }
 }
 

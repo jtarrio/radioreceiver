@@ -190,7 +190,7 @@ function plotFilter(ctx: CanvasRenderingContext2D, left: number, top: number, ri
 
 function computePower(filter: FilterAdaptor, sampleRate: number, freq: number) {
     const angVel = freq * 2 * Math.PI / sampleRate;
-    let size = freq == 0 ? sampleRate : sampleRate / Math.abs(freq);
+    let size = freq == 0 ? sampleRate : 10 * sampleRate / Math.abs(freq);
     if (size < filter.taps) size = Math.ceil(size * Math.ceil(filter.taps / size));
     let sin = new Float32Array(size);
     let cos = new Float32Array(size);
@@ -246,7 +246,7 @@ class DeemphasizerAdaptor extends FilterAdaptor {
     constructor(deemphasizer: DSP.Deemphasizer) {
         super()
         this.cosDeemph = deemphasizer;
-        this.sinDeemph = new DSP.Deemphasizer(1, 1 / (deemphasizer.alpha - 1));
+        this.sinDeemph = new DSP.Deemphasizer(deemphasizer.sampleRate, deemphasizer.timeConstant_uS);
     }
     
     cosDeemph: DSP.Deemphasizer;
