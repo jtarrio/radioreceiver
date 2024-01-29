@@ -1,4 +1,5 @@
 import * as DSP from '../src/dsp/dsp';
+import { ComplexArray, FFT } from '../src/dsp/fft';
 
 type Controls = {
     filterType: HTMLSelectElement,
@@ -171,35 +172,25 @@ function drawAxes(ctx: CanvasRenderingContext2D, left: number, top: number, righ
 
 function plotFilter(ctx: CanvasRenderingContext2D, left: number, top: number, right: number, bottom: number, sampleRate: number, filter: FilterAdaptor) {
     ctx.beginPath();
-    ctx.strokeStyle = '#00007f';
+    ctx.strokeStyle = '#001f9f';
     ctx.lineWidth = 3;
-    let a = -sampleRate / 2;
-    let b = sampleRate / (right - left);
+    let spectrum = filter.spectrum(sampleRate);
+    const xOffset = left - 1;
+    const xDiv = 2 + right - left;
+    let bins = spectrum.real.length;
+    let binOffset = - bins / 2;
     for (let x = left; x <= right; ++x) {
-        let f = Math.round(a + b * (x - left));
-        let power = computePower(filter, sampleRate, f);
-        let y = top + (power / -80) * (bottom - top);
-        if (f == 0) {
+        const bin = (Math.round(bins * (x - xOffset) / xDiv + binOffset) + spectrum.real.length) % spectrum.real.length;
+        const power = spectrum.real[bin] * spectrum.real[bin] + spectrum.imag[bin] * spectrum.imag[bin];
+        const powerDb = 10 * Math.log10(power);
+        let y = top + (powerDb / -80) * (bottom - top);
+        if (x == left) {
             ctx.moveTo(x, y);
         } else {
             ctx.lineTo(x, y);
         }
     }
     ctx.stroke();
-}
-
-function computePower(filter: FilterAdaptor, sampleRate: number, freq: number) {
-    const angVel = freq * 2 * Math.PI / sampleRate;
-    let size = freq == 0 ? sampleRate : 10 * sampleRate / Math.abs(freq);
-    if (size < filter.taps) size = Math.ceil(size * Math.ceil(filter.taps / size));
-    let sin = new Float32Array(size);
-    let cos = new Float32Array(size);
-    for (let i = 0; i < size; ++i) {
-        sin[i] = Math.sin(i * angVel);
-        cos[i] = Math.cos(i * angVel);
-    }
-    filter.take(cos, sin);
-    return 10 * Math.log10(filter.take(cos, sin));
 }
 
 abstract class FilterAdaptor {
@@ -211,63 +202,65 @@ abstract class FilterAdaptor {
         }
     }
 
-    abstract get taps():number;
-    abstract take(cos: Float32Array, sin: Float32Array): number;
+    abstract get taps(): number;
+    abstract spectrum(length: number): ComplexArray;
 }
 
 class FIRFilterAdaptor extends FilterAdaptor {
-constructor(filter: DSP.FIRFilter) {
-    super()
-    this.cosFilter = new DSP.FIRFilter(filter.coefs);
-    this.sinFilter = filter;
-}
-
-cosFilter: DSP.FIRFilter;
-sinFilter: DSP.FIRFilter;
-
-get taps() {
-    return this.cosFilter.coefs.length;
-}
-
-take(cos: Float32Array, sin: Float32Array): number {
-    this.cosFilter.loadSamples(cos);
-    this.sinFilter.loadSamples(sin);
-    let sum = 0;
-    for (let i = 0; i < cos.length; ++i) {
-        const curCos = this.cosFilter.get(i);
-        const curSin = this.sinFilter.get(i);
-        sum += curCos * curCos + curSin * curSin;
+    constructor(filter: DSP.FIRFilter) {
+        super()
+        this.cosFilter = new DSP.FIRFilter(filter.coefs);
+        this.sinFilter = new DSP.FIRFilter(filter.coefs);
     }
-    return sum / cos.length;
-}
+
+    cosFilter: DSP.FIRFilter;
+    sinFilter: DSP.FIRFilter;
+
+    get taps() {
+        return this.cosFilter.coefs.length;
+    }
+
+    spectrum(length: number): ComplexArray {
+        const offset = Math.floor(this.taps / 2);
+        let transformer = FFT.ofLength(length);
+        length = transformer.length;
+        let impulseR = new Float32Array(length);
+        let impulseI = new Float32Array(length);
+        impulseR[0] = length;
+        this.cosFilter.loadSamples(impulseR);
+        this.sinFilter.loadSamples(impulseI);
+        let real = new Float32Array(length);
+        let imag = new Float32Array(length);
+        for (let i = 0; i < length; ++i) {
+            real[i] = this.cosFilter.get((length + i + offset) % length);
+            imag[i] = this.sinFilter.get((length + i + offset) % length);
+        }
+        return transformer.transform(real, imag);
+    }
 }
 
 class DeemphasizerAdaptor extends FilterAdaptor {
     constructor(deemphasizer: DSP.Deemphasizer) {
         super()
-        this.cosDeemph = deemphasizer;
+        this.cosDeemph = new DSP.Deemphasizer(deemphasizer.sampleRate, deemphasizer.timeConstant_uS);
         this.sinDeemph = new DSP.Deemphasizer(deemphasizer.sampleRate, deemphasizer.timeConstant_uS);
     }
-    
+
     cosDeemph: DSP.Deemphasizer;
     sinDeemph: DSP.Deemphasizer;
 
     get taps() {
         return 1;
     }
-    
-    take(cos: Float32Array, sin: Float32Array): number {
-        let cosCopy = new Float32Array(cos);
-        this.cosDeemph.inPlace(cosCopy);
-        let sinCopy = new Float32Array(sin);
-        this.sinDeemph.inPlace(sinCopy);
-        let sum = 0;
-        for (let i = 0; i < cosCopy.length; ++i) {
-            const curCos = cosCopy[i];
-            const curSin = sinCopy[i];
-            sum += curCos * curCos + curSin * curSin;
-        }
-        return sum / cosCopy.length;
+
+    spectrum(length: number): ComplexArray {
+        let transformer = FFT.ofLength(length);
+        let impulseR = new Float32Array(transformer.length);
+        let impulseI = new Float32Array(transformer.length);
+        impulseR[0] = transformer.length;
+        this.cosDeemph.inPlace(impulseR);
+        this.sinDeemph.inPlace(impulseI);
+        return transformer.transform(impulseR, impulseI);
     }
 }
 
