@@ -94,21 +94,21 @@ function computeDivisionSize(range: number, width: number, minSize: number, maxS
     let middlestRange = maxDivRange;
     let middlestDistance = maxDivRange - wantedDivRange;
     let middlestExact = range % maxDivRange == 0;
-    for (let n = Math.floor(Math.log10(minDivRange)) - maxd; maxDivRange > Math.pow(10, n); ++n) {
+    for (let n = Math.floor(Math.log10(minDivRange)) - maxd; maxDivRange >= Math.pow(10, n); ++n) {
         for (let mul of divisors) {
             const size = mul * Math.pow(10, n);
             if (size < minDivRange || size > maxDivRange) continue;
-            let distance = Math.abs(size - wantedDivRange);
-            if (distance < middlestDistance) {
-                let exact = range % distance == 0;
-                if (exact || !middlestExact) {
+            const distance = Math.abs(size - wantedDivRange);
+            const exact = range % size == 0;
+            const betterFit = distance < middlestDistance;
+            if ((betterFit && exact) || (betterFit && !middlestExact) || (exact && !middlestExact)) {
                     middlestRange = size;
                     middlestDistance = distance;
                     middlestExact = exact;
-                }
             }
         }
     }
+    if (middlestRange < 1) middlestRange = 1;
     return { range: middlestRange, size: width * middlestRange / range };
 }
 
