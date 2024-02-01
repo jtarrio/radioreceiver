@@ -80,8 +80,10 @@ function updateFilter(controls: Controls) {
     let bottom = height - 0.5;
     let left = 0.5;
     let right = width - 0.5;
+    const grid = getGrid(left, top, right, bottom, sampleRate, 80);
+    drawAxes(ctx!, grid);
     plotFilter(ctx!, left, top, right, bottom, sampleRate, filter);
-    drawAxes(ctx!, left, top, right, bottom, sampleRate, 80);
+    drawGrid(ctx!, grid);
 }
 
 function computeDivisionSize(range: number, width: number, minSize: number, maxSize: number, divisors?: number[]): { range: number, size: number } {
@@ -103,9 +105,9 @@ function computeDivisionSize(range: number, width: number, minSize: number, maxS
             const exact = range % size == 0;
             const betterFit = distance < middlestDistance;
             if ((betterFit && exact) || (betterFit && !middlestExact) || (exact && !middlestExact)) {
-                    middlestRange = size;
-                    middlestDistance = distance;
-                    middlestExact = exact;
+                middlestRange = size;
+                middlestDistance = distance;
+                middlestExact = exact;
             }
         }
     }
@@ -113,61 +115,84 @@ function computeDivisionSize(range: number, width: number, minSize: number, maxS
     return { range: middlestRange, size: width * middlestRange / range };
 }
 
-function drawAxes(ctx: CanvasRenderingContext2D, left: number, top: number, right: number, bottom: number, sampleRate: number, range: number) {
-    let mid = Math.floor((right + left) / 2) + 0.5;
+type Grid = {
+    left: number,
+    right: number,
+    mid: number,
+    top: number,
+    bottom: number,
+    freqWidth: number,
+    rangeLines: { y: number, range: number }[],
+    freqLines: { x: number, freq: number }[],
+}
 
+function getGrid(left: number, top: number, right: number, bottom: number, sampleRate: number, range: number): Grid {
+    const mid = Math.floor((right + left) / 2) + 0.5;
+    const { size: rangeDivSize, range: rangePerDiv } = computeDivisionSize(range, bottom - top, 20, 60);
+    const { size: freqDivSize, range: freqPerDiv } = computeDivisionSize(sampleRate / 2, Math.floor((right - left) / 2), 30, 70,
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 32, 64, 128, 256, 512, 1024]);
+    let out: Grid = { left, right, mid, top, bottom, freqWidth: freqDivSize, rangeLines: [], freqLines: [] };
+    for (let i = 1; i * rangePerDiv <= range; ++i) {
+        let yp = Math.floor(top + i * rangeDivSize) + 0.5;
+        let n = -i * rangePerDiv;
+        out.rangeLines.push({ y: yp, range: n });
+    }
+
+    for (let i = 1; i * freqPerDiv <= sampleRate / 2; ++i) {
+        let dx = i * freqDivSize;
+        let xp = Math.floor(mid + dx) + 0.5;
+        let xm = Math.floor(mid - dx) + 0.5;
+        let n = i * freqPerDiv;
+        out.freqLines.push({ x: xp, freq: n });
+        out.freqLines.push({ x: xm, freq: n });
+    }
+
+    return out;
+}
+
+function drawGrid(ctx: CanvasRenderingContext2D, grid: Grid) {
     ctx.beginPath();
 
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'black';
-    {
-        ctx.moveTo(mid, top);
-        ctx.lineTo(mid, bottom);
-        ctx.stroke();
-        let { size: divSize, range: rangePerDiv } = computeDivisionSize(range, bottom - top, 20, 60);
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'bottom';
-        for (let i = 1; i * rangePerDiv <= range; ++i) {
-            let y = top + i * divSize;
-            let yp = Math.floor(y) + 0.5;
-            ctx.moveTo(mid, yp);
-            ctx.lineTo(mid + 5, yp);
-            ctx.stroke();
-            let n = -i * rangePerDiv;
-            const txt = n.toPrecision(3);
-            ctx.fillText(txt, mid + 30, yp);
-        }
+    ctx.setLineDash([4, 4]);
+    ctx.textAlign = 'right';
+    for (let line of grid.rangeLines) {
+        ctx.moveTo(grid.left, line.y);
+        ctx.lineTo(grid.right, line.y);
+        ctx.fillText(line.range.toPrecision(3), grid.mid + 30, line.y - 2);
     }
+    for (let line of grid.freqLines) {
+        ctx.moveTo(line.x, grid.top);
+        ctx.lineTo(line.x, grid.bottom);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.setLineDash([]);
+    ctx.textAlign = 'center';
+    ctx.moveTo(grid.mid, grid.top - 5);
+    ctx.lineTo(grid.mid, grid.top);
+    ctx.fillText('DC', grid.mid, grid.top - 10, grid.freqWidth - 10);
+    for (let line of grid.freqLines) {
+        ctx.moveTo(line.x, grid.top - 5);
+        ctx.lineTo(line.x, grid.top);
+        ctx.textAlign = line.x < grid.mid ? 'left' : 'right';
+        ctx.fillText(String(Math.round(line.freq)), line.x, grid.top - 10, grid.freqWidth - 10);
+    }
+    ctx.stroke();
+}
 
-    {
-        ctx.moveTo(left, top);
-        ctx.lineTo(right, top);
-        ctx.stroke();
-        let { size: divSize, range: ratePerDiv } = computeDivisionSize(sampleRate / 2, Math.floor((right - left) / 2), 30, 70,
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 32, 64, 128, 256, 512, 1024]);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.moveTo(mid, top);
-        ctx.lineTo(mid, top - 10);
-        ctx.stroke();
-        ctx.fillText('DC', mid, top - 10, divSize - 10);
-        for (let i = 1; i * ratePerDiv <= sampleRate / 2; ++i) {
-            let dx = i * divSize;
-            let xp = Math.floor(mid + dx) + 0.5;
-            ctx.moveTo(xp, top);
-            ctx.lineTo(xp, top - 10);
-            ctx.stroke();
-            let xm = Math.floor(mid - dx) + 0.5;
-            ctx.moveTo(xm, top);
-            ctx.lineTo(xm, top - 10);
-            ctx.stroke();
-            let n = i * ratePerDiv;
-            ctx.textAlign = 'right';
-            ctx.fillText(String(Math.round(n)), xp, top - 10, divSize - 10);
-            ctx.textAlign = 'left';
-            ctx.fillText(String(-Math.round(n)), xm, top - 10, divSize - 10);
-        }
-    }
+function drawAxes(ctx: CanvasRenderingContext2D, grid: Grid) {
+    ctx.beginPath();
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'black';
+    ctx.moveTo(grid.mid, grid.top);
+    ctx.lineTo(grid.mid, grid.bottom);
+
+    ctx.moveTo(grid.left, grid.top);
+    ctx.lineTo(grid.right, grid.top);
+    ctx.stroke();
 }
 
 function plotFilter(ctx: CanvasRenderingContext2D, left: number, top: number, right: number, bottom: number, sampleRate: number, filter: FilterAdaptor) {
