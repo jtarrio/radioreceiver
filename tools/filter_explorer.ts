@@ -77,7 +77,7 @@ function updateFilter(controls: Controls) {
     let ctx = controls.filterView.getContext('2d');
     ctx!.clearRect(0, 0, width, height);
     let top = 20.5;
-    let bottom = height - 0.5;
+    let bottom = height - 20.5;
     let left = 0.5;
     let right = width - 0.5;
     const grid = getGrid(left, top, right, bottom, sampleRate, 80);
@@ -155,6 +155,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, grid: Grid) {
 
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'black';
+    ctx.fillStyle = 'black';
     ctx.setLineDash([4, 4]);
     ctx.textAlign = 'right';
     for (let line of grid.rangeLines) {
@@ -195,10 +196,28 @@ function drawAxes(ctx: CanvasRenderingContext2D, grid: Grid) {
     ctx.stroke();
 }
 
+function phaseColor(c: number, s: number): string {
+    const phase = Math.atan2(s, c);
+    // 0=blue, -pi/pi=yellow
+    // -pi/2=red, pi/2=green
+    const p = (Math.PI + phase) / (2 * Math.PI);
+    const r = Math.floor(255 * (p < 0.25 ? 1 : p < 0.5 ? 1 - 4 * (p - 0.25) : p < 0.75 ? 0 : 4 * (p - 0.75)));
+    const g = Math.floor(255 * (p < 0.25 ? 1 - 4 * p : p < 0.5 ? 0 : p < 0.75 ? 4 * (p - 0.5) : 1));
+    const b = Math.floor(255 * (p < 0.25 ? 0 : p < 0.5 ? 4 * (p - 0.25) : p < 0.75 ? 1 - 4 * (p - 0.5) : 0));
+    return `rgb(${r}, ${g}, ${b})`
+}
+
 function plotFilter(ctx: CanvasRenderingContext2D, left: number, top: number, right: number, bottom: number, sampleRate: number, filter: FilterAdaptor) {
+    let gradient = ctx.createLinearGradient(left, 0, right, 0);
+
+    ctx.save();
+    ctx.rect(left, top - 200, 1 + right - left, 201 + bottom - top);
+    ctx.clip();
+
     ctx.beginPath();
     ctx.strokeStyle = '#001f9f';
     ctx.lineWidth = 3;
+
     let spectrum = filter.spectrum(sampleRate);
     const xOffset = left - 1;
     const xDiv = 2 + right - left;
@@ -206,6 +225,7 @@ function plotFilter(ctx: CanvasRenderingContext2D, left: number, top: number, ri
     let binOffset = - bins / 2;
     for (let x = left; x <= right; ++x) {
         const bin = (Math.round(bins * (x - xOffset) / xDiv + binOffset) + spectrum.real.length) % spectrum.real.length;
+        gradient.addColorStop((x - left) / (right - left), phaseColor(spectrum.real[bin], spectrum.imag[bin]));
         const power = spectrum.real[bin] * spectrum.real[bin] + spectrum.imag[bin] * spectrum.imag[bin];
         const powerDb = 10 * Math.log10(power);
         let y = top + (powerDb / -80) * (bottom - top);
@@ -215,7 +235,12 @@ function plotFilter(ctx: CanvasRenderingContext2D, left: number, top: number, ri
             ctx.lineTo(x, y);
         }
     }
+
     ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(left, bottom + 1, 1 + right - left, 19);
 }
 
 abstract class FilterAdaptor {
