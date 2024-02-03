@@ -15,13 +15,9 @@
 import { RtlCom } from './rtlcom';
 import { Tuner } from './tuner';
 
-/**
- * Operations on the R820T tuner chip.
- */
+/** Operations on the R820T tuner chip. */
 export class R820T implements Tuner {
-  /**
-   * Initial values for registers 0x05-0x1f.
-   */
+  /** Initial values for registers 0x05-0x1f. */
   static REGISTERS = [
     // 0x05
     // [7] loop through off [6] 0 [5] LNA 1 on [4] LNA gain auto [3:0] LNA gain 3
@@ -82,9 +78,7 @@ export class R820T implements Tuner {
     // [7:6] 1 [5:2] 0 [1:0] -
     0b11000000];
 
-  /**
-   * Configurations for the multiplexer in different frequency bands.
-   */
+  /** Configurations for the multiplexer in different frequency bands. */
   static MUX_CFGS = [
     //      +- open drain (1: low Z)
     //      |       ++- tracking filter (01: bypass)
@@ -109,9 +103,7 @@ export class R820T implements Tuner {
     [588, 0b0000, 0b01000000, 0b00000000]
   ];
 
-  /**
-   * A bit mask to reverse the bits in a byte.
-   */
+  /** A bit mask to reverse the bits in a byte. */
   static BIT_REVS = [0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
     0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf];
 
@@ -140,9 +132,7 @@ export class R820T implements Tuner {
     return data == 0x69;
   }
 
-  /**
-   * Initializes the tuner.
-   */
+  /** Initializes the tuner. */
   static async init(com: RtlCom, xtalFreq: number): Promise<R820T> {
     let regs = new Uint8Array(R820T.REGISTERS);
     for (let i = 0; i < regs.length; ++i) {
@@ -175,9 +165,7 @@ export class R820T implements Tuner {
     return actual - R820T.IF_FREQ;
   }
 
-  /**
-   * Stops the tuner.
-   */
+  /** Stops the tuner. */
   async close() {
     // [7] power detector 1 off [6] power detector 3 off [5] filter gain [2:0] LNA power 1
     await this._writeRegMask(0x06, 0b10110001, 0xff);
@@ -203,9 +191,7 @@ export class R820T implements Tuner {
     await this._writeRegMask(0x19, 0b00001100, 0xff);
   }
 
-  /**
-   * Sets the tuner to automatic gain.
-   */
+  /** Sets the tuner to automatic gain. */
   async setAutoGain() {
     // [4] lna gain auto
     await this._writeRegMask(0x05, 0b00000000, 0b00010000);
@@ -248,9 +234,7 @@ export class R820T implements Tuner {
     return R820T.IF_FREQ;
   }
 
-  /**
-   * Calibrates the filters.
-   */
+  /** Calibrates the filters. */
   private async _calibrateFilter(): Promise<number> {
     let firstTry = true;
     while (true) {
@@ -385,9 +369,7 @@ export class R820T implements Tuner {
     }
   }
 
-  /**
-   * Initializes all the components of the tuner.
-   */
+  /** Initializes all the components of the tuner. */
   private async _initElectronics() {
     // [3:0] IF vga -12dB
     await this._writeRegMask(0x0c, 0b00000000, 0b00001111);

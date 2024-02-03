@@ -1,3 +1,5 @@
+/** An ugly receiver to be able to test all the functionality. */
+
 import { Mode } from '../src/demod/scheme';
 import { Demodulator } from '../src/demod/demodulator';
 import { Radio } from '../src/radio/radio';
@@ -113,11 +115,11 @@ function attachEvents(controls: Controls) {
     });
 
     demodulator.addEventListener('demodulator', e => {
-        if (e.detail.type == 'signalLevel') {
-            controls.signalLevel.value = e.detail.value * 100;
-            return;
-        }
         controls.eventLog.textContent = new Date().toLocaleTimeString() + ' Demodulator: ' + JSON.stringify(e.detail) + '\n' + controls.eventLog.textContent;
+    });
+
+    demodulator.addEventListener('signalLevel', e => {
+        controls.signalLevel.value = e.detail * 100;
     });
 }
 

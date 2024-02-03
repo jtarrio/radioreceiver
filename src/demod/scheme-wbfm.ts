@@ -15,13 +15,7 @@
 import { Demodulated, ModulationScheme } from './scheme';
 import * as DSP from '../dsp/dsp';
 
-/**
- * @fileoverview A demodulator for wideband FM signals.
- */
-
-/**
- * A class to implement a Wideband FM demodulator.
- */
+/** A demodulator for wideband FM signals. */
 export class SchemeWBFM implements ModulationScheme {
   /**
    * @param inRate The sample rate of the input samples.
@@ -35,7 +29,7 @@ export class SchemeWBFM implements ModulationScheme {
     const DEEMPH_TC = 50;
 
     this.demodulator = new DSP.FMDemodulator(inRate, INTER_RATE, MAX_F, FILTER, 51);
-    let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
+    const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
     this.monoSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
     this.stereoSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
     this.stereoSeparator = new DSP.StereoSeparator(INTER_RATE, PILOT_FREQ);
@@ -43,32 +37,32 @@ export class SchemeWBFM implements ModulationScheme {
     this.rightDeemph = new DSP.Deemphasizer(outRate, DEEMPH_TC);
   }
 
-  demodulator: DSP.FMDemodulator;
-  monoSampler: DSP.Downsampler;
-  stereoSampler: DSP.Downsampler;
-  stereoSeparator: DSP.StereoSeparator;
-  leftDeemph: DSP.Deemphasizer;
-  rightDeemph: DSP.Deemphasizer;
+  private demodulator: DSP.FMDemodulator;
+  private monoSampler: DSP.Downsampler;
+  private stereoSampler: DSP.Downsampler;
+  private stereoSeparator: DSP.StereoSeparator;
+  private leftDeemph: DSP.Deemphasizer;
+  private rightDeemph: DSP.Deemphasizer;
 
   /**
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
    * @param samplesQ The Q components of the samples.
    * @param inStereo Whether to try decoding the stereo signal.
-   * @return The demodulated audio signal.
+   * @returns The demodulated audio signal.
    */
   demodulate(samplesI: Float32Array, samplesQ: Float32Array, inStereo: boolean): Demodulated {
-    let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    let leftAudio = this.monoSampler.downsample(demodulated);
-    let rightAudio = new Float32Array(leftAudio);
+    const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
+    const leftAudio = this.monoSampler.downsample(demodulated);
+    const rightAudio = new Float32Array(leftAudio);
     let stereoOut = false;
 
     if (inStereo) {
-      var stereo = this.stereoSeparator.separate(demodulated);
+      const stereo = this.stereoSeparator.separate(demodulated);
       if (stereo.found) {
         stereoOut = true;
-        var diffAudio = this.stereoSampler.downsample(stereo.diff);
-        for (var i = 0; i < diffAudio.length; ++i) {
+        const diffAudio = this.stereoSampler.downsample(stereo.diff);
+        for (let i = 0; i < diffAudio.length; ++i) {
           rightAudio[i] -= diffAudio[i];
           leftAudio[i] += diffAudio[i];
         }
@@ -85,4 +79,3 @@ export class SchemeWBFM implements ModulationScheme {
     };
   }
 }
-

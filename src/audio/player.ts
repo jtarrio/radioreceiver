@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/**
- * A class to play a series of sample buffers at a constant rate.
- */
+/** A class to play a series of sample buffers at a constant rate. */
 export class Player {
   private static OUT_RATE = 48000;
   private static TIME_BUFFER = 0.05;
@@ -23,18 +21,16 @@ export class Player {
   constructor() {
     this.lastPlayedAt = -1;
     this.squelchTime = -2;
-    this.frameNo = 0;
     this.ac = undefined;
     this.gainNode = undefined;
     this.gain = 0;
   }
 
-  lastPlayedAt: number;
-  squelchTime: number | null;
-  frameNo: number;
-  ac: AudioContext | undefined;
-  gainNode: GainNode | undefined;
-  gain: number;
+  private lastPlayedAt: number;
+  private squelchTime: number | null;
+  private ac: AudioContext | undefined;
+  private gainNode: GainNode | undefined;
+  private gain: number;
 
   /**
    * Queues the given samples for playing at the appropriate time.
@@ -50,7 +46,7 @@ export class Player {
       this.gainNode.gain.value = this.gain;
       this.gainNode.connect(this.ac.destination);
     }
-    let buffer = this.ac.createBuffer(2, leftSamples.length, Player.OUT_RATE);
+    const buffer = this.ac.createBuffer(2, leftSamples.length, Player.OUT_RATE);
     if (level >= squelch) {
       this.squelchTime = null;
     } else if (this.squelchTime === null) {
@@ -84,4 +80,3 @@ export class Player {
     return this.gain;
   }
 }
-

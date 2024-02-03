@@ -15,13 +15,7 @@
 import { Demodulated, ModulationScheme } from './scheme';
 import * as DSP from '../dsp/dsp';
 
-/**
- * @fileoverview A demodulator for narrowband FM signals.
- */
-
-/**
- * A class to implement a Narrowband FM demodulator.
- */
+/** A demodulator for narrowband FM signals. */
 export class SchemeNBFM implements ModulationScheme {
   /**
    * @param inRate The sample rate of the input samples.
@@ -29,17 +23,17 @@ export class SchemeNBFM implements ModulationScheme {
    * @param maxF The frequency shift for maximum amplitude.
    */
   constructor(inRate: number, outRate: number, maxF: number) {
-    let multiple = 1 + Math.floor((maxF - 1) * 7 / 75000);
-    let interRate = 48000 * multiple;
-    let filterF = maxF * 0.8;
+    const multiple = 1 + Math.floor((maxF - 1) * 7 / 75000);
+    const interRate = 48000 * multiple;
+    const filterF = maxF * 0.8;
 
     this.demodulator = new DSP.FMDemodulator(inRate, interRate, maxF, filterF, Math.floor(50 * 7 / multiple));
-    let filterCoefs = DSP.getLowPassFIRCoeffs(interRate, 8000, 41);
+    const filterCoefs = DSP.getLowPassFIRCoeffs(interRate, 8000, 41);
     this.downSampler = new DSP.Downsampler(interRate, outRate, filterCoefs);
   }
 
-  demodulator: DSP.FMDemodulator;
-  downSampler: DSP.Downsampler;
+  private demodulator: DSP.FMDemodulator;
+  private downSampler: DSP.Downsampler;
 
   /**
    * Demodulates the signal.
@@ -48,8 +42,8 @@ export class SchemeNBFM implements ModulationScheme {
    * @returns The demodulated audio signal.
    */
   demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
-    let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    let audio = this.downSampler.downsample(demodulated);
+    const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
+    const audio = this.downSampler.downsample(demodulated);
     return {
       left: audio,
       right: new Float32Array(audio),
@@ -58,4 +52,3 @@ export class SchemeNBFM implements ModulationScheme {
     };
   }
 }
-

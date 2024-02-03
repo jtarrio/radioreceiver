@@ -16,19 +16,13 @@ import { R820T } from './r820t';
 import { RtlCom } from './rtlcom';
 import { Tuner } from './tuner';
 
-/**
- * Operations on the RTL2832U demodulator.
- */
+/** Operations on the RTL2832U demodulator. */
 export class RTL2832U {
 
-  /**
-   * Frequency of the oscillator crystal.
-   */
+  /** Frequency of the oscillator crystal. */
   static XTAL_FREQ = 28800000;
 
-  /**
-   * The number of bytes for each sample.
-   */
+  /** The number of bytes for each sample. */
   static BYTES_PER_SAMPLE = 2;
 
   private constructor(private com: RtlCom, private tuner: Tuner) {
@@ -121,9 +115,7 @@ export class RTL2832U {
     await com.setDemodReg(0, 0x0d, 0b10000011, 1);
   }
 
-  /**
-   * Finds the tuner that's connected to this demodulator and returns the appropriate instance.
-   */
+  /** Finds the tuner that's connected to this demodulator and returns the appropriate instance. */
   private static async _findTuner(com: RtlCom): Promise<Tuner> {
     await com.openI2C();
     let found = await R820T.check(com);
@@ -204,9 +196,7 @@ export class RTL2832U {
     return Math.floor(RTL2832U.XTAL_FREQ * (1 + this.ppm / 1000000));
   }
 
-  /**
-   * Resets the demodulator.
-   */
+  /** Resets the demodulator. */
   private async _resetDemodulator() {
     // ? reset demodulator
     await this.com.setDemodReg(1, 0x01, 0b00010100, 1);
@@ -226,9 +216,7 @@ export class RTL2832U {
     return actualFreq;
   }
 
-  /**
-   * Resets the sample buffer. Call this before starting to read samples.
-   */
+  /** Resets the sample buffer. Call this before starting to read samples. */
   async resetBuffer() {
     // USB_EPA_CTL [4] Stall endpoint [9] FIFO reset.
     await this.com.setUsbReg(0x2148, 0b0000001000010000, 2);
@@ -247,9 +235,7 @@ export class RTL2832U {
     return this.com.getSamples(length * RTL2832U.BYTES_PER_SAMPLE);
   }
 
-  /**
-   * Stops the demodulator.
-   */
+  /** Stops the demodulator. */
   async close() {
     await this.com.openI2C();
     await this.tuner.close();

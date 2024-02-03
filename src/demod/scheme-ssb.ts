@@ -15,13 +15,7 @@
 import { Demodulated, ModulationScheme } from './scheme';
 import * as DSP from '../dsp/dsp';
 
-/**
- * @fileoverview A demodulator for single-sideband modulated signals.
- */
-
-/**
- * A class to implement a SSB demodulator.
- */
+/** A demodulator for single-sideband modulated signals. */
 export class SchemeSSB implements ModulationScheme {
   /**
    * @param inRate The sample rate of the input samples.
@@ -33,22 +27,22 @@ export class SchemeSSB implements ModulationScheme {
     const INTER_RATE = 48000;
 
     this.demodulator = new DSP.SSBDemodulator(inRate, INTER_RATE, bandwidth, upper, 151);
-    let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
+    const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
     this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
   }
 
-  demodulator: DSP.SSBDemodulator;
-  downSampler: DSP.Downsampler;
+  private demodulator: DSP.SSBDemodulator;
+  private downSampler: DSP.Downsampler;
 
   /**
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
    * @param samplesQ The Q components of the samples.
-   * @return The demodulated audio signal.
+   * @returns The demodulated audio signal.
    */
   demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
-    let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    let audio = this.downSampler.downsample(demodulated);
+    const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
+    const audio = this.downSampler.downsample(demodulated);
     return {
       left: audio,
       right: new Float32Array(audio),
@@ -57,4 +51,3 @@ export class SchemeSSB implements ModulationScheme {
     };
   }
 }
-

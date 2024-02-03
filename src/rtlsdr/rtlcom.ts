@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/**
- * Low-level communications with the RTL2832U-base dongle.
- */
+/** Low-level communications with the RTL2832U-base dongle. */
 export class RtlCom {
     constructor(device: USBDevice) {
         this.device = device;
@@ -30,9 +28,7 @@ export class RtlCom {
         await this.device.claimInterface(0);
     }
 
-    /**
-     * Releases the USB control interface.
-     */
+    /** Releases the USB control interface. */
     async releaseInterface() {
         await this.device.releaseInterface(0);
     }
@@ -127,9 +123,7 @@ export class RtlCom {
         await this.setDemodReg(1, 1, 0x18, 1);
     }
 
-    /**
-     * Closes the I2C repeater.
-     */
+    /** Closes the I2C repeater. */
     async closeI2C() {
         await this.setDemodReg(1, 1, 0x10, 1);
     }
@@ -196,7 +190,7 @@ export class RtlCom {
     /**
      * Decodes a buffer as a little-endian number.
      * @param buffer The buffer to decode.
-     * @return The decoded number.
+     * @returns The decoded number.
      */
     private _bufferToNumber(buffer: ArrayBuffer): number {
         let len = buffer.byteLength;

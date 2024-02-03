@@ -12,23 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/**
- * @fileoverview DSP functions and operations.
- */
+/** DSP functions and operations. */
 
 /**
  * Generates coefficients for a FIR low-pass filter with the given
- * half-amplitude frequency and kernel length at the given sample rate.
+ * corner frequency and kernel length at the given sample rate.
  * @param sampleRate The signal's sample rate.
- * @param halfAmplFreq The half-amplitude frequency in Hz.
+ * @param cornerFreq The -3dB frequency in Hz.
  * @param length The filter kernel's length. Should be an odd number.
  * @returns The FIR coefficients for the filter.
  */
-export function getLowPassFIRCoeffs(sampleRate: number, halfAmplFreq: number, length: number): Float32Array {
+export function getLowPassFIRCoeffs(sampleRate: number, cornerFreq: number, length: number): Float32Array {
   length += (length + 1) % 2;
-  let freq = halfAmplFreq / sampleRate;
+  const freq = cornerFreq / sampleRate;
   let coefs = new Float32Array(length);
-  let center = Math.floor(length / 2);
+  const center = Math.floor(length / 2);
   let sum = 0;
   for (let i = 0; i < length; ++i) {
     let val;
@@ -54,7 +52,7 @@ export function getLowPassFIRCoeffs(sampleRate: number, halfAmplFreq: number, le
  */
 export function getHilbertCoeffs(length: number): Float32Array {
   length += (length + 1) % 2;
-  let center = Math.floor(length / 2);
+  const center = Math.floor(length / 2);
   let out = new Float32Array(length);
   for (let i = 0; i < out.length; ++i) {
     if ((i % 2) == 0) {
@@ -64,24 +62,28 @@ export function getHilbertCoeffs(length: number): Float32Array {
   return out;
 }
 
-/**
- * An object to apply a FIR filter to a sequence of samples.
- */
+/** A class to apply a FIR filter to a sequence of samples. */
 export class FIRFilter {
-  /**
-   * @param coefficients The coefficients of the filter to apply.
-   */
-  constructor(coefficients: Float32Array) {
-    this.coefs = coefficients;
+  /** @param coefs The coefficients of the filter to apply. */
+  constructor(private coefs: Float32Array) {
     this.offset = this.coefs.length - 1;
     this.center = Math.floor(this.coefs.length / 2);
     this.curSamples = new Float32Array(this.offset);
   }
 
-  coefs: Float32Array;
-  offset: number;
-  center: number;
-  curSamples: Float32Array;
+  private offset: number;
+  private center: number;
+  private curSamples: Float32Array;
+
+  /** Returns a copy of this filter. */
+  clone(): FIRFilter {
+    return new FIRFilter(this.coefs);
+  }
+
+  /** Returns this filter's delay. */
+  delay(): number {
+    return this.center;
+  }
 
   /**
    * Loads a new block of samples to filter.
@@ -118,9 +120,7 @@ export class FIRFilter {
   }
 }
 
-/**
- * Applies a low-pass filter and resamples to a lower sample rate.
- */
+/** A class to apply a low-pass filter and resample to a lower sample rate. */
 export class Downsampler {
   /**
    * @param inRate The input signal's sample rate.
@@ -133,8 +133,8 @@ export class Downsampler {
     this.rateMul = inRate / outRate;
   }
 
-  filter: FIRFilter;
-  rateMul: number;
+  private filter: FIRFilter;
+  private rateMul: number;
 
   /**
    * Returns a downsampled version of the given samples.
@@ -151,9 +151,7 @@ export class Downsampler {
   }
 }
 
-/**
- * A class to demodulate IQ-interleaved samples into a raw audio signal.
- */
+/** A class to demodulate IQ-interleaved samples into a raw audio signal. */
 export class SSBDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
@@ -178,17 +176,16 @@ export class SSBDemodulator {
     this.relSignalPower = 0;
   }
 
-  downsamplerI: Downsampler;
-  downsamplerQ: Downsampler;
-  filterDelay: FIRFilter;
-  filterHilbert: FIRFilter;
-  filterSide: FIRFilter;
-  hilbertMul: number;
-  powerLongAvg: ExpAverage;
-  powerShortAvg: ExpAverage;
-  sigRatio: number;
-  relSignalPower: number;
-
+  private downsamplerI: Downsampler;
+  private downsamplerQ: Downsampler;
+  private filterDelay: FIRFilter;
+  private filterHilbert: FIRFilter;
+  private filterSide: FIRFilter;
+  private hilbertMul: number;
+  private powerLongAvg: ExpAverage;
+  private powerShortAvg: ExpAverage;
+  private sigRatio: number;
+  private relSignalPower: number;
 
   /**
    * Demodulates the given I/Q samples.
@@ -197,9 +194,10 @@ export class SSBDemodulator {
    * @returns The demodulated sound.
    */
   demodulateTuned(samplesI: Float32Array, samplesQ: Float32Array): Float32Array {
-    let I = this.downsamplerI.downsample(samplesI);
-    let Q = this.downsamplerQ.downsample(samplesQ);
+    const I = this.downsamplerI.downsample(samplesI);
+    const Q = this.downsamplerQ.downsample(samplesQ);
 
+    const sigRatio = this.sigRatio;
     let specSqrSum = 0;
     let sigSqrSum = 0;
     this.filterDelay.loadSamples(I);
@@ -211,16 +209,16 @@ export class SSBDemodulator {
     this.filterSide.loadSamples(prefilter);
     let out = new Float32Array(I.length);
     for (let i = 0; i < out.length; ++i) {
-      let sig = this.filterSide.get(i);
-      let power = sig * sig;
+      const sig = this.filterSide.get(i);
+      const power = sig * sig;
       sigSqrSum += power;
-      let stPower = this.powerShortAvg.add(power);
-      let ltPower = this.powerLongAvg.add(power);
-      let multi = 0.9 * Math.max(1, Math.sqrt(2 / Math.min(1 / 128, Math.max(ltPower, stPower))));
+      const stPower = this.powerShortAvg.add(power);
+      const ltPower = this.powerLongAvg.add(power);
+      const multi = 0.9 * Math.max(1, Math.sqrt(2 / Math.min(1 / 128, Math.max(ltPower, stPower))));
       out[i] = multi * this.filterSide.get(i);
-      let origIndex = Math.floor(i * this.sigRatio);
-      let origI = samplesI[origIndex];
-      let origQ = samplesQ[origIndex];
+      const origIndex = Math.floor(i * sigRatio);
+      const origI = samplesI[origIndex];
+      const origQ = samplesQ[origIndex];
       specSqrSum += origI * origI + origQ * origQ;
     }
 
@@ -233,9 +231,7 @@ export class SSBDemodulator {
   }
 }
 
-/**
- * A class to demodulate IQ-interleaved samples into a raw audio signal.
- */
+/** A class to demodulate IQ-interleaved samples into a raw audio signal. */
 export class AMDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
@@ -244,17 +240,17 @@ export class AMDemodulator {
    * @param kernelLen The length of the filter kernel.
    */
   constructor(inRate: number, outRate: number, filterFreq: number, kernelLen: number) {
-    let coefs = getLowPassFIRCoeffs(inRate, filterFreq, kernelLen);
+    const coefs = getLowPassFIRCoeffs(inRate, filterFreq, kernelLen);
     this.downsamplerI = new Downsampler(inRate, outRate, coefs);
     this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
     this.sigRatio = inRate / outRate;
     this.relSignalPower = 0;
   }
 
-  downsamplerI: Downsampler;
-  downsamplerQ: Downsampler;
-  sigRatio: number;
-  relSignalPower: number;
+  private downsamplerI: Downsampler;
+  private downsamplerQ: Downsampler;
+  private sigRatio: number;
+  private relSignalPower: number;
 
   /**
    * Demodulates the given I/Q samples.
@@ -263,29 +259,30 @@ export class AMDemodulator {
    * @returns The demodulated sound.
    */
   demodulateTuned(samplesI: Float32Array, samplesQ: Float32Array): Float32Array {
-    let I = this.downsamplerI.downsample(samplesI);
-    let Q = this.downsamplerQ.downsample(samplesQ);
-    let iAvg = average(I);
-    let qAvg = average(Q);
+    const I = this.downsamplerI.downsample(samplesI);
+    const Q = this.downsamplerQ.downsample(samplesQ);
+    const iAvg = average(I);
+    const qAvg = average(Q);
     let out = new Float32Array(I.length);
 
+    const sigRatio = this.sigRatio;
     let specSqrSum = 0;
     let sigSqrSum = 0;
     let sigSum = 0;
     for (let i = 0; i < out.length; ++i) {
-      let iv = I[i] - iAvg;
-      let qv = Q[i] - qAvg;
-      let power = iv * iv + qv * qv;
-      let ampl = Math.sqrt(power);
+      const iv = I[i] - iAvg;
+      const qv = Q[i] - qAvg;
+      const power = iv * iv + qv * qv;
+      const ampl = Math.sqrt(power);
       out[i] = ampl;
-      let origIndex = Math.floor(i * this.sigRatio);
-      let origI = samplesI[origIndex];
-      let origQ = samplesQ[origIndex];
+      const origIndex = Math.floor(i * sigRatio);
+      const origI = samplesI[origIndex];
+      const origQ = samplesQ[origIndex];
       specSqrSum += origI * origI + origQ * origQ;
       sigSqrSum += power;
       sigSum += ampl;
     }
-    let halfPoint = sigSum / out.length;
+    const halfPoint = sigSum / out.length;
     for (let i = 0; i < out.length; ++i) {
       out[i] = (out[i] - halfPoint) / halfPoint;
     }
@@ -298,9 +295,7 @@ export class AMDemodulator {
   }
 }
 
-/**
- * A class to demodulate IQ-interleaved samples into a raw audio signal.
- */
+/** A class to demodulate IQ-interleaved samples into a raw audio signal. */
 export class FMDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
@@ -311,7 +306,7 @@ export class FMDemodulator {
    */
   constructor(inRate: number, outRate: number, maxF: number, filterFreq: number, kernelLen: number) {
     this.amplConv = outRate / (2 * Math.PI * maxF);
-    let coefs = getLowPassFIRCoeffs(inRate, filterFreq, kernelLen);
+    const coefs = getLowPassFIRCoeffs(inRate, filterFreq, kernelLen);
     this.downsamplerI = new Downsampler(inRate, outRate, coefs);
     this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
     this.lI = 0;
@@ -319,12 +314,12 @@ export class FMDemodulator {
     this.relSignalPower = 0;
   }
 
-  amplConv: number;
-  downsamplerI: Downsampler;
-  downsamplerQ: Downsampler;
-  lI: number;
-  lQ: number;
-  relSignalPower: number;
+  private amplConv: number;
+  private downsamplerI: Downsampler;
+  private downsamplerQ: Downsampler;
+  private lI: number;
+  private lQ: number;
+  private relSignalPower: number;
 
   /**
    * Demodulates the given I/Q samples.
@@ -333,19 +328,23 @@ export class FMDemodulator {
    * @returns The demodulated sound.
    */
   demodulateTuned(samplesI: Float32Array, samplesQ: Float32Array): Float32Array {
-    let I = this.downsamplerI.downsample(samplesI);
-    let Q = this.downsamplerQ.downsample(samplesQ);
+    const I = this.downsamplerI.downsample(samplesI);
+    const Q = this.downsamplerQ.downsample(samplesQ);
     let out = new Float32Array(I.length);
 
+    const amplConv = this.amplConv;
     let prev = 0;
     let difSqrSum = 0;
+    let lI = this.lI;
+    let lQ = this.lQ;
     for (let i = 0; i < out.length; ++i) {
-      let real = this.lI * I[i] + this.lQ * Q[i];
-      let imag = this.lI * Q[i] - I[i] * this.lQ;
+      let real = lI * I[i] + lQ * Q[i];
+      let imag = lI * Q[i] - I[i] * lQ;
       let sgn = 1;
       let circ = 0;
       let ang = 0;
       let div = 1;
+      // My silly implementation of atan2.
       if (real < 0) {
         sgn = -sgn;
         real = -real;
@@ -367,14 +366,16 @@ export class FMDemodulator {
         (ang + div
           / (0.98419158358617365
             + div * (0.093485702629671305
-              + div * 0.19556307900617517))) * this.amplConv;
-      this.lI = I[i];
-      this.lQ = Q[i];
-      let dif = prev - out[i];
+              + div * 0.19556307900617517))) * amplConv;
+      lI = I[i];
+      lQ = Q[i];
+      const dif = prev - out[i];
       difSqrSum += dif * dif;
       prev = out[i];
     }
 
+    this.lI = lI;
+    this.lQ = lQ;
     this.relSignalPower = 1 - Math.sqrt(difSqrSum / out.length);
     return out;
   }
@@ -384,9 +385,7 @@ export class FMDemodulator {
   }
 }
 
-/**
- * Demodulates the stereo signal in a demodulated FM signal.
- */
+/** A class to demodulate the stereo signal in a demodulated FM signal. */
 export class StereoSeparator {
   /**
    * @param sampleRate The sample rate for the input signal.
@@ -408,15 +407,15 @@ export class StereoSeparator {
     }
   }
 
-  static STD_THRES = 400;
+  private static STD_THRES = 400;
 
-  sin: number;
-  cos: number;
-  iavg: ExpAverage;
-  qavg: ExpAverage;
-  cavg: ExpAverage;
-  sinTable: Float32Array;
-  cosTable: Float32Array;
+  private sin: number;
+  private cos: number;
+  private iavg: ExpAverage;
+  private qavg: ExpAverage;
+  private cavg: ExpAverage;
+  private sinTable: Float32Array;
+  private cosTable: Float32Array;
 
   /**
    * Locks on to the pilot tone and uses it to demodulate the stereo audio.
@@ -428,10 +427,12 @@ export class StereoSeparator {
    */
   separate(samples: Float32Array): { found: boolean, diff: Float32Array } {
     let out = new Float32Array(samples);
+    let sin = this.sin;
+    let cos = this.cos;
     for (let i = 0; i < out.length; ++i) {
-      let hdev = this.iavg.add(out[i] * this.sin);
-      let vdev = this.qavg.add(out[i] * this.cos);
-      out[i] *= this.sin * this.cos * 2;
+      let hdev = this.iavg.add(out[i] * sin);
+      let vdev = this.qavg.add(out[i] * cos);
+      out[i] *= sin * cos * 2;
       let corr;
       if (hdev > 0) {
         corr = Math.max(-4, Math.min(4, vdev / hdev));
@@ -439,11 +440,13 @@ export class StereoSeparator {
         corr = vdev == 0 ? 0 : (vdev > 0 ? 4 : -4);
       }
       let idx = Math.round((corr + 4) * 1000);
-      let newSin = this.sin * this.cosTable[idx] + this.cos * this.sinTable[idx];
-      this.cos = this.cos * this.cosTable[idx] - this.sin * this.sinTable[idx];
-      this.sin = newSin;
+      const newSin = sin * this.cosTable[idx] + cos * this.sinTable[idx];
+      cos = cos * this.cosTable[idx] - sin * this.sinTable[idx];
+      sin = newSin;
       this.cavg.add(corr * 10);
     }
+    this.sin = sin;
+    this.cos = cos;
     return {
       found: this.cavg.getStd() < StereoSeparator.STD_THRES,
       diff: out
@@ -451,21 +454,27 @@ export class StereoSeparator {
   }
 }
 
-/**
- * A de-emphasis filter with the given time constant.
- */
+/** A de-emphasis filter with the given time constant. */
 export class Deemphasizer {
   /**
    * @param sampleRate The signal's sample rate.
    * @param timeConstant_uS The filter's time constant in microseconds.
    */
-  constructor(public sampleRate: number, public timeConstant_uS: number) {
+  constructor(sampleRate: number, timeConstant_uS: number) {
     this.alpha = 1 - Math.exp(-1 / (sampleRate * timeConstant_uS / 1e6));
     this.val = 0;
   }
 
   private alpha: number;
   private val: number;
+
+  /** Returns a copy of this deemphasizer. */
+  clone(): Deemphasizer {
+    let copy = new Deemphasizer(1, 1);
+    copy.alpha = this.alpha;
+    copy.val = this.val;
+    return copy;
+  }
 
   /**
    * Deemphasizes the given samples in place.
@@ -482,25 +491,19 @@ export class Deemphasizer {
   }
 }
 
-/**
- * An exponential moving average accumulator.
- */
+/** An exponential moving average accumulator. */
 class ExpAverage {
   /**
    * @param weight Weight of the previous average value.
    * @param wantStd Whether to calculate the standard deviation.
    */
-  constructor(weight: number, wantStd?: boolean) {
-    this.weight = weight;
-    this.wantStd = wantStd || false;
+  constructor(private weight: number, private wantStd?: boolean) {
     this.avg = 0;
     this.std = 0;
   }
 
-  weight: number;
-  wantStd: boolean;
-  avg: number;
-  std: number;
+  private avg: number;
+  private std: number;
 
   /**
    * Adds a value to the moving average.
@@ -508,9 +511,10 @@ class ExpAverage {
    * @returns The moving average.
    */
   add(value: number): number {
-    this.avg = (this.weight * this.avg + value) / (this.weight + 1);
+    const weight = this.weight;
+    this.avg = (weight * this.avg + value) / (weight + 1);
     if (this.wantStd) {
-      this.std = (this.weight * this.std + (value - this.avg) * (value - this.avg)) / (this.weight + 1);
+      this.std = (weight * this.std + (value - this.avg) * (value - this.avg)) / (weight + 1);
     }
     return this.avg;
   }
@@ -541,13 +545,12 @@ function average(arr: Float32Array): number {
  * Converts the given buffer of unsigned 8-bit samples into a pair of 32-bit
  *     floating-point sample streams.
  * @param buffer A buffer containing the unsigned 8-bit samples.
- * @param rate The buffer's sample rate.
  * @returns An array that contains first the I stream
  *     and next the Q stream.
  */
-export function iqSamplesFromUint8(buffer: ArrayBuffer, rate: number): [Float32Array, Float32Array] {
-  let arr = new Uint8Array(buffer);
-  let len = arr.length / 2;
+export function iqSamplesFromUint8(buffer: ArrayBuffer): [Float32Array, Float32Array] {
+  const arr = new Uint8Array(buffer);
+  const len = arr.length / 2;
   let outI = new Float32Array(len);
   let outQ = new Float32Array(len);
   for (let i = 0; i < len; ++i) {
@@ -568,8 +571,8 @@ export function iqSamplesFromUint8(buffer: ArrayBuffer, rate: number): [Float32A
  *     final cosine and final sine.
  */
 export function shiftFrequency(IQ: [Float32Array, Float32Array], freq: number, sampleRate: number, cosine: number, sine: number): [Float32Array, Float32Array, number, number] {
-  let deltaCos = Math.cos(2 * Math.PI * freq / sampleRate);
-  let deltaSin = Math.sin(2 * Math.PI * freq / sampleRate);
+  const deltaCos = Math.cos(2 * Math.PI * freq / sampleRate);
+  const deltaSin = Math.sin(2 * Math.PI * freq / sampleRate);
   let I = IQ[0];
   let Q = IQ[1];
   let oI = new Float32Array(I.length);
@@ -577,10 +580,9 @@ export function shiftFrequency(IQ: [Float32Array, Float32Array], freq: number, s
   for (let i = 0; i < I.length; ++i) {
     oI[i] = I[i] * cosine - Q[i] * sine;
     oQ[i] = I[i] * sine + Q[i] * cosine;
-    let newSine = cosine * deltaSin + sine * deltaCos;
+    const newSine = cosine * deltaSin + sine * deltaCos;
     cosine = cosine * deltaCos - sine * deltaSin;
     sine = newSine;
   }
   return [oI, oQ, cosine, sine];
 }
-

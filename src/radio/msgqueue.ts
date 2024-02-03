@@ -12,6 +12,7 @@ export class Channel<Msg> {
 
     /**
      * Sends a message.
+     * 
      * If there is a client waiting to receive a message, it is delivered straight to it.
      * Otherwise, the message is added to the queue.
      */
@@ -26,6 +27,7 @@ export class Channel<Msg> {
 
     /**
      * Receives a message, returning a promise.
+     * 
      * If there is a message in the queue, the promise resolves to that message.
      * Otherwise, the promise will resolve when a message is received.
      */

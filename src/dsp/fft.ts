@@ -1,5 +1,14 @@
+/** Fast Fourier Transform implementation. */
+
+/** Array of complex numbers. Real and imaginary parts are separate. */
 export type ComplexArray = { real: Float32Array, imag: Float32Array };
 
+/**
+ * Returns the length of the FFT for a given array length.
+ * 
+ * This FFT implementation only works in power-of-2 lengths,
+ * so this function returns the next available length.
+ */
 export function actualLength(minimumLength: number): number {
     if (minimumLength < 2) return 0;
     if (((minimumLength - 1) & minimumLength) == 0) return minimumLength;
@@ -8,7 +17,18 @@ export function actualLength(minimumLength: number): number {
     return realLength;
 }
 
+/** Fast Fourier Transform and reverse transform with a given length. */
 export class FFT {
+    /**
+     * Returns an FFT instance that fits the given length.
+     * 
+     * The actual length may be greater than the given length if it
+     * is not a power of 2.
+     */
+    static ofLength(minimumLength: number): FFT {
+        return new FFT(actualLength(minimumLength));
+    }
+
     private constructor(public length: number) {
         this.revIndex = reversedBitIndices(length);
         let [fwd, bwd] = makeFftCoefficients(length);
@@ -20,10 +40,14 @@ export class FFT {
     private fwd: ComplexArray[];
     private bwd: ComplexArray[];
 
-    static ofLength(minimumLength: number): FFT {
-        return new FFT(actualLength(minimumLength));
-    }
-
+    /**
+     * Transforms the given time-domain input. The inputs must be the same length
+     * as the FFT.
+     * @param real An array of real parts.
+     * @param imag An array of imaginary parts.
+     * @returns A complex array of frequency components, scaled so that the
+     *     square modulus corresponds to the input signal's mean square power.
+     */
     transform(real: Float32Array, imag: Float32Array): ComplexArray;
     transform(real: number[], imag: number[]): ComplexArray;
     transform<T extends Array<number>>(real: T, imag: T): ComplexArray {
@@ -38,6 +62,13 @@ export class FFT {
         return output;
     }
 
+    /**
+     * Does a reverse transform of the given frequency-domain input. The
+     * inputs must be the same length as the FFT.
+     * @param real An array of real parts.
+     * @param imag An array of imaginary parts.
+     * @returns A complex array of samples.
+     */
     reverse(real: Float32Array, imag: Float32Array): ComplexArray;
     reverse(real: number[], imag: number[]): ComplexArray;
     reverse<T extends Array<number>>(real: T, imag: T): ComplexArray {
@@ -53,6 +84,7 @@ export class FFT {
     }
 }
 
+/** Performs a fast direct or reverse transform in place on the 'output' array. */
 function doFastTransform(length: number, coefs: ComplexArray[], output: ComplexArray) {
     for (let dftSize = 2, coeffBin = 0; dftSize <= length; dftSize *= 2, ++coeffBin) {
         const binCoefficients = coefs[coeffBin];
@@ -78,6 +110,7 @@ function doFastTransform(length: number, coefs: ComplexArray[], output: ComplexA
     }
 }
 
+/** Builds a triangle of direct and reverse FFT coefficients for the given length. */
 function makeFftCoefficients(length: number): [ComplexArray[], ComplexArray[]] {
     let numBits = getNumBits(length);
     let fwd: ComplexArray[] = [];
@@ -99,6 +132,7 @@ function makeFftCoefficients(length: number): [ComplexArray[], ComplexArray[]] {
     return [fwd, bwd];
 }
 
+/** Builds an array of numbers with their bits reversed. */
 function reversedBitIndices(length: number): Int32Array {
     const numBits = getNumBits(length);
     let output = new Int32Array(length);
@@ -108,12 +142,14 @@ function reversedBitIndices(length: number): Int32Array {
     return output;
 }
 
+/** Returns how many bits we need to fit 'length' distinct values. */
 function getNumBits(length: number): number {
     let numBits = 0;
     for (let shifted = length - 1; shifted > 0; shifted >>= 1) ++numBits;
     return numBits;
 }
 
+/** Reverses the bits in a number. */
 function reverseBits(num: number, bits: number): number {
     let output = 0;
     for (let b = 0; b < bits; ++b)

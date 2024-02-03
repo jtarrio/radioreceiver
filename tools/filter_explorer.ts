@@ -1,3 +1,5 @@
+/** A page that shows the effect of different filters. */
+
 import * as DSP from '../src/dsp/dsp';
 import { ComplexArray, FFT } from '../src/dsp/fft';
 
@@ -252,26 +254,21 @@ abstract class FilterAdaptor {
         }
     }
 
-    abstract get taps(): number;
     abstract spectrum(length: number): ComplexArray;
 }
 
 class FIRFilterAdaptor extends FilterAdaptor {
     constructor(filter: DSP.FIRFilter) {
         super()
-        this.cosFilter = new DSP.FIRFilter(filter.coefs);
-        this.sinFilter = new DSP.FIRFilter(filter.coefs);
+        this.cosFilter = filter.clone();
+        this.sinFilter = filter.clone();
     }
 
     cosFilter: DSP.FIRFilter;
     sinFilter: DSP.FIRFilter;
 
-    get taps() {
-        return this.cosFilter.coefs.length;
-    }
-
     spectrum(length: number): ComplexArray {
-        const offset = Math.floor(this.taps / 2);
+        const offset = this.cosFilter.delay();
         let transformer = FFT.ofLength(length);
         length = transformer.length;
         let impulseR = new Float32Array(length);
@@ -292,16 +289,12 @@ class FIRFilterAdaptor extends FilterAdaptor {
 class DeemphasizerAdaptor extends FilterAdaptor {
     constructor(deemphasizer: DSP.Deemphasizer) {
         super()
-        this.cosDeemph = new DSP.Deemphasizer(deemphasizer.sampleRate, deemphasizer.timeConstant_uS);
-        this.sinDeemph = new DSP.Deemphasizer(deemphasizer.sampleRate, deemphasizer.timeConstant_uS);
+        this.cosDeemph = deemphasizer.clone();
+        this.sinDeemph = deemphasizer.clone();
     }
 
     cosDeemph: DSP.Deemphasizer;
     sinDeemph: DSP.Deemphasizer;
-
-    get taps() {
-        return 1;
-    }
 
     spectrum(length: number): ComplexArray {
         let transformer = FFT.ofLength(length);

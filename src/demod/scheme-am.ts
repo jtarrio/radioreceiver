@@ -15,13 +15,7 @@
 import { Demodulated, ModulationScheme } from './scheme';
 import * as DSP from '../dsp/dsp';
 
-/**
- * @fileoverview A demodulator for amplitude modulated signals.
- */
-
-/**
- * A class to implement an AM demodulator.
- */
+/** A demodulator for amplitude modulated signals. */
 export class SchemeAM implements ModulationScheme {
   /**
    * @param inRate The sample rate of the input samples.
@@ -30,14 +24,14 @@ export class SchemeAM implements ModulationScheme {
    */
   constructor(inRate: number, outRate: number, bandwidth: number) {
     const INTER_RATE = 48000;
-    let filterF = bandwidth / 2;
+    const filterF = bandwidth / 2;
     this.demodulator = new DSP.AMDemodulator(inRate, INTER_RATE, filterF, 351);
-    let filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
+    const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
     this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
   }
 
-  demodulator: DSP.AMDemodulator;
-  downSampler: DSP.Downsampler;
+  private demodulator: DSP.AMDemodulator;
+  private downSampler: DSP.Downsampler;
 
   /**
    * Demodulates the signal.
@@ -46,8 +40,8 @@ export class SchemeAM implements ModulationScheme {
    * @returns The demodulated audio signal.
    */
   demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
-    let demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    let audio = this.downSampler.downsample(demodulated);
+    const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
+    const audio = this.downSampler.downsample(demodulated);
     return {
       left: audio,
       right: new Float32Array(audio),
