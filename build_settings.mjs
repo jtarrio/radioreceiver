@@ -1,8 +1,5 @@
 var buildFiles = [
-    'html/index.html',
-    'html/main.ts',
-    'tools/*.html',
-    'tools/*.ts',
+    '{html,tools}/*',
 ];
 
 export default buildFiles;

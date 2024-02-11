@@ -43,7 +43,7 @@ async function compile(src) {
 
 async function build(src) {
     if ('string' !== typeof src) {
-        let allNames = await Promise.allSettled(src.map(glob));
+        let allNames = await Promise.allSettled(src.map(p => glob(p)));
         let allBuilds = allNames
             .filter(p => p.status == "fulfilled")
             .flatMap(p => p.value)
