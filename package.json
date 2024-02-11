@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "node ./build.mjs",
-    "build-on-change": "onchange \"src\" \"tools\" -- npm run build",
+    "build-on-change": "onchange \"src\" \"tools\" \"html\" -- npm run build",
     "serve": "npm run build && browser-sync start --server \"dist/\" --files \"dist/\"",
     "watch": "run-p serve build-on-change",
     "dist": "node ./build.mjs --dist"
