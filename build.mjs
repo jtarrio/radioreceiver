@@ -56,11 +56,16 @@ async function build(src) {
     }
 }
 
-if (DIST_MODE || CLEAN_MODE) {
+let actions = {
+    clean: DIST_MODE || CLEAN_MODE,
+    build: !CLEAN_MODE
+};
+
+if (actions.clean) {
     await fs.rm('dist', {
         force: true,
         recursive: true,
     });
 }
 
-if (!CLEAN_MODE) build(buildFiles);
+if (actions.build) build(buildFiles);
