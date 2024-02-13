@@ -1,5 +1,5 @@
 var buildFiles = [
-    '{html,tools}/*',
+    '{html,tools}/**',
 ];
 
 export default buildFiles;
