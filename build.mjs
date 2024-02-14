@@ -36,6 +36,7 @@ async function compile(src) {
         outfile: dst,
         bundle: true,
         minify: true,
+        treeShaking: true,
         sourcemap: SOURCE_MAPS,
         plugins: [esbuildPluginTsc({ force: true })]
     });
@@ -49,7 +50,7 @@ async function build(src) {
             .flatMap(p => p.value)
             .map(build);
         return await Promise.allSettled(allBuilds);
-    } else if (src.endsWith('.ts') || src.endsWith('.js')) {
+    } else if (src.endsWith('.ts') || src.endsWith('.mts') || src.endsWith('.js') || src.endsWith('.mjs')) {
         return await compile(src);
     } else {
         return await copy(src);
