@@ -15,45 +15,38 @@ const CLEAN_MODE = program.opts().clean;
 const DIST_MODE = program.opts().dist;
 const SOURCE_MAPS = program.opts().sourceMaps && !DIST_MODE;
 
-async function distPath(name) {
-    let out = path.join('dist', name);
-    await fs.mkdir(path.dirname(out), { recursive: true });
-    return out;
-}
-
-async function copy(src) {
-    let dst = await distPath(src);
-    console.log(` Copy ${src} -> ${dst}`);
-    await fs.copyFile(src, dst);
-}
-
 async function compile(src) {
-    let lastDot = src.lastIndexOf('.');
-    let dst = await distPath(lastDot >= 0 ? src.substring(0, lastDot) + '.js' : src + '.js');
-    console.log(`Build ${src} -> ${dst}`);
+    console.log(`Build ${src}`);
+    let assetPrefix = src.substring(0, src.indexOf('/'));
     return esbuild.build({
         entryPoints: [src],
-        outfile: dst,
+        outdir: 'dist',
+        outbase: '.',
+        assetNames: `${assetPrefix}/assets/[name]-[hash]`,
         bundle: true,
         minify: true,
         treeShaking: true,
         sourcemap: SOURCE_MAPS,
+        loader: {
+            '.html': 'copy',
+            '.ttf': 'file',
+            '.woff': 'file',
+            '.woff2': 'file',
+        },
         plugins: [esbuildPluginTsc({ force: true })]
     });
 }
 
 async function build(src) {
     if ('string' !== typeof src) {
-        let allNames = await Promise.allSettled(src.map(p => glob(p)));
+        let allNames = await Promise.allSettled(src.map(p => glob(p, { nodir: true })));
         let allBuilds = allNames
             .filter(p => p.status == "fulfilled")
             .flatMap(p => p.value)
             .map(build);
         return await Promise.allSettled(allBuilds);
-    } else if (src.endsWith('.ts') || src.endsWith('.mts') || src.endsWith('.js') || src.endsWith('.mjs')) {
-        return await compile(src);
     } else {
-        return await copy(src);
+        return await compile(src);
     }
 }
 
