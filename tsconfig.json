@@ -12,6 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+    "useDefineForClassFields": false,
     "strict": true,
     "skipLibCheck": true
   }
