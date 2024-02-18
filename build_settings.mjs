@@ -1,5 +1,5 @@
-var buildFiles = [
-    '{html,tools}/**',
+var buildCommands = [
+  { compile: "{html,tools}/**" },
 ];
 
-export default buildFiles;
+export default buildCommands;
