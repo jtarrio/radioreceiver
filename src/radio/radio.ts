@@ -158,15 +158,15 @@ export class Radio extends EventTarget {
                     case State.OFF: {
                         let msg = await msgPromise;
                         msgPromise = undefined;
-                        if (msg.type == 'frequency') {
+                        if (msg.type == 'frequency' && this.frequency != msg.value) {
                             this.dispatchEvent(new RadioEvent(msg));
                             this.frequency = msg.value;
                         }
-                        if (msg.type == 'frequencyCorrection') {
+                        if (msg.type == 'frequencyCorrection' && this.frequencyCorrection != msg.value) {
                             this.frequencyCorrection = msg.value;
                             this.dispatchEvent(new RadioEvent(msg));
                         }
-                        if (msg.type == 'gain') {
+                        if (msg.type == 'gain' && this.gain != msg.value) {
                             this.dispatchEvent(new RadioEvent(msg));
                             this.gain = msg.value;
                         }
@@ -192,19 +192,25 @@ export class Radio extends EventTarget {
                         msgPromise = undefined;
                         switch (msg.type) {
                             case 'frequency':
-                                this.frequency = msg.value;
-                                await rtl!.setCenterFrequency(this.frequency);
-                                this.dispatchEvent(new RadioEvent(msg));
+                                if (this.frequency != msg.value) {
+                                    this.frequency = msg.value;
+                                    await rtl!.setCenterFrequency(this.frequency);
+                                    this.dispatchEvent(new RadioEvent(msg));
+                                }
                                 break;
                             case 'gain':
-                                this.gain = msg.value;
-                                await rtl!.setGain(this.gain);
-                                this.dispatchEvent(new RadioEvent(msg));
+                                if (this.gain != msg.value) {
+                                    this.gain = msg.value;
+                                    await rtl!.setGain(this.gain);
+                                    this.dispatchEvent(new RadioEvent(msg));
+                                }
                                 break;
                             case 'frequencyCorrection':
-                                this.frequencyCorrection = msg.value;
-                                await rtl!.setFrequencyCorrection(this.frequencyCorrection);
-                                this.dispatchEvent(new RadioEvent(msg));
+                                if (this.frequencyCorrection != msg.value) {
+                                    this.frequencyCorrection = msg.value;
+                                    await rtl!.setFrequencyCorrection(this.frequencyCorrection);
+                                    this.dispatchEvent(new RadioEvent(msg));
+                                }
                                 break;
                             case 'scan':
                                 scan = { min: msg.min, max: msg.max, step: msg.step };
@@ -261,19 +267,25 @@ export class Radio extends EventTarget {
                         transfers!.startStream();
                         switch (msg.type) {
                             case 'frequency':
-                                this.frequency = msg.value;
-                                await rtl!.setCenterFrequency(this.frequency);
-                                this.dispatchEvent(new RadioEvent(msg));
+                                if (this.frequency != msg.value) {
+                                    this.frequency = msg.value;
+                                    await rtl!.setCenterFrequency(this.frequency);
+                                    this.dispatchEvent(new RadioEvent(msg));
+                                }
                                 break;
                             case 'gain':
-                                this.gain = msg.value;
-                                await rtl!.setGain(this.gain);
-                                this.dispatchEvent(new RadioEvent(msg));
+                                if (this.gain != msg.value) {
+                                    this.gain = msg.value;
+                                    await rtl!.setGain(this.gain);
+                                    this.dispatchEvent(new RadioEvent(msg));
+                                }
                                 break;
                             case 'frequencyCorrection':
-                                this.frequencyCorrection = msg.value;
-                                await rtl!.setFrequencyCorrection(this.frequencyCorrection);
-                                this.dispatchEvent(new RadioEvent(msg));
+                                if (this.frequencyCorrection != msg.value) {
+                                    this.frequencyCorrection = msg.value;
+                                    await rtl!.setFrequencyCorrection(this.frequencyCorrection);
+                                    this.dispatchEvent(new RadioEvent(msg));
+                                }
                                 break;
                             default:
                             // do nothing.

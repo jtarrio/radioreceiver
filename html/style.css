@@ -1,1 +1,11 @@
+@import url("../node_modules/@shoelace-style/shoelace/dist/themes/light.css");
+
+:not(:defined) {
+  visibility: hidden;
+}
+
+:root {
+  font-family: var(--sl-font-sans);
+}
+
 /* Nothing yet. */
