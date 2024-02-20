@@ -69,18 +69,27 @@ export class RrFace extends LitElement {
           min="27000000"
           max="1700000000"
           value=${this.frequency}
-          @sl-change=${(e: any) => (this.frequency = e.target.value)}
+          @sl-change=${(e: any) => {
+            this.frequency = Number(e.target.value);
+            this._sendCommand({ type: "frequency", value: this.frequency });
+          }}
         ></sl-input>
         <sl-range
           label="Volume"
           min="0"
           max="100"
           value=${Math.round(this.volume * 100)}
-          @sl-change=${(e: any) => (this.volume = e.target.value / 100)}
+          @sl-change=${(e: any) => {
+            this.volume = e.target.value / 100;
+            this._sendCommand({ type: "volume", value: this.volume });
+          }}
         ></sl-range>
         <sl-switch
           ?checked=${this.stereo}
-          @sl-change=${(e: any) => (this.stereo = e.target.checked)}
+          @sl-change=${(e: any) => {
+            this.stereo = e.target.checked;
+            this._sendCommand({ type: "stereo", value: this.stereo });
+          }}
           >Stereo</sl-switch
         >
         <sl-range
@@ -88,7 +97,10 @@ export class RrFace extends LitElement {
           min="0"
           max="100"
           value=${Math.round(this.squelch * 100)}
-          @sl-change=${(e: any) => (this.squelch = e.target.squelch / 100)}
+          @sl-change=${(e: any) => {
+            this.squelch = e.target.value / 100;
+            this._sendCommand({ type: "squelch", value: this.squelch });
+          }}
         ></sl-range>
       </sl-card>
 
@@ -143,7 +155,10 @@ export class RrFace extends LitElement {
         <sl-select
           label="Modulation"
           value=${this.modulation}
-          @sl-change=${(e: any) => (this.modulation = e.target.value)}
+          @sl-change=${(e: any) => {
+            this.modulation = e.target.value;
+            this._sendCommand({ type: "mode", mode: this.mode });
+          }}
         >
           <sl-option value="FM">FM</sl-option>
           <sl-option value="AM">AM</sl-option>
@@ -155,21 +170,30 @@ export class RrFace extends LitElement {
           <sl-input
             label="Bandwidth"
             value=${this.amBandwidth}
-            @sl-change=${(e: any) => (this.amBandwidth = e.target.value)}
+            @sl-change=${(e: any) => {
+              this.amBandwidth = e.target.value;
+              this._sendCommand({ type: "mode", mode: this.mode });
+            }}
           ></sl-input>
         </div>
         <div ?hidden=${this.modulation != "LSB" && this.modulation != "USB"}>
           <sl-input
             label="Bandwidth"
             value=${this.ssbBandwidth}
-            @sl-change=${(e: any) => (this.ssbBandwidth = e.target.value)}
+            @sl-change=${(e: any) => {
+              this.ssbBandwidth = e.target.value;
+              this._sendCommand({ type: "mode", mode: this.mode });
+            }}
           ></sl-input>
         </div>
         <div ?hidden=${this.modulation != "NBFM"}>
           <sl-input
             label="MaxF"
             value=${this.nbfmMaxF}
-            @sl-change=${(e: any) => (this.nbfmMaxF = e.target.value)}
+            @sl-change=${(e: any) => {
+              this.nbfmMaxF = e.target.value;
+              this._sendCommand({ type: "mode", mode: this.mode });
+            }}
           ></sl-input>
         </div>
       </sl-card>
@@ -179,16 +203,25 @@ export class RrFace extends LitElement {
         <sl-switch
           label="Auto gain"
           ?checked=${this.autoGain}
-          @sl-change=${(e: any) => (this.autoGain = e.target.checked)}
+          @sl-change=${(e: any) => {
+            this.autoGain = e.target.checked;
+            this._sendCommand({
+              type: "gain",
+              value: this.autoGain ? null : this.gain,
+            });
+          }}
           >Auto gain</sl-switch
         >
         <sl-range
           label="Manual gain"
           min="0"
           max="50"
-          value=${Math.round(this.gain * 100)}
+          value=${Math.round(this.gain)}
           ?disabled=${this.autoGain}
-          @sl-change=${(e: any) => (this.gain = e.target.value / 100)}
+          @sl-change=${(e: any) => {
+            this.gain = e.target.value;
+            this._sendCommand({ type: "gain", value: this.gain });
+          }}
         ></sl-range>
         <sl-input
           label="Frequency correction"
@@ -196,37 +229,16 @@ export class RrFace extends LitElement {
           min="-500"
           max="500"
           value=${this.frequencyCorrection}
-          @sl-change=${(e: any) => (this.frequencyCorrection = e.target.value)}
+          @sl-change=${(e: any) => {
+            this.frequencyCorrection = e.target.value;
+            this._sendCommand({
+              type: "frequencyCorrection",
+              value: this.frequencyCorrection,
+            });
+          }}
         ></sl-input>
       </sl-card>
     `;
-  }
-
-  attributeChangedCallback(name: string, oldval: string, newval: string) {
-    super.attributeChangedCallback(name, oldval, newval);
-    switch (name) {
-      case "volume":
-        return this._sendCommand({ type: "volume", value: this.volume });
-      case "squelch":
-        return this._sendCommand({ type: "squelch", value: this.squelch });
-      case "stereo":
-        return this._sendCommand({ type: "stereo", value: this.stereo });
-      case "frequency":
-        return this._sendCommand({ type: "frequency", value: this.frequency });
-      case "mode":
-        return this._sendCommand({ type: "mode", mode: this.mode });
-      case "autoGain":
-      case "gain":
-        return this._sendCommand({
-          type: "gain",
-          value: this.autoGain ? null : this.gain,
-        });
-      case "frequencyCorrection":
-        return this._sendCommand({
-          type: "frequencyCorrection",
-          value: this.frequencyCorrection,
-        });
-    }
   }
 
   private _sendCommand(cmd: FaceCommandType) {
