@@ -79,21 +79,15 @@ class RrBasicReceiverApp extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.demodulator.setVolume(this.volume);
-    this.demodulator.setSquelch(this.squelch);
-    this.demodulator.setStereo(this.stereo);
-    this.radio.setFrequency(this.frequency);
-    this.demodulator.setMode(this.mode);
-    this.radio.setGain(this.autoGain ? null : this.gain);
-    this.radio.setFrequencyCorrection(this.frequencyCorrection);
     this.radio.addEventListener("radio", (e) => {
-      this.eventLog.textContent =
-        new Date().toLocaleTimeString() +
-        " Radio: " +
-        JSON.stringify(e.detail) +
-        "\n" +
-        this.eventLog.textContent;
+      this.eventLog.textContent = `${new Date().toLocaleTimeString()} Radio: ${JSON.stringify(e.detail)}\n${this.eventLog.textContent}`;
       switch (e.detail.type) {
+        case "start":
+          this.playing = true;
+          break;
+        case "stop":
+          this.playing = false;
+          break;
         case "frequency":
           this.frequency = e.detail.value;
           break;
@@ -111,6 +105,16 @@ class RrBasicReceiverApp extends LitElement {
           break;
       }
     });
+    this.demodulator.addEventListener("demodulator", (e) => {
+      this.eventLog.textContent = `${new Date().toLocaleTimeString()} Demodulator: ${JSON.stringify(e.detail)}\n${this.eventLog.textContent}`;
+    });
+    this.demodulator.setVolume(this.volume);
+    this.demodulator.setSquelch(this.squelch);
+    this.demodulator.setStereo(this.stereo);
+    this.radio.setFrequency(this.frequency);
+    this.demodulator.setMode(this.mode);
+    this.radio.setGain(this.autoGain ? null : this.gain);
+    this.radio.setFrequencyCorrection(this.frequencyCorrection);
   }
 
   private demodulator: Demodulator;
