@@ -112,7 +112,7 @@ export class RrFace extends LitElement {
           min="27000000"
           max="1700000000"
           value=${this.scanMin}
-          @sl-change=${(e: any) => (this.scanMin = e.target.value)}
+          @sl-change=${(e: any) => (this.scanMin = Number(e.target.value))}
         ></sl-input>
         <sl-input
           label="Max"
@@ -120,13 +120,13 @@ export class RrFace extends LitElement {
           min="27000000"
           max="1700000000"
           value=${this.scanMax}
-          @sl-change=${(e: any) => (this.scanMax = e.target.value)}
+          @sl-change=${(e: any) => (this.scanMax = Number(e.target.value))}
         ></sl-input>
         <sl-input
           label="Step"
           type="number"
           value=${this.scanStep}
-          @sl-change=${(e: any) => (this.scanStep = e.target.value)}
+          @sl-change=${(e: any) => (this.scanStep = Number(e.target.value))}
         ></sl-input>
         <sl-button
           @click=${() =>
@@ -171,7 +171,7 @@ export class RrFace extends LitElement {
             label="Bandwidth"
             value=${this.amBandwidth}
             @sl-change=${(e: any) => {
-              this.amBandwidth = e.target.value;
+              this.amBandwidth = Number(e.target.value);
               this._sendCommand({ type: "mode", mode: this.mode });
             }}
           ></sl-input>
@@ -181,7 +181,7 @@ export class RrFace extends LitElement {
             label="Bandwidth"
             value=${this.ssbBandwidth}
             @sl-change=${(e: any) => {
-              this.ssbBandwidth = e.target.value;
+              this.ssbBandwidth = Number(e.target.value);
               this._sendCommand({ type: "mode", mode: this.mode });
             }}
           ></sl-input>
@@ -191,7 +191,7 @@ export class RrFace extends LitElement {
             label="MaxF"
             value=${this.nbfmMaxF}
             @sl-change=${(e: any) => {
-              this.nbfmMaxF = e.target.value;
+              this.nbfmMaxF = Number(e.target.value);
               this._sendCommand({ type: "mode", mode: this.mode });
             }}
           ></sl-input>
@@ -230,7 +230,7 @@ export class RrFace extends LitElement {
           max="500"
           value=${this.frequencyCorrection}
           @sl-change=${(e: any) => {
-            this.frequencyCorrection = e.target.value;
+            this.frequencyCorrection = Number(e.target.value);
             this._sendCommand({
               type: "frequencyCorrection",
               value: this.frequencyCorrection,
