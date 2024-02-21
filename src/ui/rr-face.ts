@@ -16,6 +16,7 @@ import "@shoelace-style/shoelace/dist/components/button/button.js";
 import "@shoelace-style/shoelace/dist/components/card/card.js";
 import "@shoelace-style/shoelace/dist/components/input/input.js";
 import "@shoelace-style/shoelace/dist/components/option/option.js";
+import "@shoelace-style/shoelace/dist/components/progress-bar/progress-bar.js";
 import "@shoelace-style/shoelace/dist/components/range/range.js";
 import "@shoelace-style/shoelace/dist/components/select/select.js";
 import "@shoelace-style/shoelace/dist/components/switch/switch.js";
@@ -119,6 +120,7 @@ export class RrFace extends LitElement implements RrFaceInterface {
         ></sl-input>
         <sl-button @click=${this._handleScan("up")}>Scan up</sl-button>
         <sl-button @click=${this._handleScan("down")}>Scan down</sl-button>
+        ${this.scanning ? html`<sl-progress-bar indeterminate></sl-progress-bar>` : html`` }
       </sl-card>
 
       <sl-card>
