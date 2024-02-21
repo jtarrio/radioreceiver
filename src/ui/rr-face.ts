@@ -12,36 +12,23 @@ import SlSwitch from "@shoelace-style/shoelace/dist/components/switch/switch.js"
 import { LitElement, css, html } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { Mode } from "../demod/scheme";
-
-export type FaceCommandType =
-  | { type: "start" }
-  | { type: "stop" }
-  | { type: "volume"; value: number }
-  | { type: "squelch"; value: number }
-  | { type: "stereo"; value: boolean }
-  | { type: "frequency"; value: number }
-  | { type: "mode"; mode: Mode }
-  | { type: "gain"; value: number | null }
-  | { type: "scan"; min: number; max: number; step: number }
-  | { type: "frequencyCorrection"; value: number };
-
-export class FaceCommand extends CustomEvent<FaceCommandType> {
-  constructor(e: FaceCommandType) {
-    super("face-command", { detail: e });
-  }
-}
+import {
+  FaceCommand,
+  FaceCommandType,
+  RrFaceInterface,
+} from "./rr-face-interface";
 
 @customElement("rr-face")
-export class RrFace extends LitElement {
+export class RrFace extends LitElement implements RrFaceInterface {
   @property({ type: Boolean, reflect: true }) playing: boolean = false;
-  @property({ type: Number, reflect: true }) volume: number = 1;
-  @property({ type: Number, reflect: true }) squelch: number = 0.5;
-  @property({ type: Boolean, reflect: true }) stereo: boolean = true;
-  @property({ type: Number, reflect: true }) frequency: number = 88500000;
+  @property({ type: Number, reflect: true }) volume: number = 0;
+  @property({ type: Number, reflect: true }) squelch: number = 0;
+  @property({ type: Boolean, reflect: true }) stereo: boolean = false;
+  @property({ type: Number, reflect: true }) frequency: number = 0;
   @property({ type: String, reflect: true }) modulation: string = "FM";
   @property({ type: Number, reflect: true }) amBandwidth: number = 10000;
   @property({ type: Number, reflect: true }) ssbBandwidth: number = 2800;
-  @property({ type: Number, reflect: true }) nbfmMaxF: number = 2500;
+  @property({ type: Number, reflect: true }) nbfmMaxF: number = 2800;
   @property({ type: Boolean, reflect: true }) autoGain: boolean = true;
   @property({ type: Number, reflect: true }) gain: number = 0;
   @property({ type: Number, reflect: true }) scanMin: number = 87500000;
@@ -184,6 +171,8 @@ export class RrFace extends LitElement {
 
   get mode(): Mode {
     switch (this.modulation) {
+      case "FM":
+        return { scheme: "WBFM" };
       case "NBFM":
         return { scheme: "NBFM", maxF: this.nbfmMaxF };
       case "AM":
@@ -192,9 +181,29 @@ export class RrFace extends LitElement {
         return { scheme: "LSB", bandwidth: this.ssbBandwidth };
       case "USB":
         return { scheme: "USB", bandwidth: this.ssbBandwidth };
-      case "FM":
       default:
-        return { scheme: "WBFM" };
+        throw `Unknown modulation scheme: ${this.modulation}`;
+    }
+  }
+
+  set mode(mode: Mode) {
+    switch (mode.scheme) {
+      case "WBFM":
+        this.modulation = "FM";
+        return;
+      case "NBFM":
+        this.modulation = "NBFM";
+        this.nbfmMaxF = mode.maxF;
+        return;
+      case "AM":
+        this.modulation = "AM";
+        this.amBandwidth = mode.bandwidth;
+        return;
+      case "LSB":
+      case "USB":
+        this.modulation = mode.scheme;
+        this.ssbBandwidth = mode.bandwidth;
+        return;
     }
   }
 

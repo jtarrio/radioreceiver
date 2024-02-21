@@ -10,11 +10,29 @@
       :root {
         font-family: var(--sl-font-sans);
       }
+
+      div#eventLog {
+        border: 1px solid grey;
+        box-sizing: border-box;
+        font-family: monospace;
+        height: 10em;
+        overflow: scroll;
+        padding: 4px;
+        width: 100%;
+        white-space: pre;
+      }
     </style>
     <script src="basic_receiver.js"></script>
   </head>
 
   <body>
-    <rr-basic-receiver-app></rr-basic-receiver-app>
+    <rr-face></rr-face>
+    <sl-divider></sl-divider>
+    <rr-face></rr-face>
+    <sl-divider></sl-divider>
+    <sl-card>
+      <div slot="header">Event log</div>
+      <div id="eventLog"></div>
+    </sl-card>
   </body>
 </html>
