@@ -39,7 +39,12 @@ export class Player {
    * @param level The radio signal's level.
    * @param squelch The current squelch level.
    */
-  play(leftSamples: Float32Array, rightSamples: Float32Array, level: number, squelch: number) {
+  play(
+    leftSamples: Float32Array,
+    rightSamples: Float32Array,
+    level: number,
+    squelch: number
+  ) {
     if (this.ac === undefined || this.gainNode === undefined) {
       this.ac = new AudioContext();
       this.gainNode = this.ac.createGain();
@@ -52,7 +57,10 @@ export class Player {
     } else if (this.squelchTime === null) {
       this.squelchTime = this.lastPlayedAt;
     }
-    if (this.squelchTime === null || this.lastPlayedAt - this.squelchTime < Player.SQUELCH_TAIL) {
+    if (
+      this.squelchTime === null ||
+      this.lastPlayedAt - this.squelchTime < Player.SQUELCH_TAIL
+    ) {
       buffer.getChannelData(0).set(leftSamples);
       buffer.getChannelData(1).set(rightSamples);
     }
@@ -61,7 +69,8 @@ export class Player {
     source.connect(this.gainNode);
     this.lastPlayedAt = Math.max(
       this.lastPlayedAt + leftSamples.length / Player.OUT_RATE,
-      this.ac.currentTime + Player.TIME_BUFFER);
+      this.ac.currentTime + Player.TIME_BUFFER
+    );
     source.start(this.lastPlayedAt);
   }
 

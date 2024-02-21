@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Demodulated, ModulationScheme } from './scheme';
-import * as DSP from '../dsp/dsp';
+import { Demodulated, ModulationScheme } from "./scheme";
+import * as DSP from "../dsp/dsp";
 
 /** A demodulator for amplitude modulated signals. */
 export class SchemeAM implements ModulationScheme {
@@ -46,7 +46,7 @@ export class SchemeAM implements ModulationScheme {
       left: audio,
       right: new Float32Array(audio),
       stereo: false,
-      signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17)
+      signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17),
     };
   }
 }

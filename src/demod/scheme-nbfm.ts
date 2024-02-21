@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Demodulated, ModulationScheme } from './scheme';
-import * as DSP from '../dsp/dsp';
+import { Demodulated, ModulationScheme } from "./scheme";
+import * as DSP from "../dsp/dsp";
 
 /** A demodulator for narrowband FM signals. */
 export class SchemeNBFM implements ModulationScheme {
@@ -23,11 +23,17 @@ export class SchemeNBFM implements ModulationScheme {
    * @param maxF The frequency shift for maximum amplitude.
    */
   constructor(inRate: number, outRate: number, maxF: number) {
-    const multiple = 1 + Math.floor((maxF - 1) * 7 / 75000);
+    const multiple = 1 + Math.floor(((maxF - 1) * 7) / 75000);
     const interRate = 48000 * multiple;
     const filterF = maxF * 0.8;
 
-    this.demodulator = new DSP.FMDemodulator(inRate, interRate, maxF, filterF, Math.floor(50 * 7 / multiple));
+    this.demodulator = new DSP.FMDemodulator(
+      inRate,
+      interRate,
+      maxF,
+      filterF,
+      Math.floor((50 * 7) / multiple)
+    );
     const filterCoefs = DSP.getLowPassFIRCoeffs(interRate, 8000, 41);
     this.downSampler = new DSP.Downsampler(interRate, outRate, filterCoefs);
   }
@@ -48,7 +54,7 @@ export class SchemeNBFM implements ModulationScheme {
       left: audio,
       right: new Float32Array(audio),
       stereo: false,
-      signalLevel: this.demodulator.getRelSignalPower()
+      signalLevel: this.demodulator.getRelSignalPower(),
     };
   }
 }

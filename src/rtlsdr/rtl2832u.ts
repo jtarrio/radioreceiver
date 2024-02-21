@@ -1,31 +1,33 @@
 // Copyright 2013 Google Inc. All rights reserved.
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { R820T } from './r820t';
-import { RtlCom } from './rtlcom';
-import { Tuner } from './tuner';
+import { R820T } from "./r820t";
+import { RtlCom } from "./rtlcom";
+import { Tuner } from "./tuner";
 
 /** Operations on the RTL2832U demodulator. */
 export class RTL2832U {
-
   /** Frequency of the oscillator crystal. */
   static XTAL_FREQ = 28800000;
 
   /** The number of bytes for each sample. */
   static BYTES_PER_SAMPLE = 2;
 
-  private constructor(private com: RtlCom, private tuner: Tuner) {
+  private constructor(
+    private com: RtlCom,
+    private tuner: Tuner
+  ) {
     this.centerFrequency = 0;
     this.ppm = 0;
     this.gain = null;
@@ -122,7 +124,9 @@ export class RTL2832U {
     await com.closeI2C();
     if (!found) {
       await com.releaseInterface();
-      throw new Error('Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported.');
+      throw new Error(
+        "Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported."
+      );
     }
     // [0] disable zero-IF input [1] enable DC estimation [3] enable IQ compensation [4] enable IQ estimation
     await com.setDemodReg(1, 0xb1, 0b00011010, 1);
@@ -142,9 +146,9 @@ export class RTL2832U {
    * @returns a promise that resolves to the sample rate that was actually set.
    */
   async setSampleRate(rate: number): Promise<number> {
-    let ratio = Math.floor(this._getXtalFrequency() * (1 << 22) / rate);
+    let ratio = Math.floor((this._getXtalFrequency() * (1 << 22)) / rate);
     ratio &= 0x0ffffffc;
-    let realRate = Math.floor(this._getXtalFrequency() * (1 << 22) / ratio);
+    let realRate = Math.floor((this._getXtalFrequency() * (1 << 22)) / ratio);
     // [27:2] set resample ratio
     await this.com.setDemodReg(1, 0x9f, (ratio >> 16) & 0xffff, 2);
     await this.com.setDemodReg(1, 0xa1, ratio & 0xffff, 2);
@@ -154,7 +158,7 @@ export class RTL2832U {
 
   async setFrequencyCorrection(ppm: number) {
     this.ppm = ppm;
-    let ppmOffset = -1 * Math.floor(this.ppm * (1 << 24) / 1000000);
+    let ppmOffset = -1 * Math.floor((this.ppm * (1 << 24)) / 1000000);
     // [13:0] sampling frequency offset
     await this.com.setDemodReg(1, 0x3e, (ppmOffset >> 8) & 0x3f, 1);
     await this.com.setDemodReg(1, 0x3f, ppmOffset & 0xff, 1);
@@ -162,7 +166,7 @@ export class RTL2832U {
     this.tuner.setXtalFrequency(xtalFrequency);
     let ifFreq = this.tuner.getIntermediateFrequency();
     if (ifFreq != 0) {
-      let multiplier = -1 * Math.floor(ifFreq * (1 << 22) / xtalFrequency);
+      let multiplier = -1 * Math.floor((ifFreq * (1 << 22)) / xtalFrequency);
       // [21:0] set IF frequency
       await this.com.setDemodReg(1, 0x19, (multiplier >> 16) & 0x3f, 1);
       await this.com.setDemodReg(1, 0x1a, (multiplier >> 8) & 0xff, 1);

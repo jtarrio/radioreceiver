@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Demodulated, ModulationScheme } from './scheme';
-import * as DSP from '../dsp/dsp';
+import { Demodulated, ModulationScheme } from "./scheme";
+import * as DSP from "../dsp/dsp";
 
 /** A demodulator for single-sideband modulated signals. */
 export class SchemeSSB implements ModulationScheme {
@@ -23,10 +23,21 @@ export class SchemeSSB implements ModulationScheme {
    * @param bandwidth The bandwidth of the input signal.
    * @param upper Whether to demodulate the upper sideband (lower otherwise).
    */
-  constructor(inRate: number, outRate: number, bandwidth: number, upper: boolean) {
+  constructor(
+    inRate: number,
+    outRate: number,
+    bandwidth: number,
+    upper: boolean
+  ) {
     const INTER_RATE = 48000;
 
-    this.demodulator = new DSP.SSBDemodulator(inRate, INTER_RATE, bandwidth, upper, 151);
+    this.demodulator = new DSP.SSBDemodulator(
+      inRate,
+      INTER_RATE,
+      bandwidth,
+      upper,
+      151
+    );
     const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
     this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
   }
@@ -47,7 +58,7 @@ export class SchemeSSB implements ModulationScheme {
       left: audio,
       right: new Float32Array(audio),
       stereo: false,
-      signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17)
+      signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17),
     };
   }
 }

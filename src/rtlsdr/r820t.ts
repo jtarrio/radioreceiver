@@ -1,19 +1,19 @@
 // Copyright 2013 Google Inc. All rights reserved.
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { RtlCom } from './rtlcom';
-import { Tuner } from './tuner';
+import { RtlCom } from "./rtlcom";
+import { Tuner } from "./tuner";
 
 /** Operations on the R820T tuner chip. */
 export class R820T implements Tuner {
@@ -37,7 +37,7 @@ export class R820T implements Tuner {
     0b01101100,
     // [7] 1 [6] VGA power on [5] 1 [4] VGA gain controlled by pin [3:0] VGA gain 5.5dB
     0b11110101,
-    // [7:4] LNA agc power detector threshold high 0.94V [3:0] LNA agc power detector threshold low 0.64V 
+    // [7:4] LNA agc power detector threshold high 0.94V [3:0] LNA agc power detector threshold low 0.64V
     0b01100011,
     // [7:4] Mixer agc power detector threshold high 1.04V [3:0] Mixer agd power detector threshold low 0.84V
     0b01110101,
@@ -76,36 +76,39 @@ export class R820T implements Tuner {
     // [7] 0 [6] filter extension enable [5:0] power detector timing control 10
     0b01001010,
     // [7:6] 1 [5:2] 0 [1:0] -
-    0b11000000];
+    0b11000000,
+  ];
 
   /** Configurations for the multiplexer in different frequency bands. */
   static MUX_CFGS = [
-    //      +- open drain (1: low Z)
-    //      |       ++- tracking filter (01: bypass)
-    //      |       ||    ++- RF filter (00: high, 01: med, 10: low)
-    //      |       ||    ||    ++++- LPNF (0000: highest)
-    //      |       ||    ||    ||||++++- LPF (0000: highest) 
-    //      v       vv    vv    vvvvvvvv
-    [  0, 0b1000, 0b00000010, 0b11011111],
-    [ 50, 0b1000, 0b00000010, 0b10111110],
-    [ 55, 0b1000, 0b00000010, 0b10001011],
-    [ 60, 0b1000, 0b00000010, 0b01111011],
-    [ 65, 0b1000, 0b00000010, 0b01101001],
-    [ 70, 0b1000, 0b00000010, 0b01011000],
-    [ 75, 0b0000, 0b00000010, 0b01000100],
-    [ 90, 0b0000, 0b00000010, 0b00110100],
+    [0, 0b1000, 0b00000010, 0b11011111],
+    [50, 0b1000, 0b00000010, 0b10111110],
+    [55, 0b1000, 0b00000010, 0b10001011],
+    [60, 0b1000, 0b00000010, 0b01111011],
+    [65, 0b1000, 0b00000010, 0b01101001],
+    [70, 0b1000, 0b00000010, 0b01011000],
+    [75, 0b0000, 0b00000010, 0b01000100],
+    [90, 0b0000, 0b00000010, 0b00110100],
     [110, 0b0000, 0b00000010, 0b00100100],
     [140, 0b0000, 0b00000010, 0b00010100],
     [180, 0b0000, 0b00000010, 0b00010011],
     [250, 0b0000, 0b00000010, 0b00010001],
     [280, 0b0000, 0b00000010, 0b00000000],
     [310, 0b0000, 0b01000001, 0b00000000],
-    [588, 0b0000, 0b01000000, 0b00000000]
+    [588, 0b0000, 0b01000000, 0b00000000],
+    //      ^       ^^    ^^    ^^^^^^^^
+    //      |       ||    ||    ||||++++- LPF (0000: highest)
+    //      |       ||    ||    ++++- LPNF (0000: highest)
+    //      |       ||    ++- RF filter (00: high, 01: med, 10: low)
+    //      |       ++- tracking filter (01: bypass)
+    //      +- open drain (1: low Z)
   ];
 
   /** A bit mask to reverse the bits in a byte. */
-  static BIT_REVS = [0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
-    0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf];
+  static BIT_REVS = [
+    0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe, 0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7,
+    0xf,
+  ];
 
   /** This tuner's intermediate frequency. */
   static IF_FREQ = 3570000;
@@ -246,7 +249,9 @@ export class R820T implements Tuner {
       await this._writeRegMask(0x10, 0b00000000, 0b00000011);
       await this._setPll(56000000);
       if (!this.hasPllLock) {
-        throw new Error('PLL not locked -- cannot tune to the selected frequency.');
+        throw new Error(
+          "PLL not locked -- cannot tune to the selected frequency."
+        );
       }
       // [4] channel filter calibration start
       await this._writeRegMask(0x0b, 0b00010000, 0b00010000);
@@ -308,7 +313,10 @@ export class R820T implements Tuner {
     await this._writeRegMask(0x1a, 0b00000000, 0b00001100);
     // [7:5] VCO core power 4 (mid)
     await this._writeRegMask(0x12, 0b10000000, 0b11100000);
-    let divNum = Math.min(6, Math.floor(Math.log(1770000000 / freq) / Math.LN2));
+    let divNum = Math.min(
+      6,
+      Math.floor(Math.log(1770000000 / freq) / Math.LN2)
+    );
     let mixDiv = 1 << (divNum + 1);
     let data = await this._readRegBuffer(0x00, 5);
     let arr = new Uint8Array(data);
@@ -334,7 +342,7 @@ export class R820T implements Tuner {
     await this._writeRegMask(0x14, ni + (si << 6), 0b11111111);
     // [4] sigma delta dither (0 on)
     await this._writeRegMask(0x12, vcoFra == 0 ? 0b1000 : 0b0000, 0b00001000);
-    let sdm = Math.min(65535, Math.floor(32768 * vcoFra / pllRef));
+    let sdm = Math.min(65535, Math.floor((32768 * vcoFra) / pllRef));
     // SDM high
     await this._writeRegMask(0x16, sdm >> 8, 0b11111111);
     // SDM low
@@ -342,7 +350,7 @@ export class R820T implements Tuner {
     await this._getPllLock();
     // [3] PLL auto tune clock rate 8 kHz
     await this._writeRegMask(0x1a, 0b00001000, 0b00001000);
-    return 2 * pllRef * (nint + sdm / 65536) / mixDiv;
+    return (2 * pllRef * (nint + sdm / 65536)) / mixDiv;
   }
 
   /**
@@ -438,7 +446,10 @@ export class R820T implements Tuner {
    * @param length The number of registers to read.
    * @returns a promise that resolves to an ArrayBuffer with the data.
    */
-  private async _readRegBuffer(addr: number, length: number): Promise<ArrayBuffer> {
+  private async _readRegBuffer(
+    addr: number,
+    length: number
+  ): Promise<ArrayBuffer> {
     let data = await this.com.getI2CRegBuffer(0x34, addr, length);
     let buf = new Uint8Array(data);
     for (let i = 0; i < buf.length; ++i) {
