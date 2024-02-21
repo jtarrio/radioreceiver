@@ -1,5 +1,39 @@
+// Copyright 2024 Jacobo Tarrio Barreiro. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import { Mode } from "../demod/scheme";
 
+/** Interface for a "face": a UI element for the radio controls. */
+export interface RrFaceInterface {
+    playing: boolean;
+    scanning: boolean;
+    volume: number;
+    squelch: number;
+    stereo: boolean;
+    frequency: number;
+    autoGain: boolean;
+    gain: number;
+    frequencyCorrection: number;
+    get mode(): Mode;
+    set mode(mode: Mode);
+  
+    addEventListener(
+      type: "face-command",
+      handler: (e: FaceCommand) => void
+    ): void;
+  }
+  
 export type FaceCommandType =
   | { type: "start" }
   | { type: "stop" }
@@ -22,29 +56,4 @@ declare global {
   interface HTMLElementEventMap {
     "face-command": FaceCommand;
   }
-}
-
-export interface RrFaceInterface {
-  playing: boolean;
-  volume: number;
-  squelch: number;
-  stereo: boolean;
-  frequency: number;
-  modulation: string;
-  amBandwidth: number;
-  ssbBandwidth: number;
-  nbfmMaxF: number;
-  autoGain: boolean;
-  gain: number;
-  scanMin: number;
-  scanMax: number;
-  scanStep: number;
-  frequencyCorrection: number;
-  get mode(): Mode;
-  set mode(mode: Mode);
-
-  addEventListener(
-    type: "face-command",
-    handler: (e: FaceCommand) => void
-  ): void;
 }
