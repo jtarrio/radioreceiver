@@ -1,4 +1,5 @@
 import "@shoelace-style/shoelace/dist/themes/light.css";
+import "@shoelace-style/shoelace/dist/components/card/card.js";
 import "@shoelace-style/shoelace/dist/components/divider/divider.js";
 import "../src/ui/rr-face-basic";
 import { RrFaceBasic } from "../src/ui/rr-face-basic";

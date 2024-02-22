@@ -10,6 +10,30 @@ Radio Receiver is ah HTML5 webpage that uses an USB digital TV receiver to captu
 
 Radio Receiver was written to work with an RTL-2832U-based DVB-T (European digital TV) USB receiver, with a R820T tuner chip. This hardware configuration is a little dated, but support for newer tuner chips is planned.
 
+## Building
+
+For a development build:
+
+```shell
+$ node run build
+```
+
+You can find the output in the directory `dist`.
+
+For a development build served from your computer with live reload:
+
+```shell
+$ node run watch
+```
+
+For a release build:
+
+```shell
+$ node run dist
+```
+
+You can find the output in the directory `dist`.
+
 ## Acknowledgements
 
 This is a fork of https://github.com/google/radioreceiver that has been updated to use the HTML5 USB API and modern features, such as Promises, and converted to TypeScript.
