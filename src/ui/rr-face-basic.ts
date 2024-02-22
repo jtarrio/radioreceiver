@@ -13,19 +13,14 @@
 // limitations under the License.
 
 import "@shoelace-style/shoelace/dist/components/button/button.js";
-import "@shoelace-style/shoelace/dist/components/card/card.js";
 import "@shoelace-style/shoelace/dist/components/input/input.js";
-import "@shoelace-style/shoelace/dist/components/option/option.js";
-import "@shoelace-style/shoelace/dist/components/progress-bar/progress-bar.js";
 import "@shoelace-style/shoelace/dist/components/range/range.js";
-import "@shoelace-style/shoelace/dist/components/select/select.js";
 import "@shoelace-style/shoelace/dist/components/switch/switch.js";
 import SlInput from "@shoelace-style/shoelace/dist/components/input/input.js";
 import SlRange from "@shoelace-style/shoelace/dist/components/range/range.js";
-import SlSelect from "@shoelace-style/shoelace/dist/components/select/select.js";
 import SlSwitch from "@shoelace-style/shoelace/dist/components/switch/switch.js";
 import { LitElement, css, html } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 import { Mode } from "../demod/scheme";
 import {
   FaceCommand,
@@ -60,13 +55,15 @@ export class RrFaceBasic extends LitElement implements RrFaceInterface {
           display: grid;
           gap: var(--sl-spacing-small);
           grid-template-columns: repeat(5, 1fr);
-          border: var(--sl-panel-border-width) solid var(--sl-panel-border-color);
+          border: var(--sl-panel-border-width) solid
+            var(--sl-panel-border-color);
           background: var(--sl-panel-background-color);
           box-shadow: var(--sl-shadow-small);
           border-radius: var(--sl-border-radius-medium);
           padding: var(--sl-spacing-large);
           align-items: end;
           width: min-content;
+          height: min-content;
         }
 
         .hidden {
@@ -103,7 +100,7 @@ export class RrFaceBasic extends LitElement implements RrFaceInterface {
         >Start</sl-button
       >
       <sl-button
-      size="large"
+        size="large"
         class="${this.playing ? `` : `hidden`}"
         ?disabled=${!this.playing}
         @click=${this._handleStop}
@@ -125,9 +122,6 @@ export class RrFaceBasic extends LitElement implements RrFaceInterface {
 
       <sl-button @click=${this._handleScan("up")}>Scan up</sl-button>
       <sl-button @click=${this._handleScan("down")}>Scan down</sl-button>
-      ${this.scanning
-        ? html`<sl-progress-bar indeterminate></sl-progress-bar>`
-        : html``}
     `;
   }
 
