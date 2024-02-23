@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { RadioError, RadioErrorType } from "../errors";
+
 /** Low-level communications with the RTL2832U-base dongle. */
 export class RtlCom {
   constructor(device: USBDevice) {
@@ -125,8 +127,9 @@ export class RtlCom {
       await this.device.clearHalt("in", 1);
       return new ArrayBuffer(length);
     }
-    throw new Error(
-      `USB bulk read failed length 0x${length.toString(16)} status=${result.status}`
+    throw new RadioError(
+      `USB bulk read failed length 0x${length.toString(16)} status=${result.status}`,
+      RadioErrorType.UsbTransferError
     );
   }
 
@@ -163,9 +166,11 @@ export class RtlCom {
         block | RtlCom.WRITE_FLAG,
         this._numberToBuffer(value, length)
       );
-    } catch {
-      throw new Error(
-        `setReg failed block=0x${block.toString(16)} reg=${reg.toString(16)} value=${value.toString(16)} length=${length}`
+    } catch (e) {
+      throw new RadioError(
+        `setReg failed block=0x${block.toString(16)} reg=${reg.toString(16)} value=${value.toString(16)} length=${length}`,
+        RadioErrorType.UsbTransferError,
+        { cause: e }
       );
     }
   }
@@ -184,9 +189,11 @@ export class RtlCom {
   ): Promise<number> {
     try {
       return this._bufferToNumber(await this._readCtrlMsg(reg, block, length));
-    } catch {
-      throw new Error(
-        `getReg failed block=0x${block.toString(16)} reg=${reg.toString(16)} length=${length}`
+    } catch (e) {
+      throw new RadioError(
+        `getReg failed block=0x${block.toString(16)} reg=${reg.toString(16)} length=${length}`,
+        RadioErrorType.UsbTransferError,
+        { cause: e }
       );
     }
   }
@@ -200,9 +207,11 @@ export class RtlCom {
   private async _setRegBuffer(block: number, reg: number, buffer: ArrayBuffer) {
     try {
       await this._writeCtrlMsg(reg, block | RtlCom.WRITE_FLAG, buffer);
-    } catch {
-      throw new Error(
-        `setRegBuffer failed block=0x${block.toString(16)} reg=${reg.toString(16)}`
+    } catch (e) {
+      throw new RadioError(
+        `setRegBuffer failed block=0x${block.toString(16)} reg=${reg.toString(16)}`,
+        RadioErrorType.UsbTransferError,
+        { cause: e }
       );
     }
   }
@@ -221,9 +230,11 @@ export class RtlCom {
   ): Promise<ArrayBuffer> {
     try {
       return this._readCtrlMsg(reg, block, length);
-    } catch {
-      throw new Error(
-        `getRegBuffer failed block=0x${block.toString(16)} reg=${reg.toString(16)} length=${length}`
+    } catch (e) {
+      throw new RadioError(
+        `getRegBuffer failed block=0x${block.toString(16)} reg=${reg.toString(16)} length=${length}`,
+        RadioErrorType.UsbTransferError,
+        { cause: e }
       );
     }
   }
@@ -245,7 +256,10 @@ export class RtlCom {
     } else if (len == 4) {
       return dv.getUint32(0, true);
     }
-    throw new Error(`Cannot parse ${len}-byte number`);
+    throw new RadioError(
+      `Cannot parse ${len}-byte number`,
+      RadioErrorType.UsbTransferError
+    );
   }
 
   /**
@@ -264,7 +278,10 @@ export class RtlCom {
     } else if (len == 4) {
       dv.setUint32(0, value, !opt_bigEndian);
     } else {
-      throw new Error(`Cannot write ${len}-byte number`);
+      throw new RadioError(
+        `Cannot write ${len}-byte number`,
+        RadioErrorType.UsbTransferError
+      );
     }
     return buffer;
   }
@@ -290,8 +307,9 @@ export class RtlCom {
     };
     let result = await this.device.controlTransferIn(ti, Math.max(8, length));
     if (result.status == "ok") return result.data!.buffer.slice(0, length);
-    throw new Error(
-      `USB read failed value=0x${value.toString(16)} index=0x${index.toString(16)} status=${result.status}`
+    throw new RadioError(
+      `USB read failed value=0x${value.toString(16)} index=0x${index.toString(16)} status=${result.status}`,
+      RadioErrorType.UsbTransferError
     );
   }
 
@@ -315,8 +333,9 @@ export class RtlCom {
     };
     let result = await this.device.controlTransferOut(ti, buffer);
     if (result.status == "ok") return;
-    throw new Error(
-      `USB write failed value=0x${value.toString(16)} index=0x${index.toString(16)} status=${result.status}`
+    throw new RadioError(
+      `USB write failed value=0x${value.toString(16)} index=0x${index.toString(16)} status=${result.status}`,
+      RadioErrorType.UsbTransferError
     );
   }
 }

@@ -27,10 +27,11 @@ import {
   FaceCommandType,
   RrFaceInterface,
 } from "./rr-face-interface";
+import { RadioError, RadioErrorType } from "../errors";
 
 /** A basic radio control UI. */
 @customElement("rr-face-basic")
-export class RrFaceBasic extends LitElement implements RrFaceInterface {
+export default class RrFaceBasic extends LitElement implements RrFaceInterface {
   @property({ type: Boolean, reflect: true }) playing: boolean = false;
   @property({ type: Boolean, reflect: true }) scanning: boolean = false;
   @property({ type: Number, reflect: true }) volume: number = 0;
@@ -54,7 +55,7 @@ export class RrFaceBasic extends LitElement implements RrFaceInterface {
         :host {
           display: grid;
           gap: var(--sl-spacing-small);
-          grid-template-columns: repeat(5, 1fr);
+          grid-template-columns: repeat(3, 1fr);
           border: var(--sl-panel-border-width) solid
             var(--sl-panel-border-color);
           background: var(--sl-panel-background-color);
@@ -71,11 +72,7 @@ export class RrFaceBasic extends LitElement implements RrFaceInterface {
         }
 
         .fullWidth {
-          grid-column: 1/6;
-        }
-
-        .middleThree {
-          grid-column: 2/5;
+          grid-column: 1/4;
         }
       `,
     ];
@@ -109,11 +106,10 @@ export class RrFaceBasic extends LitElement implements RrFaceInterface {
       <sl-input
         label="Frequency"
         type="number"
-        min="87500000"
-        max="108000000"
-        step="100000"
-        class="middleThree"
-        value=${this.frequency}
+        min="87.5"
+        max="108.0"
+        step="0.1"
+        value=${this.frequency / 1000000}
         @sl-change=${this._handleFrequency}
       ></sl-input>
       <sl-switch ?checked=${this.stereo} @sl-change=${this._handleStereo}
@@ -138,7 +134,10 @@ export class RrFaceBasic extends LitElement implements RrFaceInterface {
       case "USB":
         return { scheme: "USB", bandwidth: this.ssbBandwidth };
       default:
-        throw `Unknown modulation scheme: ${this.modulation}`;
+        throw new RadioError(
+          `Unknown modulation scheme: ${this.modulation}`,
+          RadioErrorType.DemodulationError
+        );
     }
   }
 
@@ -176,10 +175,10 @@ export class RrFaceBasic extends LitElement implements RrFaceInterface {
   }
 
   private _handleFrequency(e: Event) {
-    let frequency = Number((e.target as SlInput).value);
-    frequency = 100000 * Math.round(frequency / 100000);
-    (e.target as SlInput).value = String(frequency);
-    this.frequency = frequency;
+    let frequencyMhz = Number((e.target as SlInput).value);
+    frequencyMhz = Math.round(frequencyMhz * 10) / 10;
+    (e.target as SlInput).value = String(frequencyMhz);
+    this.frequency = frequencyMhz * 1000000;
     this._sendCommand({ type: "frequency", value: this.frequency });
   }
 

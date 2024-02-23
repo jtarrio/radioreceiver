@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { RadioError, RadioErrorType } from "../errors";
 import { R820T } from "./r820t";
 import { RtlCom } from "./rtlcom";
 import { Tuner } from "./tuner";
@@ -125,8 +126,9 @@ export class RTL2832U {
     await com.closeI2C();
     if (!found) {
       await com.releaseInterface();
-      throw new Error(
-        "Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported."
+      throw new RadioError(
+        "Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported.",
+        RadioErrorType.UnsupportedDevice
       );
     }
     // [0] disable zero-IF input [1] enable DC estimation [3] enable IQ compensation [4] enable IQ estimation

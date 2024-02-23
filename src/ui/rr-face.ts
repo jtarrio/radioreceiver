@@ -32,12 +32,13 @@ import {
   FaceCommandType,
   RrFaceInterface,
 } from "./rr-face-interface";
+import { RadioError, RadioErrorType } from "../errors";
 
 /** A basic radio control UI. */
 @customElement("rr-face")
 export class RrFace extends LitElement implements RrFaceInterface {
   @property({ type: Boolean, reflect: true }) playing: boolean = false;
-  @property({ type: Boolean, reflect: true}) scanning: boolean = false;
+  @property({ type: Boolean, reflect: true }) scanning: boolean = false;
   @property({ type: Number, reflect: true }) volume: number = 0;
   @property({ type: Number, reflect: true }) squelch: number = 0;
   @property({ type: Boolean, reflect: true }) stereo: boolean = false;
@@ -120,7 +121,9 @@ export class RrFace extends LitElement implements RrFaceInterface {
         ></sl-input>
         <sl-button @click=${this._handleScan("up")}>Scan up</sl-button>
         <sl-button @click=${this._handleScan("down")}>Scan down</sl-button>
-        ${this.scanning ? html`<sl-progress-bar indeterminate></sl-progress-bar>` : html`` }
+        ${this.scanning
+          ? html`<sl-progress-bar indeterminate></sl-progress-bar>`
+          : html``}
       </sl-card>
 
       <sl-card>
@@ -200,7 +203,10 @@ export class RrFace extends LitElement implements RrFaceInterface {
       case "USB":
         return { scheme: "USB", bandwidth: this.ssbBandwidth };
       default:
-        throw `Unknown modulation scheme: ${this.modulation}`;
+        throw new RadioError(
+          `Unknown modulation scheme: ${this.modulation}`,
+          RadioErrorType.DemodulationError
+        );
     }
   }
 

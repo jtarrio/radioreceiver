@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { RadioError, RadioErrorType } from "../errors";
 import { RtlCom } from "./rtlcom";
 import { Tuner } from "./tuner";
 
@@ -250,8 +251,9 @@ export class R820T implements Tuner {
       await this._writeRegMask(0x10, 0b00000000, 0b00000011);
       await this._setPll(56000000);
       if (!this.hasPllLock) {
-        throw new Error(
-          "PLL not locked -- cannot tune to the selected frequency."
+        throw new RadioError(
+          "PLL not locked -- cannot tune to the selected frequency.",
+          RadioErrorType.TunerError
         );
       }
       // [4] channel filter calibration start

@@ -14,6 +14,7 @@
 
 /** State machine to orchestrate the RTL2832, demodulation, and audio playing. */
 
+import { RadioError, RadioErrorType } from "../errors";
 import { RTL2832U } from "../rtlsdr/rtl2832u";
 import { Channel } from "./msgqueue";
 import { SampleReceiver } from "./sample_receiver";
@@ -193,9 +194,23 @@ export class Radio extends EventTarget {
             }
             if (msg.type != "start") continue;
             if (this.device === undefined) {
-              this.device = await navigator.usb.requestDevice({
-                filters: Radio.TUNERS,
-              });
+              if (navigator.usb === undefined) {
+                throw new RadioError(
+                  `This browser does not support the HTML5 USB API`,
+                  RadioErrorType.NoUsbSupport
+                );
+              }
+              try {
+                this.device = await navigator.usb.requestDevice({
+                  filters: Radio.TUNERS,
+                });
+              } catch (e) {
+                throw new RadioError(
+                  `No device was selected`,
+                  RadioErrorType.NoDeviceSelected,
+                  { cause: e }
+                );
+              }
             }
             await this.device!.open();
             rtl = await RTL2832U.open(this.device!);
@@ -432,7 +447,7 @@ class Transfers {
         }
       })
       .catch((e) => {
-        let error = new Error(`Stream transfer error: ${e}`, { cause: e });
+        let error = new RadioError("Sample transfer was interrupted. Did you unplug your device?", RadioErrorType.UsbTransferError, { cause: e });
         let event = new RadioEvent({ type: "error", exception: error });
         this.radio.dispatchEvent(event);
       });

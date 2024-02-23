@@ -41,20 +41,16 @@
         built hardware.
       </p>
       <p>
+        This is <em>not</em> streaming radio.
         <strong
           >You must plug an RTL-SDR receiver into your computer's USB port to
           use this webpage.</strong
         >
       </p>
-      <p>
-        <strong
-          >This webpage does not download radio signals or audio from any
-          server.</strong
-        >
-      </p>
       <h1>Requirements</h1>
       <ul>
         <li>An RTL2832U digital TV receiver with an R820T or R820T2 tuner.</li>
+        <li>A browser that supports the HTML5 USB API.</li>
         <li>
           Windows: use <a href="https://zadig.akeo.ie/">Zadig</a> to install a
           WinUSB driver for the RTL2832UHIDIR/RTL2832U device.
@@ -63,7 +59,7 @@
           Linux: you may need to disable the
           <code>dvb_usb_rtl28xxu</code> driver.
         </li>
-        <li>Mac and ChromeOS: it should work out of the box.</li>
+        <li>Mac, ChromeOS, and Android: it should work out of the box.</li>
       </ul>
       <h1>Plans</h1>
       <p>This webpage will be updated to support modern RTL-SDR devices.</p>
@@ -84,5 +80,7 @@
         >.
       </p>
     </sl-card>
+
+    <rr-error-dialog id="errorDialog"></rr-error-dialog>
   </body>
 </html>

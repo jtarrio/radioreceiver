@@ -76,9 +76,9 @@ class FaceConnector {
       case "scan":
         this.face.scanning = true;
         break;
-        case "stop_scan":
-          this.face.scanning = false;
-          break;
+      case "stop_scan":
+        this.face.scanning = false;
+        break;
       case "error":
         console.log(e.detail.exception);
         break;
