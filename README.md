@@ -2,7 +2,7 @@
 
 An application to listen to radio transmissions from your browser using a cheap USB digital TV tuner.
 
-Try it out at https://radio.ea1iti.es.
+Try it out at [radio.ea1iti.es](https://radio.ea1iti.es).
 
 ## What is this
 
@@ -38,7 +38,7 @@ You can find the output in the directory `dist`.
 
 ## Acknowledgements
 
-This is a fork of https://github.com/google/radioreceiver that has been updated to use the HTML5 USB API and modern features, such as Promises, and converted to TypeScript.
+This started as a fork of https://github.com/google/radioreceiver that has been updated to use the HTML5 USB API and modern features, and converted to TypeScript.
 
 Kudos and thanks to the [RTL-SDR project](http://sdr.osmocom.org/trac/wiki/rtl-sdr) for figuring out the magic numbers needed to drive the USB tuner.
 
