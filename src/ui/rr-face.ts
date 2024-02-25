@@ -30,6 +30,7 @@ import { Mode } from "../demod/scheme";
 import {
   FaceCommand,
   FaceCommandType,
+  FaceSettings,
   RrFaceInterface,
 } from "./rr-face-interface";
 import { RadioError, RadioErrorType } from "../errors";
@@ -229,6 +230,29 @@ export class RrFace extends LitElement implements RrFaceInterface {
         this.ssbBandwidth = mode.bandwidth;
         return;
     }
+  }
+
+  get settings(): FaceSettings {
+    return {
+      volume: this.volume,
+      squelch: this.squelch,
+      stereo: this.stereo,
+      frequency: this.frequency,
+      gain: this.autoGain ? null : this.gain,
+      mode: this.mode,
+      frequencyCorrection: this.frequencyCorrection,
+    };
+  }
+
+  set settings(s: FaceSettings) {
+    this.volume = s.volume;
+    this.squelch = s.squelch;
+    this.stereo = s.stereo;
+    this.frequency = s.frequency;
+    this.autoGain = s.gain == null;
+    this.gain = s.gain == null ? 0 : s.gain;
+    this.mode = s.mode;
+    this.frequencyCorrection = s.frequencyCorrection;
   }
 
   private _sendCommand(cmd: FaceCommandType) {
