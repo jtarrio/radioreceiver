@@ -16,6 +16,8 @@ import "@shoelace-style/shoelace/dist/components/button/button.js";
 import "@shoelace-style/shoelace/dist/components/input/input.js";
 import "@shoelace-style/shoelace/dist/components/range/range.js";
 import "@shoelace-style/shoelace/dist/components/switch/switch.js";
+import "@shoelace-style/shoelace/dist/components/tooltip/tooltip.js";
+import "./rr-button";
 import SlInput from "@shoelace-style/shoelace/dist/components/input/input.js";
 import SlRange from "@shoelace-style/shoelace/dist/components/range/range.js";
 import SlSwitch from "@shoelace-style/shoelace/dist/components/switch/switch.js";
@@ -54,26 +56,70 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
     return [
       css`
         :host {
-          display: grid;
-          gap: var(--sl-spacing-small);
-          grid-template-columns: repeat(3, 1fr);
+          align-items: center;
+          background: var(--sl-panel-background-color);
           border: var(--sl-panel-border-width) solid
             var(--sl-panel-border-color);
-          background: var(--sl-panel-background-color);
-          box-shadow: var(--sl-shadow-small);
           border-radius: var(--sl-border-radius-medium);
-          padding: var(--sl-spacing-large);
-          align-items: end;
-          width: min-content;
+          box-shadow: var(--sl-shadow-small);
+          display: grid;
           height: min-content;
+          gap: var(--sl-spacing-small);
+          grid-template-columns: repeat(5, min-content);
+          padding: var(--sl-spacing-large);
+          width: min-content;
+        }
+
+        .volume {
+          display: grid;
+          grid-column: 1/6;
+          grid-row: 1/2;
+        }
+
+        .scanMinus {
+          display: grid;
+          grid-column: 1/3;
+          grid-row: 3/4;
+        }
+
+        .stepMinus {
+          display: grid;
+          grid-column: 1/2;
+          grid-row: 2/3;
+        }
+
+        .frequency {
+          display: grid;
+          grid-column: 2/5;
+          grid-row: 2/3;
+        }
+
+        .stepPlus {
+          display: grid;
+          grid-column: 5/6;
+          grid-row: 2/3;
+        }
+
+        .scanPlus {
+          display: grid;
+          grid-column: 4/6;
+          grid-row: 3/4;
+        }
+
+        .startStop {
+          display: grid;
+          grid-column: 1/3;
+          grid-row: 4/5;
+        }
+
+        .stereo {
+          display: grid;
+          grid-column: 3/4;
+          grid-row: 3/4;
         }
 
         .hidden {
           display: none;
-        }
-
-        .fullWidth {
-          grid-column: 1/4;
         }
       `,
     ];
@@ -85,40 +131,75 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
         label="Volume"
         min="0"
         max="100"
-        class="fullWidth"
+        class="volume"
         value=${Math.round(this.volume * 100)}
         @sl-change=${this._handleVolume}
       ></sl-range>
-      <sl-button
-        variant="primary"
-        size="large"
-        class="${this.playing ? `hidden` : ``}"
-        ?disabled=${this.playing}
-        @click=${this._handleStart}
-        >Start</sl-button
-      >
-      <sl-button
-        size="large"
-        class="${this.playing ? `` : `hidden`}"
-        ?disabled=${!this.playing}
-        @click=${this._handleStop}
-        >Stop</sl-button
-      >
-      <sl-input
-        label="Frequency"
-        type="number"
-        min="87.5"
-        max="108.0"
-        step="0.1"
-        value=${this.frequency / 1000000}
-        @sl-change=${this._handleFrequency}
-      ></sl-input>
-      <sl-switch ?checked=${this.stereo} @sl-change=${this._handleStereo}
+
+      <rr-button
+        label="Scan down"
+        icon="chevron-double-left"
+        iconposition="prefix"
+        class="scanMinus"
+        @click=${this._handleScan("down")}
+      ></rr-button>
+      <sl-tooltip content="Previous frequency">
+        <rr-button
+          icon="chevron-left"
+          class="stepMinus"
+          @click=${this._handleStep("down")}
+        ></rr-button
+      ></sl-tooltip>
+
+      <sl-tooltip content="Frequency">
+        <sl-input
+          type="text"
+          value=${this.frequency / 1000000}
+          inputmode="decimal"
+          class="frequency"
+          @sl-change=${this._handleFrequency}
+        ></sl-input
+      ></sl-tooltip>
+
+      <sl-tooltip content="Next frequency">
+        <rr-button
+          icon="chevron-right"
+          class="stepPlus"
+          @click=${this._handleStep("up")}
+        ></rr-button
+      ></sl-tooltip>
+      <rr-button
+        label="Scan up"
+        icon="chevron-double-right"
+        iconposition="suffix"
+        class="scanPlus"
+        @click=${this._handleScan("up")}
+      ></rr-button>
+
+      <div class="startStop">
+        <rr-button
+          icon="play-fill"
+          label="Start"
+          variant="primary"
+          class="${this.playing ? `hidden` : ``}"
+          ?disabled=${this.playing}
+          @click=${this._handleStart}
+        ></rr-button>
+        <rr-button
+          icon="stop-fill"
+          label="Stop"
+          class="${this.playing ? `` : `hidden`}"
+          ?disabled=${!this.playing}
+          @click=${this._handleStop}
+        ></rr-button>
+      </div>
+
+      <sl-switch
+        class="stereo"
+        ?checked=${this.stereo}
+        @sl-change=${this._handleStereo}
         >Stereo</sl-switch
       >
-
-      <sl-button @click=${this._handleScan("up")}>Scan up</sl-button>
-      <sl-button @click=${this._handleScan("down")}>Scan down</sl-button>
     `;
   }
 
@@ -199,11 +280,10 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
   }
 
   private _handleFrequency(e: Event) {
-    let frequencyMhz = Number((e.target as SlInput).value);
-    frequencyMhz = Math.round(frequencyMhz * 10) / 10;
-    (e.target as SlInput).value = String(frequencyMhz);
-    this.frequency = frequencyMhz * 1000000;
-    this._sendCommand({ type: "frequency", value: this.frequency });
+    let frequency = 1000000 * Number((e.target as SlInput).value);
+    frequency = this._setFrequency(frequency);
+    (e.target as SlInput).value = String(frequency / 1000000);
+    this.frequency = frequency;
   }
 
   private _handleVolume(e: Event) {
@@ -216,6 +296,14 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
     this._sendCommand({ type: "stereo", value: this.stereo });
   }
 
+  private _handleStep(dir: "up" | "down") {
+    if (dir == "up") {
+      return () => this._setFrequency(this.frequency + this.scanStep);
+    } else {
+      return () => this._setFrequency(this.frequency - this.scanStep);
+    }
+  }
+
   private _handleScan(dir: "up" | "down") {
     return () => {
       this._sendCommand({
@@ -225,5 +313,18 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
         step: dir == "up" ? this.scanStep : -this.scanStep,
       });
     };
+  }
+
+  private _setFrequency(frequency: number): number {
+    let frequencyStep = Math.max(
+      0,
+      Math.round((frequency - this.scanMin) / this.scanStep)
+    );
+    frequency = Math.min(
+      this.scanMax,
+      frequencyStep * this.scanStep + this.scanMin
+    );
+    this._sendCommand({ type: "frequency", value: frequency });
+    return frequency;
   }
 }

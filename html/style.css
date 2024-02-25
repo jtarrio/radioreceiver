@@ -21,10 +21,6 @@ h1 {
   font-weight: var(--sl-font-weight-semibold);
 }
 
-rr-face-basic {
-  width: 25rem;
-}
-
 sl-card h1[slot="header"] {
   margin-block: 0;
 }
