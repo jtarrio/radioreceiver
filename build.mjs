@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import * as path from "path";
 import * as esbuild from "esbuild";
 import { glob } from "glob";
 import esbuildPluginTsc from "esbuild-plugin-tsc";
@@ -41,9 +42,24 @@ async function compile(src) {
   });
 }
 
-async function copy(src, dest) {
+async function copyDir(src, dest) {
   console.log(`Copy ${src} to ${dest}`);
   return fs.cp(src, dest, { recursive: true });
+}
+
+async function copy(src, base, dest) {
+  let srcFiles = await glob(src, { nodir: true});
+  if (srcFiles.length == 0) {
+    console.log(`Warning: no files matched for ${src.join(', ')}`);
+    return;
+  }
+  for (let src of srcFiles) {
+    let relative = path.relative(base, src);
+    let target = path.resolve(dest, relative);
+    console.log(`Copying ${src} to ${target}`);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.copyFile(src, target);
+  }
 }
 
 async function run(cmd) {
@@ -61,12 +77,17 @@ async function run(cmd) {
       .flatMap((p) => p.value)
       .map(compile);
     await Promise.allSettled(allBuilds);
-  } else if (cmd.copy !== undefined) {
-    let srcs = asArray(cmd.copy);
+  } else if (cmd.copyDir !== undefined) {
+    let srcs = asArray(cmd.copyDir);
     let dests = asArray(cmd.to);
     await Promise.allSettled(
-      srcs.flatMap((src) => dests.map((dest) => copy(src, dest)))
+      srcs.flatMap((src) => dests.map((dest) => copyDir(src, dest)))
     );
+  } else if (cmd.copy !== undefined) {
+    let srcs = asArray(cmd.copy);
+    let base = cmd.base;
+    let dests = asArray(cmd.to);
+    await Promise.allSettled(dests.map((dest) => copy(srcs, base, dest)));
   } else {
     throw `Unknown command: ${JSON.stringify(cmd)}`;
   }
