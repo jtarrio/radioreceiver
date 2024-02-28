@@ -18,6 +18,7 @@ import "@shoelace-style/shoelace/dist/components/range/range.js";
 import "@shoelace-style/shoelace/dist/components/switch/switch.js";
 import "@shoelace-style/shoelace/dist/components/tooltip/tooltip.js";
 import "./rr-button";
+import "./rr-frequency";
 import SlInput from "@shoelace-style/shoelace/dist/components/input/input.js";
 import SlRange from "@shoelace-style/shoelace/dist/components/range/range.js";
 import SlSwitch from "@shoelace-style/shoelace/dist/components/switch/switch.js";
@@ -31,6 +32,7 @@ import {
   RrFaceInterface,
 } from "./rr-face-interface";
 import { RadioError, RadioErrorType } from "../errors";
+import RrFrequency from "./rr-frequency";
 
 /** A basic radio control UI. */
 @customElement("rr-face-basic")
@@ -115,8 +117,9 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
 
         .stereo {
           display: grid;
-          grid-column: 3/4;
-          grid-row: 3/4;
+          grid-column: 4/6;
+          grid-row: 4/5;
+          text-align: right;
         }
 
         .hidden {
@@ -153,14 +156,14 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
       ></sl-tooltip>
 
       <sl-tooltip content="Frequency">
-        <sl-input
-          type="text"
-          value=${this.frequency / 1000000}
-          inputmode="decimal"
+        <rr-frequency
+          min=${this.scanMin}
+          max=${this.scanMax}
+          step=${this.scanStep}
+          value=${this.frequency}
           class="frequency"
-          @sl-change=${this._handleFrequency}
-        ></sl-input
-      ></sl-tooltip>
+          @change=${this._handleFrequency}></rr-frequency>
+      </sl-tooltip>
 
       <sl-tooltip content="Next frequency">
         <rr-button
@@ -195,13 +198,13 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
         ></rr-button>
       </div>
 
+      <div class="stereo">
       <sl-switch
-        class="stereo"
         size="small"
         ?checked=${this.stereo}
         @sl-change=${this._handleStereo}
         >Stereo</sl-switch
-      >
+      ></div>
     `;
   }
 
@@ -282,9 +285,11 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
   }
 
   private _handleFrequency(e: Event) {
-    let frequency = 1000000 * Number((e.target as SlInput).value);
+    let frequency = (e.target as RrFrequency).value;
+    // let frequency = 1000000 * Number((e.target as SlInput).value);
     frequency = this._setFrequency(frequency);
-    (e.target as SlInput).value = String(frequency / 1000000);
+    (e.target as RrFrequency).value = frequency;
+    // (e.target as SlInput).value = String(frequency / 1000000);
     this.frequency = frequency;
   }
 
