@@ -197,6 +197,7 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
 
       <sl-switch
         class="stereo"
+        size="small"
         ?checked=${this.stereo}
         @sl-change=${this._handleStereo}
         >Stereo</sl-switch
