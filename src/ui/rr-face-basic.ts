@@ -65,7 +65,7 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
           display: grid;
           height: min-content;
           gap: var(--sl-spacing-small);
-          grid-template-columns: repeat(5, min-content);
+          grid-template-columns: repeat(2, min-content) auto repeat(2, min-content);
           padding: var(--sl-spacing-large);
           width: min-content;
         }
@@ -74,6 +74,7 @@ export default class RrFaceBasic extends LitElement implements RrFaceInterface {
           display: grid;
           grid-column: 1/6;
           grid-row: 1/2;
+          --track-color-active: var(--sl-color-primary-600);
         }
 
         .scanMinus {
