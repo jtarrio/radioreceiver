@@ -72,8 +72,9 @@ export class RrFace extends LitElement implements RrFaceInterface {
         <sl-input
           label="Frequency"
           type="number"
-          min="27000000"
+          min="${this.scanStep}"
           max="1700000000"
+          step="${this.scanStep}"
           value=${this.frequency}
           @sl-change=${this._handleFrequency}
         ></sl-input>
@@ -101,7 +102,7 @@ export class RrFace extends LitElement implements RrFaceInterface {
         <sl-input
           label="Min"
           type="number"
-          min="27000000"
+          min="1"
           max="1700000000"
           value=${this.scanMin}
           @sl-change=${this._handleScanMin}
@@ -109,7 +110,7 @@ export class RrFace extends LitElement implements RrFaceInterface {
         <sl-input
           label="Max"
           type="number"
-          min="27000000"
+          min="1"
           max="1700000000"
           value=${this.scanMax}
           @sl-change=${this._handleScanMax}
