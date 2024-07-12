@@ -17,7 +17,7 @@ Radio Receiver was written to work with an RTL-2832U-based DVB-T (European digit
 For a development build:
 
 ```shell
-$ node run build
+$ npm run build
 ```
 
 You can find the output in the directory `dist`.
@@ -25,13 +25,13 @@ You can find the output in the directory `dist`.
 For a development build served from your computer with live reload:
 
 ```shell
-$ node run watch
+$ npm run watch
 ```
 
 For a release build:
 
 ```shell
-$ node run dist
+$ npm run dist
 ```
 
 You can find the output in the directory `dist`.
