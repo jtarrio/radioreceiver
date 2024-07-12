@@ -15,7 +15,7 @@
 /** A page that shows the effect of different filters. */
 
 import * as DSP from "../src/dsp/dsp";
-import { ComplexArray, FFT } from "../src/dsp/fft";
+import { FFT } from "../src/dsp/fft";
 
 type Controls = {
   filterType: HTMLSelectElement;
@@ -354,6 +354,9 @@ function plotFilter(
   ctx.fillRect(left, bottom + 1, 1 + right - left, 19);
 }
 
+/** Array of complex numbers. Real and imaginary parts are separate. */
+export type ComplexArray = { real: Float32Array; imag: Float32Array };
+
 abstract class FilterAdaptor {
   static build(filter: DSP.FIRFilter | DSP.Deemphasizer) {
     if (filter instanceof DSP.FIRFilter) {
@@ -391,7 +394,12 @@ class FIRFilterAdaptor extends FilterAdaptor {
       real[i] = this.cosFilter.get((length + i + offset) % length);
       imag[i] = this.sinFilter.get((length + i + offset) % length);
     }
-    return transformer.transform(real, imag);
+    let output = {
+      real: new Float32Array(length),
+      imag: new Float32Array(length),
+    };
+    transformer.transform(real, imag, output.real, output.imag);
+    return output;
   }
 }
 
@@ -407,12 +415,18 @@ class DeemphasizerAdaptor extends FilterAdaptor {
 
   spectrum(length: number): ComplexArray {
     let transformer = FFT.ofLength(length);
-    let impulseR = new Float32Array(transformer.length);
-    let impulseI = new Float32Array(transformer.length);
-    impulseR[0] = transformer.length;
+    length = transformer.length;
+    let impulseR = new Float32Array(length);
+    let impulseI = new Float32Array(length);
+    impulseR[0] = length;
     this.cosDeemph.inPlace(impulseR);
     this.sinDeemph.inPlace(impulseI);
-    return transformer.transform(impulseR, impulseI);
+    let output = {
+      real: new Float32Array(length),
+      imag: new Float32Array(length),
+    };
+    transformer.transform(impulseR, impulseI, output.real, output.imag);
+    return output;
   }
 }
 

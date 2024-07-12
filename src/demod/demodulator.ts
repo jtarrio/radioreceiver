@@ -33,7 +33,6 @@ import { SchemeSSB } from "./scheme-ssb";
 import { SchemeWBFM } from "./scheme-wbfm";
 import { Player } from "../audio/player";
 import { SampleReceiver } from "../radio/sample_receiver";
-import * as DSP from "../dsp/dsp";
 
 /** The various contents of the events that the demodulator emits. */
 export type DemodulatorEventType =
@@ -177,18 +176,17 @@ export class Demodulator extends EventTarget implements SampleReceiver {
   }
 
   /** Receives radio samples. */
-  receiveSamples(samples: ArrayBuffer): void {
-    this.demod(samples);
+  receiveSamples(I: Float32Array, Q: Float32Array): void {
+    this.demod(I, Q);
   }
 
   /** Receives radio samples and returns whether there is a signal in it. */
-  async checkForSignal(samples: ArrayBuffer): Promise<boolean> {
-    return this.demod(samples) > 0.5;
+  async checkForSignal(I: Float32Array, Q: Float32Array): Promise<boolean> {
+    return this.demod(I, Q) > 0.5;
   }
 
   /** Demodulates the given samples. */
-  private demod(samples: ArrayBuffer): number {
-    let [I, Q] = DSP.iqSamplesFromUint8(samples);
+  private demod(I: Float32Array, Q: Float32Array): number {
     let { left, right, signalLevel } = this.scheme.demodulate(
       I,
       Q,

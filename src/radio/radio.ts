@@ -14,6 +14,7 @@
 
 /** State machine to orchestrate the RTL2832, demodulation, and audio playing. */
 
+import { iqSamplesFromUint8 } from "../dsp/dsp";
 import { RadioError, RadioErrorType } from "../errors";
 import { RTL2832U } from "../rtlsdr/rtl2832u";
 import { Channel } from "./msgqueue";
@@ -430,7 +431,8 @@ class Transfers {
   async oneShot(): Promise<boolean> {
     await this.rtl.resetBuffer();
     let buffer = await this.rtl.readSamples(this.samplesPerBuf);
-    return this.sampleReceiver.checkForSignal(buffer);
+    let [I, Q] = iqSamplesFromUint8(buffer);
+    return this.sampleReceiver.checkForSignal(I, Q);
   }
 
   /** Runs the transfer stream. */
@@ -438,7 +440,8 @@ class Transfers {
     this.rtl
       .readSamples(this.samplesPerBuf)
       .then((b) => {
-        this.sampleReceiver.receiveSamples(b);
+        let [I, Q] = iqSamplesFromUint8(b);
+        this.sampleReceiver.receiveSamples(I, Q);
         if (this.buffersRunning <= this.buffersWanted) return this.readStream();
         --this.buffersRunning;
         if (this.buffersRunning == 0) {
@@ -447,7 +450,11 @@ class Transfers {
         }
       })
       .catch((e) => {
-        let error = new RadioError("Sample transfer was interrupted. Did you unplug your device?", RadioErrorType.UsbTransferError, { cause: e });
+        let error = new RadioError(
+          "Sample transfer was interrupted. Did you unplug your device?",
+          RadioErrorType.UsbTransferError,
+          { cause: e }
+        );
         let event = new RadioEvent({ type: "error", exception: error });
         this.radio.dispatchEvent(event);
       });
