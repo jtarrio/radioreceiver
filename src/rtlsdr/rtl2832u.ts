@@ -33,11 +33,15 @@ export class RTL2832U {
     this.centerFrequency = 0;
     this.ppm = 0;
     this.gain = null;
+    this.directSamplingMode = false;
+    this.directSampling = false;
   }
 
   private centerFrequency: number;
   private ppm: number;
   private gain: number | null;
+  private directSamplingMode: boolean;
+  private directSampling: boolean;
 
   /**
    * Initializes the demodulator.
@@ -169,15 +173,21 @@ export class RTL2832U {
     this.tuner.setXtalFrequency(xtalFrequency);
     let ifFreq = this.tuner.getIntermediateFrequency();
     if (ifFreq != 0) {
-      let multiplier = -1 * Math.floor((ifFreq * (1 << 22)) / xtalFrequency);
-      // [21:0] set IF frequency
-      await this.com.setDemodReg(1, 0x19, (multiplier >> 16) & 0x3f, 1);
-      await this.com.setDemodReg(1, 0x1a, (multiplier >> 8) & 0xff, 1);
-      await this.com.setDemodReg(1, 0x1b, multiplier & 0xff, 1);
+      await this._setIfFrequency(ifFreq);
     }
     if (this.centerFrequency != 0) {
       await this.setCenterFrequency(this.centerFrequency);
     }
+  }
+
+  private async _setIfFrequency(ifFreq: number): Promise<number> {
+    let xtalFrequency = this._getXtalFrequency();
+    let multiplier = -1 * Math.floor((ifFreq * (1 << 22)) / xtalFrequency);
+    // [21:0] set IF frequency
+    await this.com.setDemodReg(1, 0x19, (multiplier >> 16) & 0x3f, 1);
+    await this.com.setDemodReg(1, 0x1a, (multiplier >> 8) & 0xff, 1);
+    await this.com.setDemodReg(1, 0x1b, multiplier & 0xff, 1);
+    return Math.floor((-1 * multiplier * xtalFrequency) / (1 << 22));
   }
 
   getFrequencyCorrection(): number {
@@ -216,11 +226,59 @@ export class RTL2832U {
    * @returns a promise that resolves to the actual tuned frequency.
    */
   async setCenterFrequency(freq: number): Promise<number> {
-    await this.com.openI2C();
-    let actualFreq = await this.tuner.setFrequency(freq);
-    this.centerFrequency = freq;
-    await this.com.closeI2C();
-    return actualFreq;
+    await this._maybeSetDirectSampling(freq < 24000000);
+    if (this.directSampling) {
+      return this._setIfFrequency(freq);
+    } else {
+      await this.com.openI2C();
+      let actualFreq = await this.tuner.setFrequency(freq);
+      this.centerFrequency = freq;
+      await this.com.closeI2C();
+      return actualFreq;
+    }
+  }
+
+  /** Enables or disables direct sampling mode. */
+  async setDirectSamplingMode(enable: boolean) {
+    if (this.directSamplingMode == enable) return;
+    this.directSamplingMode = enable;
+    if (this.centerFrequency != 0) {
+      await this.setCenterFrequency(this.centerFrequency);
+    }
+  }
+
+  /** Returns whether direct sampling mode is enabled. */
+  getDirectSamplingMode(): boolean {
+    return this.directSamplingMode;
+  }
+
+  private async _maybeSetDirectSampling(enable: boolean) {
+    enable = enable && this.directSamplingMode;
+    if (this.directSampling == enable) return;
+    this.directSampling = enable;
+    if (enable) {
+      await this.com.openI2C();
+      await this.tuner.close();
+      await this.com.closeI2C();
+      // [0] disable zero-IF input
+      await this.com.setDemodReg(1, 0xb1, 0b00011010, 1);
+      // [0] non-inverted spectrum
+      await this.com.setDemodReg(1, 0x15, 0b00000000, 1);
+      // [5:4] exchange ADC_I, ADC_Q datapath
+      await this.com.setDemodReg(0, 0x06, 0b10010000, 1);
+    } else {
+      await this.com.openI2C();
+      await this.tuner.open();
+      await this.com.closeI2C();
+      let ifFreq = this.tuner.getIntermediateFrequency();
+      if (ifFreq != 0) {
+        await this._setIfFrequency(ifFreq);
+      }
+      // [0] inverted spectrum
+      await this.com.setDemodReg(1, 0x15, 0b00000001, 1);
+      // [5:4] default ADC_I, ADC_Q datapath
+      await this.com.setDemodReg(0, 0x06, 0b10000000, 1);
+    }
   }
 
   /** Resets the sample buffer. Call this before starting to read samples. */

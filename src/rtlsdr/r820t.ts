@@ -139,12 +139,8 @@ export class R820T implements Tuner {
 
   /** Initializes the tuner. */
   static async init(com: RtlCom, xtalFreq: number): Promise<R820T> {
-    let regs = new Uint8Array(R820T.REGISTERS);
-    for (let i = 0; i < regs.length; ++i) {
-      await com.setI2CReg(0x34, i + 5, regs[i]);
-    }
-    let r820t = new R820T(com, xtalFreq, regs);
-    await r820t._initElectronics();
+    let r820t = new R820T(com, xtalFreq);
+    await r820t.open();
     return r820t;
   }
 
@@ -152,11 +148,11 @@ export class R820T implements Tuner {
    * @param com The RTL communications object.
    * @param xtalFreq The frequency of the oscillator crystal.
    */
-  private constructor(com: RtlCom, xtalFreq: number, shadowRegs: Uint8Array) {
+  private constructor(com: RtlCom, xtalFreq: number) {
     this.com = com;
     this.xtalFreq = xtalFreq;
     this.hasPllLock = false;
-    this.shadowRegs = shadowRegs;
+    this.shadowRegs = new Uint8Array();
   }
 
   /**
@@ -168,6 +164,15 @@ export class R820T implements Tuner {
     await this._setMux(freq + R820T.IF_FREQ);
     let actual = await this._setPll(freq + R820T.IF_FREQ);
     return actual - R820T.IF_FREQ;
+  }
+
+  /** Starts the tuner. */
+  async open() {
+    this.shadowRegs = new Uint8Array(R820T.REGISTERS);
+    for (let i = 0; i < this.shadowRegs.length; ++i) {
+      await this.com.setI2CReg(0x34, i + 5, this.shadowRegs[i]);
+    }
+    await this._initElectronics();
   }
 
   /** Stops the tuner. */

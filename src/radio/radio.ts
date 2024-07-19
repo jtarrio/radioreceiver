@@ -31,6 +31,7 @@ type Message =
   | { type: "frequency"; value: number }
   | { type: "frequencyCorrection"; value: number }
   | { type: "gain"; value: number | null }
+  | { type: "directSamplingMode"; value: boolean }
   | { type: "scan"; min: number; max: number; step: number };
 
 /** The information in a 'radio' event. */
@@ -64,6 +65,7 @@ export class Radio extends EventTarget {
     this.frequencyCorrection = 0;
     this.gain = null;
     this.frequency = 88500000;
+    this.directSamplingMode = false;
     this.runLoop();
   }
 
@@ -79,6 +81,8 @@ export class Radio extends EventTarget {
   private gain: number | null;
   /** Currently tuned frequency. */
   private frequency: number;
+  /** Whether direct sampling mode is enabled. */
+  private directSamplingMode: boolean;
 
   /** Known RTL2832 devices. */
   private static TUNERS = [
@@ -164,6 +168,14 @@ export class Radio extends EventTarget {
     return this.gain;
   }
 
+  async setDirectSamplingMode(enable: boolean) {
+    this.channel.send({ type: "directSamplingMode", value: enable });
+  }
+
+  getDirectSamplingMode(): boolean {
+    return this.directSamplingMode;
+  }
+
   /** Runs the state machine. */
   private async runLoop() {
     let transfers: Transfers;
@@ -193,6 +205,13 @@ export class Radio extends EventTarget {
               this.dispatchEvent(new RadioEvent(msg));
               this.gain = msg.value;
             }
+            if (
+              msg.type == "directSamplingMode" &&
+              this.directSamplingMode != msg.value
+            ) {
+              this.dispatchEvent(new RadioEvent(msg));
+              this.directSamplingMode = msg.value;
+            }
             if (msg.type != "start") continue;
             if (this.device === undefined) {
               if (navigator.usb === undefined) {
@@ -218,6 +237,7 @@ export class Radio extends EventTarget {
             await rtl.setSampleRate(Radio.SAMPLE_RATE);
             await rtl.setFrequencyCorrection(this.frequencyCorrection);
             await rtl.setGain(this.gain);
+            await rtl.setDirectSamplingMode(this.directSamplingMode);
             await rtl.setCenterFrequency(this.frequency);
             await rtl.resetBuffer();
             transfers = new Transfers(
@@ -253,6 +273,13 @@ export class Radio extends EventTarget {
                 if (this.frequencyCorrection != msg.value) {
                   this.frequencyCorrection = msg.value;
                   await rtl!.setFrequencyCorrection(this.frequencyCorrection);
+                  this.dispatchEvent(new RadioEvent(msg));
+                }
+                break;
+              case "directSamplingMode":
+                if (this.directSamplingMode != msg.value) {
+                  this.directSamplingMode = msg.value;
+                  await rtl!.setDirectSamplingMode(this.directSamplingMode);
                   this.dispatchEvent(new RadioEvent(msg));
                 }
                 break;
@@ -335,6 +362,13 @@ export class Radio extends EventTarget {
                 if (this.frequencyCorrection != msg.value) {
                   this.frequencyCorrection = msg.value;
                   await rtl!.setFrequencyCorrection(this.frequencyCorrection);
+                  this.dispatchEvent(new RadioEvent(msg));
+                }
+                break;
+              case "directSamplingMode":
+                if (this.directSamplingMode != msg.value) {
+                  this.directSamplingMode = msg.value;
+                  await rtl!.setDirectSamplingMode(this.directSamplingMode);
                   this.dispatchEvent(new RadioEvent(msg));
                 }
                 break;

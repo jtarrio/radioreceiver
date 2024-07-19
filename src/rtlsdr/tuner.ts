@@ -26,4 +26,6 @@ export interface Tuner {
   getIntermediateFrequency(): number;
   /** Closes the tuner. */
   close(): Promise<void>;
+  /** Reopens the tuner. */
+  open(): Promise<void>;
 }

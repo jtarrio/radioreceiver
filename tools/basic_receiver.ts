@@ -45,6 +45,7 @@ function main() {
   demodulator.setVolume(1);
   demodulator.setStereo(true);
   demodulator.setSquelch(0.5);
+  radio.setDirectSamplingMode(true);
 
   document
     .querySelectorAll("rr-face")
