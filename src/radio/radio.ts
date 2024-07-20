@@ -17,6 +17,7 @@
 import { iqSamplesFromUint8 } from "../dsp/dsp";
 import { RadioError, RadioErrorType } from "../errors";
 import { RTL2832U } from "../rtlsdr/rtl2832u";
+import { RtlDevice, RtlDeviceProvider } from "../rtlsdr/rtldevice";
 import { Channel } from "./msgqueue";
 import { SampleReceiver } from "./sample_receiver";
 
@@ -57,9 +58,8 @@ enum State {
 /** Provides controls to play, stop, and scan the radio. */
 export class Radio extends EventTarget {
   /** @param sampleReceiver the object that will receive the radio samples. */
-  constructor(private sampleReceiver: SampleReceiver) {
+  constructor(private rtlProvider: RtlDeviceProvider, private sampleReceiver: SampleReceiver) {
     super();
-    this.device = undefined;
     this.state = State.OFF;
     this.channel = new Channel<Message>();
     this.frequencyCorrection = 0;
@@ -69,8 +69,6 @@ export class Radio extends EventTarget {
     this.runLoop();
   }
 
-  /** USB device that the tuner is connected to. */
-  private device?: USBDevice;
   /** Current state. */
   private state: State;
   /** Channel to send messages to the state machine. */
@@ -84,11 +82,6 @@ export class Radio extends EventTarget {
   /** Whether direct sampling mode is enabled. */
   private directSamplingMode: boolean;
 
-  /** Known RTL2832 devices. */
-  private static TUNERS = [
-    { vendorId: 0x0bda, productId: 0x2832 },
-    { vendorId: 0x0bda, productId: 0x2838 },
-  ];
   /** RTL sample rate. Must be a multiple of 512 * BUFS_PER_SEC. */
   private static SAMPLE_RATE = 1024000;
   /** Receive this many buffers per second. */
@@ -179,7 +172,7 @@ export class Radio extends EventTarget {
   /** Runs the state machine. */
   private async runLoop() {
     let transfers: Transfers;
-    let rtl: RTL2832U;
+    let rtl: RtlDevice;
     let scan: { min: number; max: number; step: number };
     let msgPromise: Promise<Message> | undefined;
     let transferPromise: Promise<boolean> | undefined;
@@ -213,27 +206,7 @@ export class Radio extends EventTarget {
               this.directSamplingMode = msg.value;
             }
             if (msg.type != "start") continue;
-            if (this.device === undefined) {
-              if (navigator.usb === undefined) {
-                throw new RadioError(
-                  `This browser does not support the HTML5 USB API`,
-                  RadioErrorType.NoUsbSupport
-                );
-              }
-              try {
-                this.device = await navigator.usb.requestDevice({
-                  filters: Radio.TUNERS,
-                });
-              } catch (e) {
-                throw new RadioError(
-                  `No device was selected`,
-                  RadioErrorType.NoDeviceSelected,
-                  { cause: e }
-                );
-              }
-            }
-            await this.device!.open();
-            rtl = await RTL2832U.open(this.device!);
+            rtl = await this.rtlProvider.get();
             await rtl.setSampleRate(Radio.SAMPLE_RATE);
             await rtl.setFrequencyCorrection(this.frequencyCorrection);
             await rtl.setGain(this.gain);
@@ -292,7 +265,6 @@ export class Radio extends EventTarget {
               case "stop":
                 await transfers!.stopStream();
                 await rtl!.close();
-                await this.device!.close();
                 this.state = State.OFF;
                 this.dispatchEvent(new RadioEvent(msg));
                 break;
@@ -336,7 +308,6 @@ export class Radio extends EventTarget {
             }
             if (msg.type == "stop") {
               await rtl!.close();
-              await this.device!.close();
               this.state = State.OFF;
               this.dispatchEvent(new RadioEvent(msg));
               continue;
@@ -420,7 +391,7 @@ export class Radio extends EventTarget {
  */
 class Transfers {
   constructor(
-    private rtl: RTL2832U,
+    private rtl: RtlDevice,
     private sampleReceiver: SampleReceiver,
     private radio: Radio,
     private samplesPerBuf: number

@@ -147,6 +147,11 @@ export class RtlCom {
     await this.setDemodReg(1, 1, 0x10, 1);
   }
 
+  /** Closes the connection. */
+  async close() {
+    await this.device.close();
+  }
+
   /**
    * Writes a value into a dongle's register.
    * @param block The register's block number.

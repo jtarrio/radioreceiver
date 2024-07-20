@@ -10,6 +10,7 @@ import { Radio } from "../src/radio/radio";
 import { setBasePath } from "@shoelace-style/shoelace/dist/utilities/base-path.js";
 import { connectRadioToFace } from "../src/ui/face-connector";
 import { RadioErrorType } from "../src/errors";
+import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
 
 let scripts = document.getElementsByTagName("script");
 let myScript = scripts[scripts.length - 1];
@@ -20,8 +21,9 @@ setBasePath(myPath);
 function main() {
   let errorDialog = document.querySelector("#errorDialog") as RrErrorDialog;
 
+  let rtlProvider = new RTL2832U_Provider();
   let demodulator = new Demodulator();
-  let radio = new Radio(demodulator);
+  let radio = new Radio(rtlProvider, demodulator);
   demodulator.setVolume(1);
   demodulator.setStereo(true);
   demodulator.setSquelch(0);

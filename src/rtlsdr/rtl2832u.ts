@@ -16,10 +16,52 @@
 import { RadioError, RadioErrorType } from "../errors";
 import { R820T } from "./r820t";
 import { RtlCom } from "./rtlcom";
+import { RtlDevice, RtlDeviceProvider } from "./rtldevice";
 import { Tuner } from "./tuner";
 
+/** Known RTL2832 devices. */
+const TUNERS = [
+  { vendorId: 0x0bda, productId: 0x2832 },
+  { vendorId: 0x0bda, productId: 0x2838 },
+];
+
+/** Class that returns an open RTL2832U device. */
+export class RTL2832U_Provider implements RtlDeviceProvider {
+  constructor() {
+    this.device = undefined;
+  }
+
+  private device?: USBDevice;
+
+  async get(): Promise<RtlDevice> {
+    if (this.device === undefined) {
+      this.device = await this.getDevice();
+    }
+    await this.device!.open();
+    return RTL2832U.open(this.device!);
+  }
+
+  private async getDevice(): Promise<USBDevice> {
+    if (navigator.usb === undefined) {
+      throw new RadioError(
+        `This browser does not support the HTML5 USB API`,
+        RadioErrorType.NoUsbSupport
+      );
+    }
+    try {
+      return navigator.usb.requestDevice({ filters: TUNERS });
+    } catch (e) {
+      throw new RadioError(
+        `No device was selected`,
+        RadioErrorType.NoDeviceSelected,
+        { cause: e }
+      );
+    }
+  }
+}
+
 /** Operations on the RTL2832U demodulator. */
-export class RTL2832U {
+export class RTL2832U implements RtlDevice {
   /** Frequency of the oscillator crystal. */
   static XTAL_FREQ = 28800000;
 
@@ -306,5 +348,6 @@ export class RTL2832U {
     await this.tuner.close();
     await this.com.closeI2C();
     await this.com.releaseInterface();
+    await this.com.close();
   }
 }

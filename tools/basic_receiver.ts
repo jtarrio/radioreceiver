@@ -22,6 +22,14 @@ import { Demodulator, DemodulatorEvent } from "../src/demod/demodulator";
 import { Radio, RadioEvent } from "../src/radio/radio";
 import { setBasePath } from "@shoelace-style/shoelace/dist/utilities/base-path.js";
 import { connectRadioToFace } from "../src/ui/face-connector";
+import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
+import { FakeRtlProvider } from "../src/rtlsdr/fakertl/fakertl";
+import {
+  AmGenerator,
+  FmGenerator,
+  NoiseGenerator,
+  ToneGenerator,
+} from "../src/rtlsdr/fakertl/generators";
 
 let scripts = document.getElementsByTagName("script");
 let myScript = scripts[scripts.length - 1];
@@ -30,8 +38,14 @@ let myPath = mySrc.substring(0, mySrc.lastIndexOf("/"));
 setBasePath(myPath);
 
 function main() {
+  // let rtlProvider = new FakeRtlProvider([
+  //   new FmGenerator(-20, 88500000, 75000, new ToneGenerator(-6, 600)),
+  //   new AmGenerator(-20, 120000000, new ToneGenerator(-6, 450)),
+  //   new NoiseGenerator(-40),
+  // ]);
+  let rtlProvider = new RTL2832U_Provider();
   let demodulator = new Demodulator();
-  let radio = new Radio(demodulator);
+  let radio = new Radio(rtlProvider, demodulator);
   let eventLog = document.querySelector("#eventLog");
   radio.addEventListener("radio", (e: RadioEvent) => {
     if (eventLog)
