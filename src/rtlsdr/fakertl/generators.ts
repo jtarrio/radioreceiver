@@ -35,8 +35,12 @@ export class NoiseGenerator extends Sized implements Generator {
     _frequency: number,
     output: Float32Array
   ): void {
-    for (let i = 0; i < output.length; ++i) {
-      output[i] += 2 * Math.random() * this.size - this.size;
+    for (let i = 0; i < output.length; i += 2) {
+      const w = 2 * Math.PI * Math.random();
+      const u = Math.random() + Math.random();
+      const r = u > 1 ? 2 - u : u;
+      output[i] += Math.cos(w) * r * this.size;
+      output[i + 1] += Math.sin(w) * r * this.size;
     }
   }
 }

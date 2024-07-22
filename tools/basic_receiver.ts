@@ -41,6 +41,7 @@ function main() {
   // let rtlProvider = new FakeRtlProvider([
   //   new FmGenerator(-20, 88500000, 75000, new ToneGenerator(-6, 600)),
   //   new AmGenerator(-20, 120000000, new ToneGenerator(-6, 450)),
+  //   new ToneGenerator(-20, 110000000),
   //   new NoiseGenerator(-40),
   // ]);
   let rtlProvider = new RTL2832U_Provider();

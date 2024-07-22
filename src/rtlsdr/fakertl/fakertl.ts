@@ -145,7 +145,7 @@ export class FakeRtl implements RtlDevice {
     }
     let bytes = new Uint8Array(length);
     for (let i = 0; i < length; ++i) {
-      bytes[i] = Math.floor(floats[i] * 127.5 - 127.5);
+      bytes[i] = Math.floor((floats[i] + 1) * 127.5);
     }
     return bytes.buffer;
   }
