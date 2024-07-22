@@ -151,12 +151,8 @@ export class Downsampler {
   downsample(samples: Float32Array): Float32Array {
     this.filter.loadSamples(samples);
     let outArr = new Float32Array(Math.floor(samples.length / this.rateMul));
-    for (
-      let i = 0, readFrom = 0;
-      i < outArr.length;
-      ++i, readFrom += this.rateMul
-    ) {
-      outArr[i] = this.filter.get(Math.floor(readFrom));
+    for (let i = 0; i < outArr.length; ++i) {
+      outArr[i] = this.filter.get(Math.floor(i * this.rateMul));
     }
     return outArr;
   }
@@ -276,12 +272,14 @@ export class AMDemodulator {
     this.downsamplerI = new Downsampler(inRate, outRate, coefs);
     this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
     this.sigRatio = inRate / outRate;
+    this.carrierAmplitude = new ExpAverage(outRate / 20);
     this.relSignalPower = 0;
   }
 
   private downsamplerI: Downsampler;
   private downsamplerQ: Downsampler;
   private sigRatio: number;
+  private carrierAmplitude: ExpAverage;
   private relSignalPower: number;
 
   /**
@@ -296,30 +294,35 @@ export class AMDemodulator {
   ): Float32Array {
     const I = this.downsamplerI.downsample(samplesI);
     const Q = this.downsamplerQ.downsample(samplesQ);
-    const iAvg = average(I);
-    const qAvg = average(Q);
-    let out = new Float32Array(I.length);
+    // Find if the signal is zero-beat and compute the DC offset.
+    const [avgI, varI] = avgVariance(I);
+    const [avgQ, varQ] = avgVariance(Q);
+    // If the signal is not zero-beat, the standard deviation in any direction will be much larger than the average.
+    // Therefore, if the standard deviation is smaller in any direction, it is zero-beat.
+    const zeroBeat = varI < avgI * avgI || varQ < avgQ * avgQ;
 
     const sigRatio = this.sigRatio;
     let specSqrSum = 0;
     let sigSqrSum = 0;
     let sigSum = 0;
+    let out = new Float32Array(I.length);
     for (let i = 0; i < out.length; ++i) {
-      const iv = I[i] - iAvg;
-      const qv = Q[i] - qAvg;
-      const power = iv * iv + qv * qv;
-      const ampl = Math.sqrt(power);
-      out[i] = ampl;
+      // Remove DC offset if non zero-beat; otherwise, the power will beat with the carrier.
+      const vI = zeroBeat ? I[i] : I[i] - avgI;
+      const vQ = zeroBeat ? Q[i] : Q[i] - avgQ;
+
+      const power = vI * vI + vQ * vQ;
+      const amplitude = Math.sqrt(power);
+      const carrier = this.carrierAmplitude.add(amplitude);
+      const signal = carrier == 0 ? 0 : 2 * (amplitude / carrier - 1);
+      out[i] = signal;
+
       const origIndex = Math.floor(i * sigRatio);
       const origI = samplesI[origIndex];
       const origQ = samplesQ[origIndex];
       specSqrSum += origI * origI + origQ * origQ;
       sigSqrSum += power;
-      sigSum += ampl;
-    }
-    const halfPoint = sigSum / out.length;
-    for (let i = 0; i < out.length; ++i) {
-      out[i] = (out[i] - halfPoint) / halfPoint;
+      sigSum += amplitude;
     }
     this.relSignalPower = sigSqrSum / specSqrSum;
     return out;
@@ -581,16 +584,20 @@ class ExpAverage {
 }
 
 /**
- * Calculates the average of an array.
+ * Calculates the average and variance of an array.
  * @param arr The array to calculate its average.
- * @returns The average value.
+ * @returns An array with the average and variance..
  */
-function average(arr: Float32Array): number {
+function avgVariance(arr: Float32Array): [number, number] {
   let sum = 0;
+  let sumSq = 0;
   for (let i = 0; i < arr.length; ++i) {
     sum += arr[i];
+    sumSq += arr[i] * arr[i];
   }
-  return sum / arr.length;
+  const avg = sum / arr.length;
+  const avgSq = sumSq / arr.length;
+  return [avg, avgSq - avg * avg];
 }
 
 /**
