@@ -28,10 +28,12 @@ export class SchemeAM implements ModulationScheme {
     this.demodulator = new DSP.AMDemodulator(inRate, INTER_RATE, filterF, 351);
     const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
     this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
+    this.agc = new DSP.AGC(outRate, 1);
   }
 
   private demodulator: DSP.AMDemodulator;
   private downSampler: DSP.Downsampler;
+  private agc: DSP.AGC;
 
   /**
    * Demodulates the signal.
@@ -41,7 +43,8 @@ export class SchemeAM implements ModulationScheme {
    */
   demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    const audio = this.downSampler.downsample(demodulated);
+    let audio = this.downSampler.downsample(demodulated);
+    this.agc.inPlace(audio);
     return {
       left: audio,
       right: new Float32Array(audio),

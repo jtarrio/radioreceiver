@@ -183,8 +183,6 @@ export class SSBDemodulator {
     let coefsSide = getLowPassFIRCoeffs(outRate, filterFreq, kernelLen);
     this.filterSide = new FIRFilter(coefsSide);
     this.hilbertMul = upper ? -1 : 1;
-    this.powerLongAvg = new ExpAverage(outRate * 5);
-    this.powerShortAvg = new ExpAverage(outRate * 0.5);
     this.sigRatio = inRate / outRate;
     this.relSignalPower = 0;
   }
@@ -195,8 +193,6 @@ export class SSBDemodulator {
   private filterHilbert: FIRFilter;
   private filterSide: FIRFilter;
   private hilbertMul: number;
-  private powerLongAvg: ExpAverage;
-  private powerShortAvg: ExpAverage;
   private sigRatio: number;
   private relSignalPower: number;
 
@@ -230,15 +226,7 @@ export class SSBDemodulator {
       const sig = this.filterSide.get(i);
       const power = sig * sig;
       sigSqrSum += power;
-      const stPower = this.powerShortAvg.add(power);
-      const ltPower = this.powerLongAvg.add(power);
-      const multi =
-        0.9 *
-        Math.max(
-          1,
-          Math.sqrt(2 / Math.min(1 / 128, Math.max(ltPower, stPower)))
-        );
-      out[i] = multi * this.filterSide.get(i);
+      out[i] = sig;
       const origIndex = Math.floor(i * sigRatio);
       const origI = samplesI[origIndex];
       const origQ = samplesQ[origIndex];
@@ -271,15 +259,19 @@ export class AMDemodulator {
     const coefs = getLowPassFIRCoeffs(inRate, filterFreq, kernelLen);
     this.downsamplerI = new Downsampler(inRate, outRate, coefs);
     this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
+    this.dcBlockerI = new DcBlocker(outRate, true);
+    this.dcBlockerQ = new DcBlocker(outRate, true);
+    this.dcBlockerA = new DcBlocker(outRate);
     this.sigRatio = inRate / outRate;
-    this.carrierAmplitude = new ExpAverage(outRate / 20);
     this.relSignalPower = 0;
   }
 
   private downsamplerI: Downsampler;
   private downsamplerQ: Downsampler;
+  private dcBlockerI: DcBlocker;
+  private dcBlockerQ: DcBlocker;
+  private dcBlockerA: DcBlocker;
   private sigRatio: number;
-  private carrierAmplitude: ExpAverage;
   private relSignalPower: number;
 
   /**
@@ -294,12 +286,8 @@ export class AMDemodulator {
   ): Float32Array {
     const I = this.downsamplerI.downsample(samplesI);
     const Q = this.downsamplerQ.downsample(samplesQ);
-    // Find if the signal is zero-beat and compute the DC offset.
-    const [avgI, varI] = avgVariance(I);
-    const [avgQ, varQ] = avgVariance(Q);
-    // If the signal is not zero-beat, the standard deviation in any direction will be much larger than the average.
-    // Therefore, if the standard deviation is smaller in any direction, it is zero-beat.
-    const zeroBeat = varI < avgI * avgI || varQ < avgQ * avgQ;
+    this.dcBlockerI.inPlace(I);
+    this.dcBlockerQ.inPlace(Q);
 
     const sigRatio = this.sigRatio;
     let specSqrSum = 0;
@@ -307,15 +295,12 @@ export class AMDemodulator {
     let sigSum = 0;
     let out = new Float32Array(I.length);
     for (let i = 0; i < out.length; ++i) {
-      // Remove DC offset if non zero-beat; otherwise, the power will beat with the carrier.
-      const vI = zeroBeat ? I[i] : I[i] - avgI;
-      const vQ = zeroBeat ? Q[i] : Q[i] - avgQ;
+      const vI = I[i];
+      const vQ = Q[i];
 
       const power = vI * vI + vQ * vQ;
       const amplitude = Math.sqrt(power);
-      const carrier = this.carrierAmplitude.add(amplitude);
-      const signal = carrier == 0 ? 0 : 2 * (amplitude / carrier - 1);
-      out[i] = signal;
+      out[i] = amplitude;
 
       const origIndex = Math.floor(i * sigRatio);
       const origI = samplesI[origIndex];
@@ -325,6 +310,7 @@ export class AMDemodulator {
       sigSum += amplitude;
     }
     this.relSignalPower = sigSqrSum / specSqrSum;
+    this.dcBlockerA.inPlace(out);
     return out;
   }
 
@@ -583,21 +569,68 @@ class ExpAverage {
   }
 }
 
-/**
- * Calculates the average and variance of an array.
- * @param arr The array to calculate its average.
- * @returns An array with the average and variance..
- */
-function avgVariance(arr: Float32Array): [number, number] {
-  let sum = 0;
-  let sumSq = 0;
-  for (let i = 0; i < arr.length; ++i) {
-    sum += arr[i];
-    sumSq += arr[i] * arr[i];
+/** Automatic gain control for audio signals. */
+export class AGC {
+  constructor(private sampleRate: number, timeConstantSeconds: number) {
+    this.dcBlocker = new DcBlocker(sampleRate);
+    this.alpha = 1 - Math.exp(-1 / (sampleRate * timeConstantSeconds));
+    this.counter = 0;
+    this.maxPower = 0;
   }
-  const avg = sum / arr.length;
-  const avgSq = sumSq / arr.length;
-  return [avg, avgSq - avg * avg];
+
+  private dcBlocker: DcBlocker;
+  private alpha: number;
+  private counter: number;
+  private maxPower: number;
+
+  inPlace(samples: Float32Array) {
+    const alpha = this.alpha;
+    let maxPower = this.maxPower;
+    let counter = this.counter;
+    let gain;
+    this.dcBlocker.inPlace(samples);
+    for (let i = 0; i < samples.length; ++i) {
+      const v = samples[i];
+      const power = v * v;
+      if (power > 0.9 * maxPower) {
+        counter = this.sampleRate;
+        if (power > maxPower) {
+          maxPower = power;
+        }
+      } else if (counter > 0) {
+        --counter;
+      } else {
+        maxPower -= alpha * maxPower;
+      }
+      gain = Math.min(10, 1 / Math.sqrt(maxPower));
+      samples[i] *= gain;
+    }
+    console.log(alpha, maxPower, counter, gain);
+    this.maxPower = maxPower;
+    this.counter = counter;
+  }
+}
+
+/** DC blocker. */
+export class DcBlocker {
+  constructor(sampleRate: number, private restricted?: boolean) {
+    this.alpha = 1 - Math.exp(-1 / (sampleRate / 2));
+    this.dc = 0;
+    this.restricted = this.restricted || false;
+  }
+
+  private alpha: number;
+  private dc: number;
+
+  inPlace(samples: Float32Array) {
+    const alpha = this.alpha;
+    let dc = this.dc;
+    for (let i = 0; i < samples.length; ++i) {
+      dc += alpha * (samples[i] - dc);
+      if (!this.restricted || dc * dc < 6e-5) samples[i] -= dc;
+    }
+    this.dc = dc;
+  }
 }
 
 /**

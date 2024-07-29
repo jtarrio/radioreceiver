@@ -40,10 +40,12 @@ export class SchemeSSB implements ModulationScheme {
     );
     const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
     this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
+    this.agc = new DSP.AGC(outRate, 1);
   }
 
   private demodulator: DSP.SSBDemodulator;
   private downSampler: DSP.Downsampler;
+  private agc: DSP.AGC;
 
   /**
    * Demodulates the signal.
@@ -53,7 +55,8 @@ export class SchemeSSB implements ModulationScheme {
    */
   demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    const audio = this.downSampler.downsample(demodulated);
+    let audio = this.downSampler.downsample(demodulated);
+    this.agc.inPlace(audio);
     return {
       left: audio,
       right: new Float32Array(audio),
