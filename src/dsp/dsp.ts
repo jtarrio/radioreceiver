@@ -605,7 +605,6 @@ export class AGC {
       gain = Math.min(10, 1 / Math.sqrt(maxPower));
       samples[i] *= gain;
     }
-    console.log(alpha, maxPower, counter, gain);
     this.maxPower = maxPower;
     this.counter = counter;
   }
