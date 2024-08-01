@@ -62,7 +62,7 @@ class FaceConnector {
         this.face.playing = false;
         break;
       case "frequency":
-        this.face.frequency = e.detail.value;
+        this.face.frequency = e.detail.value.center + e.detail.value.offset;
         break;
       case "gain":
         this.face.autoGain = e.detail.value === null;

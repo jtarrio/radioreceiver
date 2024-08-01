@@ -25,12 +25,14 @@ export class SchemeAM implements ModulationScheme {
   constructor(inRate: number, outRate: number, bandwidth: number) {
     const INTER_RATE = 48000;
     const filterF = bandwidth / 2;
+    this.shifter = new DSP.FrequencyShifter(inRate);
     this.demodulator = new DSP.AMDemodulator(inRate, INTER_RATE, filterF, 351);
     const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
     this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
     this.agc = new DSP.AGC(outRate, 1);
   }
 
+  private shifter: DSP.FrequencyShifter;
   private demodulator: DSP.AMDemodulator;
   private downSampler: DSP.Downsampler;
   private agc: DSP.AGC;
@@ -39,9 +41,11 @@ export class SchemeAM implements ModulationScheme {
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
    * @param samplesQ The Q components of the samples.
+   * @param freqOffset The offset of the signal in the samples.
    * @returns The demodulated audio signal.
    */
-  demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
+  demodulate(samplesI: Float32Array, samplesQ: Float32Array, freqOffset: number): Demodulated {
+    this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
     let audio = this.downSampler.downsample(demodulated);
     this.agc.inPlace(audio);

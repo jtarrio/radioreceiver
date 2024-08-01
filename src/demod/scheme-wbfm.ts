@@ -28,6 +28,7 @@ export class SchemeWBFM implements ModulationScheme {
     const PILOT_FREQ = 19000;
     const DEEMPH_TC = 50;
 
+    this.shifter = new DSP.FrequencyShifter(inRate);
     this.demodulator = new DSP.FMDemodulator(
       inRate,
       INTER_RATE,
@@ -43,6 +44,7 @@ export class SchemeWBFM implements ModulationScheme {
     this.rightDeemph = new DSP.Deemphasizer(outRate, DEEMPH_TC);
   }
 
+  private shifter: DSP.FrequencyShifter;
   private demodulator: DSP.FMDemodulator;
   private monoSampler: DSP.Downsampler;
   private stereoSampler: DSP.Downsampler;
@@ -54,14 +56,17 @@ export class SchemeWBFM implements ModulationScheme {
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
    * @param samplesQ The Q components of the samples.
+   * @param freqOffset The offset of the signal in the samples.
    * @param inStereo Whether to try decoding the stereo signal.
    * @returns The demodulated audio signal.
    */
   demodulate(
     samplesI: Float32Array,
     samplesQ: Float32Array,
+    freqOffset: number,
     inStereo: boolean
   ): Demodulated {
+    this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
     const leftAudio = this.monoSampler.downsample(demodulated);
     const rightAudio = new Float32Array(leftAudio);

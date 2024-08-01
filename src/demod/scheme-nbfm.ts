@@ -27,6 +27,7 @@ export class SchemeNBFM implements ModulationScheme {
     const interRate = 48000 * multiple;
     const filterF = maxF * 0.8;
 
+    this.shifter = new DSP.FrequencyShifter(inRate);
     this.demodulator = new DSP.FMDemodulator(
       inRate,
       interRate,
@@ -38,6 +39,7 @@ export class SchemeNBFM implements ModulationScheme {
     this.downSampler = new DSP.Downsampler(interRate, outRate, filterCoefs);
   }
 
+  private shifter: DSP.FrequencyShifter;
   private demodulator: DSP.FMDemodulator;
   private downSampler: DSP.Downsampler;
 
@@ -45,9 +47,11 @@ export class SchemeNBFM implements ModulationScheme {
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
    * @param samplesQ The Q components of the samples.
+   * @param freqOffset The offset of the signal in the samples.
    * @returns The demodulated audio signal.
    */
-  demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
+  demodulate(samplesI: Float32Array, samplesQ: Float32Array, freqOffset: number): Demodulated {
+    this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
     const audio = this.downSampler.downsample(demodulated);
     return {

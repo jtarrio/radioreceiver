@@ -41,13 +41,13 @@ export class Spectrum implements SampleReceiver {
         }
     }
 
-    receiveSamples(I: Float32Array, Q: Float32Array): void {
-        this.downstream.receiveSamples(I, Q);
+    receiveSamples(I: Float32Array, Q: Float32Array, freqOffset: number): void {
+        this.downstream.receiveSamples(I, Q, freqOffset);
         this._update(I, Q);
     }
 
-    checkForSignal(I: Float32Array, Q: Float32Array): Promise<boolean> {
-        let ret = this.downstream.checkForSignal(I, Q);
+    checkForSignal(I: Float32Array, Q: Float32Array, freqOffset: number): Promise<boolean> {
+        let ret = this.downstream.checkForSignal(I, Q, freqOffset);
         this._update(I, Q);
         return ret;
     }

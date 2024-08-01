@@ -31,6 +31,7 @@ export class SchemeSSB implements ModulationScheme {
   ) {
     const INTER_RATE = 48000;
 
+    this.shifter = new DSP.FrequencyShifter(inRate);
     this.demodulator = new DSP.SSBDemodulator(
       inRate,
       INTER_RATE,
@@ -43,6 +44,7 @@ export class SchemeSSB implements ModulationScheme {
     this.agc = new DSP.AGC(outRate, 1);
   }
 
+  private shifter: DSP.FrequencyShifter;
   private demodulator: DSP.SSBDemodulator;
   private downSampler: DSP.Downsampler;
   private agc: DSP.AGC;
@@ -51,9 +53,11 @@ export class SchemeSSB implements ModulationScheme {
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
    * @param samplesQ The Q components of the samples.
+   * @param freqOffset The offset of the signal in the samples.
    * @returns The demodulated audio signal.
    */
-  demodulate(samplesI: Float32Array, samplesQ: Float32Array): Demodulated {
+  demodulate(samplesI: Float32Array, samplesQ: Float32Array, freqOffset: number): Demodulated {
+    this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
     let audio = this.downSampler.downsample(demodulated);
     this.agc.inPlace(audio);

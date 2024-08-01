@@ -16,7 +16,6 @@
 
 import { iqSamplesFromUint8 } from "../dsp/dsp";
 import { RadioError, RadioErrorType } from "../errors";
-import { RTL2832U } from "../rtlsdr/rtl2832u";
 import { RtlDevice, RtlDeviceProvider } from "../rtlsdr/rtldevice";
 import { Channel } from "./msgqueue";
 import { SampleReceiver } from "./sample_receiver";
@@ -29,11 +28,19 @@ import { SampleReceiver } from "./sample_receiver";
 type Message =
   | { type: "start" }
   | { type: "stop" }
-  | { type: "frequency"; value: number }
+  | { type: "frequency"; value: TunedFrequency }
   | { type: "frequencyCorrection"; value: number }
   | { type: "gain"; value: number | null }
   | { type: "directSamplingMode"; value: boolean }
   | { type: "scan"; min: number; max: number; step: number };
+
+/** The frequency that the radio is set to. */
+type TunedFrequency = {
+  // The center frequency.
+  center: number,
+  // The offset from the center frequency. The final frequency is center+offset.
+  offset: number,
+}
 
 /** The information in a 'radio' event. */
 export type RadioEventType =
@@ -55,6 +62,15 @@ enum State {
   SCANNING,
 }
 
+/** Method to change frequency. */
+export enum TuningMethod {
+  // Change the center frequency, keep the offset frequency.
+  CHANGE_CENTER,
+  // Change the offset frequency, keep the center frequency.
+  // If the offset frequency would go out of bounds, change the center frequency and set the offset to 0.
+  CHANGE_OFFSET,
+}
+    
 /** Provides controls to play, stop, and scan the radio. */
 export class Radio extends EventTarget {
   /** @param sampleReceiver the object that will receive the radio samples. */
@@ -64,7 +80,8 @@ export class Radio extends EventTarget {
     this.channel = new Channel<Message>();
     this.frequencyCorrection = 0;
     this.gain = null;
-    this.frequency = 88500000;
+    this.tuningMethod = TuningMethod.CHANGE_CENTER;
+    this.frequency = {center: 88500000, offset: 0};
     this.directSamplingMode = false;
     this.runLoop();
   }
@@ -77,13 +94,15 @@ export class Radio extends EventTarget {
   private frequencyCorrection: number;
   /** RF gain in dB, or null for automatic. */
   private gain: number | null;
+  /** Current tuning method. */
+  private tuningMethod: TuningMethod;
   /** Currently tuned frequency. */
-  private frequency: number;
+  private frequency: TunedFrequency;
   /** Whether direct sampling mode is enabled. */
   private directSamplingMode: boolean;
 
   /** RTL sample rate. Must be a multiple of 512 * BUFS_PER_SEC. */
-  private static SAMPLE_RATE = 1024000;
+  static SAMPLE_RATE = 1024000;
   /** Receive this many buffers per second. */
   private static BUFS_PER_SEC = 20;
   /** How many samples to receive in each buffer. */
@@ -127,12 +146,42 @@ export class Radio extends EventTarget {
 
   /** Tunes the radio to this frequency. */
   async setFrequency(freq: number) {
-    this.channel.send({ type: "frequency", value: freq });
+    this.channel.send({ type: "frequency", value: this.newFrequency(freq) });
   }
 
-  /** Returns the currently tuned frequency. */
+  /** Returns the tuned frequency. */
   getFrequency(): number {
-    return this.frequency;
+    return this.frequency.center + this.frequency.offset;
+  }
+
+  setTuningMethod(method: TuningMethod) {
+    this.tuningMethod = method;
+  }
+
+  getTuningMethod(): TuningMethod {
+    return this.tuningMethod;
+  }
+
+  /** Sets the center frequency. */
+  async setCenterFrequency(freq: number) {
+    let tuned = {...this.frequency};
+    tuned.center = freq;
+    this.channel.send({ type: "frequency", value: tuned });
+  }
+
+  getCenterFrequency(): number {
+    return this.frequency.center;
+  }
+
+  /** Sets the offset frequency. */
+  async setOffsetFrequency(freq: number) {
+    let tuned = {...this.frequency};
+    tuned.offset = freq;
+    this.channel.send({ type: "frequency", value: tuned });
+  }
+
+  getOffsetFrequency(): number {
+    return this.frequency.offset;
   }
 
   /** Sets the frequency correction factor, in PPM. */
@@ -167,6 +216,27 @@ export class Radio extends EventTarget {
 
   getDirectSamplingMode(): boolean {
     return this.directSamplingMode;
+  }
+
+  /** Calculates a new tuned frequency according to the tuning method. */
+  private newFrequency(freq: number): TunedFrequency {
+    let tuned = {...this.frequency};
+    switch (this.tuningMethod) {
+      case TuningMethod.CHANGE_CENTER:
+        tuned.center = freq - tuned.offset;
+        break;
+      case TuningMethod.CHANGE_OFFSET:
+        tuned.offset = freq - tuned.center;
+        break;
+    }
+    this.clampFrequency(tuned);
+    return tuned;
+  }
+
+  private clampFrequency(tuned: TunedFrequency) {
+    if (Math.abs(tuned.offset) < Radio.SAMPLE_RATE / 2) return;
+    tuned.center += tuned.offset;
+    tuned.offset = 0;
   }
 
   /** Runs the state machine. */
@@ -211,7 +281,8 @@ export class Radio extends EventTarget {
             await rtl.setFrequencyCorrection(this.frequencyCorrection);
             await rtl.setGain(this.gain);
             await rtl.setDirectSamplingMode(this.directSamplingMode);
-            await rtl.setCenterFrequency(this.frequency);
+            this.clampFrequency(this.frequency);
+            await rtl.setCenterFrequency(this.frequency.center);
             await rtl.resetBuffer();
             transfers = new Transfers(
               rtl,
@@ -229,9 +300,10 @@ export class Radio extends EventTarget {
             msgPromise = undefined;
             switch (msg.type) {
               case "frequency":
-                if (this.frequency != msg.value) {
+                if (this.frequency.center != msg.value.center || this.frequency.offset != msg.value.offset) {
                   this.frequency = msg.value;
-                  await rtl!.setCenterFrequency(this.frequency);
+                  this.clampFrequency(this.frequency);
+                  await rtl!.setCenterFrequency(this.frequency.center);
                   this.dispatchEvent(new RadioEvent(msg));
                 }
                 break;
@@ -275,11 +347,11 @@ export class Radio extends EventTarget {
           }
           case State.SCANNING: {
             if (transferPromise === undefined) {
-              let newFreq = this.frequency + scan!.step;
+              let newFreq = this.frequency.center + this.frequency.offset + scan!.step;
               if (newFreq > scan!.max) newFreq = scan!.min;
               if (newFreq < scan!.min) newFreq = scan!.max;
-              this.frequency = newFreq;
-              await rtl!.setCenterFrequency(this.frequency);
+              this.frequency = this.newFrequency(newFreq);
+              await rtl!.setCenterFrequency(this.frequency.center);
               this.dispatchEvent(
                 new RadioEvent({ type: "frequency", value: this.frequency })
               );
@@ -292,7 +364,7 @@ export class Radio extends EventTarget {
                 this.dispatchEvent(
                   new RadioEvent({
                     type: "stop_scan",
-                    frequency: this.frequency,
+                    frequency: this.frequency.center,
                   })
                 );
                 this.state = State.PLAYING;
@@ -318,7 +390,8 @@ export class Radio extends EventTarget {
               case "frequency":
                 if (this.frequency != msg.value) {
                   this.frequency = msg.value;
-                  await rtl!.setCenterFrequency(this.frequency);
+                  this.clampFrequency(this.frequency);
+                  await rtl!.setCenterFrequency(this.frequency.center);
                   this.dispatchEvent(new RadioEvent(msg));
                 }
                 break;
@@ -437,7 +510,7 @@ class Transfers {
     await this.rtl.resetBuffer();
     let buffer = await this.rtl.readSamples(this.samplesPerBuf);
     let [I, Q] = iqSamplesFromUint8(buffer);
-    return this.sampleReceiver.checkForSignal(I, Q);
+    return this.sampleReceiver.checkForSignal(I, Q, this.radio.getOffsetFrequency());
   }
 
   /** Runs the transfer stream. */
@@ -446,7 +519,7 @@ class Transfers {
       .readSamples(this.samplesPerBuf)
       .then((b) => {
         let [I, Q] = iqSamplesFromUint8(b);
-        this.sampleReceiver.receiveSamples(I, Q);
+        this.sampleReceiver.receiveSamples(I, Q, this.radio.getOffsetFrequency());
         if (this.buffersRunning <= this.buffersWanted) return this.readStream();
         --this.buffersRunning;
         if (this.buffersRunning == 0) {

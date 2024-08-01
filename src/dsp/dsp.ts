@@ -654,34 +654,31 @@ export function iqSamplesFromUint8(
 }
 
 /**
- * Shifts a series of IQ samples by a given frequency.
- * @param IQ An array containing the I and Q streams.
- * @param freq The frequency to shift the samples by.
- * @param sampleRate The sample rate.
- * @param cosine The cosine of the initial phase.
- * @param sine The sine of the initial phase.
- * @returns An array containing the I stream, Q stream,
- *     final cosine and final sine.
+ * Shifts IQ samples by a given frequency.
  */
-export function shiftFrequency(
-  IQ: [Float32Array, Float32Array],
-  freq: number,
-  sampleRate: number,
-  cosine: number,
-  sine: number
-): [Float32Array, Float32Array, number, number] {
-  const deltaCos = Math.cos((2 * Math.PI * freq) / sampleRate);
-  const deltaSin = Math.sin((2 * Math.PI * freq) / sampleRate);
-  let I = IQ[0];
-  let Q = IQ[1];
-  let oI = new Float32Array(I.length);
-  let oQ = new Float32Array(Q.length);
-  for (let i = 0; i < I.length; ++i) {
-    oI[i] = I[i] * cosine - Q[i] * sine;
-    oQ[i] = I[i] * sine + Q[i] * cosine;
-    const newSine = cosine * deltaSin + sine * deltaCos;
-    cosine = cosine * deltaCos - sine * deltaSin;
-    sine = newSine;
+export class FrequencyShifter {
+  constructor(private sampleRate: number) {
+    this.cosine = 1;
+    this.sine = 0;
   }
-  return [oI, oQ, cosine, sine];
+
+  private cosine: number;
+  private sine: number;
+
+  inPlace(I: Float32Array, Q: Float32Array, freq: number) {
+    let cosine = this.cosine;
+    let sine = this.sine;
+    const deltaCos = Math.cos((2 * Math.PI * freq) / this.sampleRate);
+    const deltaSin = Math.sin((2 * Math.PI * freq) / this.sampleRate);
+    for (let i = 0; i < I.length; ++i) {
+      const newI = I[i] * cosine - Q[i] * sine;
+      Q[i] = I[i] * sine + Q[i] * cosine;
+      I[i] = newI;
+      const newSine = cosine * deltaSin + sine * deltaCos;
+      cosine = cosine * deltaCos - sine * deltaSin;
+      sine = newSine;
+    }
+    this.cosine = cosine;
+    this.sine = sine;
+  }
 }

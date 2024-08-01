@@ -19,7 +19,7 @@ import "@shoelace-style/shoelace/dist/components/divider/divider.js";
 import "../src/ui/rr-face";
 import { RrFace } from "../src/ui/rr-face";
 import { Demodulator, DemodulatorEvent } from "../src/demod/demodulator";
-import { Radio, RadioEvent } from "../src/radio/radio";
+import { Radio, RadioEvent, TuningMethod } from "../src/radio/radio";
 import { setBasePath } from "@shoelace-style/shoelace/dist/utilities/base-path.js";
 import { connectRadioToFace } from "../src/ui/face-connector";
 import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
@@ -37,7 +37,7 @@ let mySrc = myScript.src;
 let myPath = mySrc.substring(0, mySrc.lastIndexOf("/"));
 setBasePath(myPath);
 
-function main() {
+async function main() {
   // let rtlProvider = new FakeRtlProvider([
   //   new FmGenerator(-20, 88500000, 75000, new ToneGenerator(-6, 600)),
   //   new AmGenerator(-20, 120000000, new ToneGenerator(-6, 450)),
@@ -47,6 +47,9 @@ function main() {
   let rtlProvider = new RTL2832U_Provider();
   let demodulator = new Demodulator();
   let radio = new Radio(rtlProvider, demodulator);
+  radio.setTuningMethod(TuningMethod.CHANGE_CENTER);
+  await radio.setOffsetFrequency(Radio.SAMPLE_RATE / 4);
+  await radio.setFrequency(88500000);
   let eventLog = document.querySelector("#eventLog");
   radio.addEventListener("radio", (e: RadioEvent) => {
     if (eventLog)

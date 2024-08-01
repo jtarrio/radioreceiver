@@ -176,20 +176,21 @@ export class Demodulator extends EventTarget implements SampleReceiver {
   }
 
   /** Receives radio samples. */
-  receiveSamples(I: Float32Array, Q: Float32Array): void {
-    this.demod(I, Q);
+  receiveSamples(I: Float32Array, Q: Float32Array, freqOffset: number): void {
+    this.demod(I, Q, freqOffset);
   }
 
   /** Receives radio samples and returns whether there is a signal in it. */
-  async checkForSignal(I: Float32Array, Q: Float32Array): Promise<boolean> {
-    return this.demod(I, Q) > 0.5;
+  async checkForSignal(I: Float32Array, Q: Float32Array, freqOffset: number): Promise<boolean> {
+    return this.demod(I, Q, freqOffset) > 0.5;
   }
 
   /** Demodulates the given samples. */
-  private demod(I: Float32Array, Q: Float32Array): number {
+  private demod(I: Float32Array, Q: Float32Array, freqOffset: number): number {
     let { left, right, signalLevel } = this.scheme.demodulate(
       I,
       Q,
+      freqOffset,
       this.stereo
     );
     this.player.play(left, right, signalLevel, this.squelch);

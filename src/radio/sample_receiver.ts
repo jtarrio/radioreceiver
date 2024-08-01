@@ -15,7 +15,7 @@
 /** Interface for classes that get samples from a Radio class. */
 export interface SampleReceiver {
   /** Receives samples that should be demodulated. */
-  receiveSamples(I: Float32Array, Q: Float32Array): void;
+  receiveSamples(I: Float32Array, Q: Float32Array, freqOffset: number): void;
 
   /**
    * Returns whether there is a signal in these samples.
@@ -23,5 +23,5 @@ export interface SampleReceiver {
    * This function is used for scanning. When this function
    * is called, 'receiveSamples' is not called.
    */
-  checkForSignal(I: Float32Array, Q: Float32Array): Promise<boolean>;
+  checkForSignal(I: Float32Array, Q: Float32Array, freqOffset: number): Promise<boolean>;
 }
