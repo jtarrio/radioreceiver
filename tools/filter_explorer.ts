@@ -14,7 +14,8 @@
 
 /** A page that shows the effect of different filters. */
 
-import * as DSP from "../src/dsp/dsp";
+import * as Coefficients from "../src/dsp/coefficients";
+import * as Filters from "../src/dsp/filters";
 import { FFT } from "../src/dsp/fft";
 
 type Controls = {
@@ -75,9 +76,9 @@ function getFilter(controls: Controls): FilterAdaptor {
   const sampleRate = Number(controls.sampleRate.value);
   switch (controls.filterType.value) {
     case "lowpass":
-      return FilterAdaptor.build(
-        new DSP.FIRFilter(
-          DSP.getLowPassFIRCoeffs(
+      return new FilterAdaptor(
+        new Filters.FIRFilter(
+          Coefficients.makeLowPassKernel(
             sampleRate,
             Number(controls.bandwidth.value) / 2,
             Number(controls.lpTaps.value)
@@ -85,13 +86,20 @@ function getFilter(controls: Controls): FilterAdaptor {
         )
       );
     case "hilbert":
-      return FilterAdaptor.build(
-        new DSP.FIRFilter(DSP.getHilbertCoeffs(Number(controls.hilTaps.value)))
+      return new FilterAdaptor(
+        new Filters.FIRFilter(
+          Coefficients.makeHilbertKernel(Number(controls.hilTaps.value))
+        )
       );
     case "deemphasizer":
-      return FilterAdaptor.build(
-        new DSP.Deemphasizer(sampleRate, Number(controls.timeConstant.value))
+      return new FilterAdaptor(
+        new Filters.Deemphasizer(
+          sampleRate,
+          Number(controls.timeConstant.value)
+        )
       );
+    case "dcblocker":
+      return new FilterAdaptor(new Filters.DcBlocker(sampleRate));
   }
   throw `Invalid filter type ${controls.filterType.value}`;
 }
@@ -357,27 +365,14 @@ function plotFilter(
 /** Array of complex numbers. Real and imaginary parts are separate. */
 export type ComplexArray = { real: Float32Array; imag: Float32Array };
 
-abstract class FilterAdaptor {
-  static build(filter: DSP.FIRFilter | DSP.Deemphasizer) {
-    if (filter instanceof DSP.FIRFilter) {
-      return new FIRFilterAdaptor(filter);
-    } else {
-      return new DeemphasizerAdaptor(filter);
-    }
-  }
-
-  abstract spectrum(length: number): ComplexArray;
-}
-
-class FIRFilterAdaptor extends FilterAdaptor {
-  constructor(filter: DSP.FIRFilter) {
-    super();
+class FilterAdaptor {
+  constructor(filter: Filters.Filter) {
     this.cosFilter = filter.clone();
     this.sinFilter = filter.clone();
   }
 
-  cosFilter: DSP.FIRFilter;
-  sinFilter: DSP.FIRFilter;
+  private cosFilter: Filters.Filter;
+  private sinFilter: Filters.Filter;
 
   spectrum(length: number): ComplexArray {
     const offset = this.cosFilter.delay();
@@ -386,41 +381,18 @@ class FIRFilterAdaptor extends FilterAdaptor {
     let impulseR = new Float32Array(length);
     let impulseI = new Float32Array(length);
     impulseR[0] = length;
-    this.cosFilter.loadSamples(impulseR);
-    this.sinFilter.loadSamples(impulseI);
-    let real = new Float32Array(length);
-    let imag = new Float32Array(length);
-    for (let i = 0; i < length; ++i) {
-      real[i] = this.cosFilter.get((length + i + offset) % length);
-      imag[i] = this.sinFilter.get((length + i + offset) % length);
+    this.cosFilter.inPlace(impulseR);
+    this.sinFilter.inPlace(impulseI);
+    if (offset != 0) {
+      let shiftedR = new Float32Array(length);
+      let shiftedI = new Float32Array(length);
+      for (let i = 0; i < length; ++i) {
+        shiftedR[i] = impulseR[(length + i + offset) % length];
+        shiftedI[i] = impulseI[(length + i + offset) % length];
+      }
+      impulseR = shiftedR;
+      impulseI = shiftedI;
     }
-    let output = {
-      real: new Float32Array(length),
-      imag: new Float32Array(length),
-    };
-    transformer.transform(real, imag, output.real, output.imag);
-    return output;
-  }
-}
-
-class DeemphasizerAdaptor extends FilterAdaptor {
-  constructor(deemphasizer: DSP.Deemphasizer) {
-    super();
-    this.cosDeemph = deemphasizer.clone();
-    this.sinDeemph = deemphasizer.clone();
-  }
-
-  cosDeemph: DSP.Deemphasizer;
-  sinDeemph: DSP.Deemphasizer;
-
-  spectrum(length: number): ComplexArray {
-    let transformer = FFT.ofLength(length);
-    length = transformer.length;
-    let impulseR = new Float32Array(length);
-    let impulseI = new Float32Array(length);
-    impulseR[0] = length;
-    this.cosDeemph.inPlace(impulseR);
-    this.sinDeemph.inPlace(impulseI);
     let output = {
       real: new Float32Array(length),
       imag: new Float32Array(length),

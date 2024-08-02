@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { makeLowPassKernel } from "../dsp/coefficients";
+import { FMDemodulator, StereoSeparator } from "../dsp/demodulators";
+import { FrequencyShifter, Deemphasizer } from "../dsp/filters";
+import { Downsampler } from "../dsp/resamplers";
 import { Demodulated, ModulationScheme } from "./scheme";
-import * as DSP from "../dsp/dsp";
 
 /** A demodulator for wideband FM signals. */
 export class SchemeWBFM implements ModulationScheme {
@@ -22,35 +25,29 @@ export class SchemeWBFM implements ModulationScheme {
    * @param outRate The sample rate of the output audio.
    */
   constructor(inRate: number, outRate: number) {
-    const INTER_RATE = 336000;
-    const MAX_F = 75000;
-    const FILTER = MAX_F * 0.8;
-    const PILOT_FREQ = 19000;
-    const DEEMPH_TC = 50;
+    const interRate = 336000;
+    const maxF = 75000;
+    const filterF = maxF * 0.8;
+    const pilotF = 19000;
+    const deemphTc = 50;
 
-    this.shifter = new DSP.FrequencyShifter(inRate);
-    this.demodulator = new DSP.FMDemodulator(
-      inRate,
-      INTER_RATE,
-      MAX_F,
-      FILTER,
-      51
-    );
-    const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
-    this.monoSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
-    this.stereoSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
-    this.stereoSeparator = new DSP.StereoSeparator(INTER_RATE, PILOT_FREQ);
-    this.leftDeemph = new DSP.Deemphasizer(outRate, DEEMPH_TC);
-    this.rightDeemph = new DSP.Deemphasizer(outRate, DEEMPH_TC);
+    this.shifter = new FrequencyShifter(inRate);
+    this.demodulator = new FMDemodulator(inRate, interRate, maxF, filterF, 51);
+    const kernel = makeLowPassKernel(interRate, 10000, 41);
+    this.monoSampler = new Downsampler(interRate, outRate, kernel);
+    this.stereoSampler = new Downsampler(interRate, outRate, kernel);
+    this.stereoSeparator = new StereoSeparator(interRate, pilotF);
+    this.leftDeemph = new Deemphasizer(outRate, deemphTc);
+    this.rightDeemph = new Deemphasizer(outRate, deemphTc);
   }
 
-  private shifter: DSP.FrequencyShifter;
-  private demodulator: DSP.FMDemodulator;
-  private monoSampler: DSP.Downsampler;
-  private stereoSampler: DSP.Downsampler;
-  private stereoSeparator: DSP.StereoSeparator;
-  private leftDeemph: DSP.Deemphasizer;
-  private rightDeemph: DSP.Deemphasizer;
+  private shifter: FrequencyShifter;
+  private demodulator: FMDemodulator;
+  private monoSampler: Downsampler;
+  private stereoSampler: Downsampler;
+  private stereoSeparator: StereoSeparator;
+  private leftDeemph: Deemphasizer;
+  private rightDeemph: Deemphasizer;
 
   /**
    * Demodulates the signal.

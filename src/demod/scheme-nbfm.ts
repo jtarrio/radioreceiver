@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { makeLowPassKernel } from "../dsp/coefficients";
+import { FMDemodulator } from "../dsp/demodulators";
+import { FrequencyShifter } from "../dsp/filters";
+import { Downsampler } from "../dsp/resamplers";
 import { Demodulated, ModulationScheme } from "./scheme";
-import * as DSP from "../dsp/dsp";
 
 /** A demodulator for narrowband FM signals. */
 export class SchemeNBFM implements ModulationScheme {
@@ -27,21 +30,21 @@ export class SchemeNBFM implements ModulationScheme {
     const interRate = 48000 * multiple;
     const filterF = maxF * 0.8;
 
-    this.shifter = new DSP.FrequencyShifter(inRate);
-    this.demodulator = new DSP.FMDemodulator(
+    this.shifter = new FrequencyShifter(inRate);
+    this.demodulator = new FMDemodulator(
       inRate,
       interRate,
       maxF,
       filterF,
       Math.floor((50 * 7) / multiple)
     );
-    const filterCoefs = DSP.getLowPassFIRCoeffs(interRate, 8000, 41);
-    this.downSampler = new DSP.Downsampler(interRate, outRate, filterCoefs);
+    const kernel = makeLowPassKernel(interRate, 8000, 41);
+    this.downSampler = new Downsampler(interRate, outRate, kernel);
   }
 
-  private shifter: DSP.FrequencyShifter;
-  private demodulator: DSP.FMDemodulator;
-  private downSampler: DSP.Downsampler;
+  private shifter: FrequencyShifter;
+  private demodulator: FMDemodulator;
+  private downSampler: Downsampler;
 
   /**
    * Demodulates the signal.
@@ -50,7 +53,11 @@ export class SchemeNBFM implements ModulationScheme {
    * @param freqOffset The offset of the signal in the samples.
    * @returns The demodulated audio signal.
    */
-  demodulate(samplesI: Float32Array, samplesQ: Float32Array, freqOffset: number): Demodulated {
+  demodulate(
+    samplesI: Float32Array,
+    samplesQ: Float32Array,
+    freqOffset: number
+  ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
     const audio = this.downSampler.downsample(demodulated);

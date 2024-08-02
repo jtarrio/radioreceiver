@@ -13,152 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** DSP functions and operations. */
+import { makeLowPassKernel, makeHilbertKernel } from "./coefficients";
+import { Downsampler } from "./resamplers";
+import { FIRFilter, DcBlocker } from "./filters";
 
-/**
- * Generates coefficients for a FIR low-pass filter with the given
- * corner frequency and kernel length at the given sample rate.
- * @param sampleRate The signal's sample rate.
- * @param cornerFreq The -3dB frequency in Hz.
- * @param length The filter kernel's length. Should be an odd number.
- * @returns The FIR coefficients for the filter.
- */
-export function getLowPassFIRCoeffs(
-  sampleRate: number,
-  cornerFreq: number,
-  length: number
-): Float32Array {
-  length += (length + 1) % 2;
-  const freq = cornerFreq / sampleRate;
-  let coefs = new Float32Array(length);
-  const center = Math.floor(length / 2);
-  let sum = 0;
-  for (let i = 0; i < length; ++i) {
-    let val;
-    if (i == center) {
-      val = 2 * Math.PI * freq;
-    } else {
-      val = Math.sin(2 * Math.PI * freq * (i - center)) / (i - center);
-      val *= 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (length - 1));
-    }
-    sum += val;
-    coefs[i] = val;
-  }
-  for (let i = 0; i < length; ++i) {
-    coefs[i] /= sum;
-  }
-  return coefs;
-}
-
-/**
- * Returns coefficients for a Hilbert transform.
- * @param length The length of the kernel.
- * @returns The kernel coefficients.
- */
-export function getHilbertCoeffs(length: number): Float32Array {
-  length += (length + 1) % 2;
-  const center = Math.floor(length / 2);
-  let out = new Float32Array(length);
-  for (let i = 0; i < out.length; ++i) {
-    if (i % 2 == 0) {
-      out[i] = 2 / (Math.PI * (center - i));
-    }
-  }
-  return out;
-}
-
-/** A class to apply a FIR filter to a sequence of samples. */
-export class FIRFilter {
-  /** @param coefs The coefficients of the filter to apply. */
-  constructor(private coefs: Float32Array) {
-    this.offset = this.coefs.length - 1;
-    this.center = Math.floor(this.coefs.length / 2);
-    this.curSamples = new Float32Array(this.offset);
-  }
-
-  private offset: number;
-  private center: number;
-  private curSamples: Float32Array;
-
-  /** Returns a copy of this filter. */
-  clone(): FIRFilter {
-    return new FIRFilter(this.coefs);
-  }
-
-  /** Returns this filter's delay. */
-  delay(): number {
-    return this.center;
-  }
-
-  /**
-   * Loads a new block of samples to filter.
-   * @param samples The samples to load.
-   */
-  loadSamples(samples: Float32Array) {
-    let newSamples = new Float32Array(samples.length + this.offset);
-    newSamples.set(
-      this.curSamples.subarray(this.curSamples.length - this.offset)
-    );
-    newSamples.set(samples, this.offset);
-    this.curSamples = newSamples;
-  }
-
-  /**
-   * Returns a filtered sample.
-   * Be very careful when you modify this function. About 85% of the total execution
-   * time is spent here, so performance is critical.
-   * @param index The index of the sample to return, corresponding
-   *     to the same index in the latest sample block loaded via loadSamples().
-   */
-  get(index: number) {
-    let out = 0;
-    for (let i = 0; i < this.coefs.length; ++i) {
-      out += this.coefs[i] * this.curSamples[index + i];
-    }
-    return out;
-  }
-
-  /**
-   * Returns a delayed sample.
-   * @param index The index of the relative sample to return.
-   */
-  getDelayed(index: number) {
-    return this.curSamples[index + this.center];
-  }
-}
-
-/** A class to apply a low-pass filter and resample to a lower sample rate. */
-export class Downsampler {
-  /**
-   * @param inRate The input signal's sample rate.
-   * @param outRate The output signal's sample rate.
-   * @param coefficients The coefficients for the FIR filter to
-   *     apply to the original signal before downsampling it.
-   */
-  constructor(inRate: number, outRate: number, coefficients: Float32Array) {
-    this.filter = new FIRFilter(coefficients);
-    this.rateMul = inRate / outRate;
-  }
-
-  private filter: FIRFilter;
-  private rateMul: number;
-
-  /**
-   * Returns a downsampled version of the given samples.
-   * @param samples The sample block to downsample.
-   * @returns The downsampled block.
-   */
-  downsample(samples: Float32Array): Float32Array {
-    this.filter.loadSamples(samples);
-    let outArr = new Float32Array(Math.floor(samples.length / this.rateMul));
-    for (let i = 0; i < outArr.length; ++i) {
-      outArr[i] = this.filter.get(Math.floor(i * this.rateMul));
-    }
-    return outArr;
-  }
-}
-
-/** A class to demodulate IQ-interleaved samples into a raw audio signal. */
+/** A class to demodulate a single-sideband (SSB) signal. */
 export class SSBDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
@@ -174,13 +33,13 @@ export class SSBDemodulator {
     upper: boolean,
     kernelLen: number
   ) {
-    let coefs = getLowPassFIRCoeffs(inRate, 10000, kernelLen);
+    let coefs = makeLowPassKernel(inRate, 10000, kernelLen);
     this.downsamplerI = new Downsampler(inRate, outRate, coefs);
     this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
-    let coefsHilbert = getHilbertCoeffs(kernelLen);
+    let coefsHilbert = makeHilbertKernel(kernelLen);
     this.filterDelay = new FIRFilter(coefsHilbert);
     this.filterHilbert = new FIRFilter(coefsHilbert);
-    let coefsSide = getLowPassFIRCoeffs(outRate, filterFreq, kernelLen);
+    let coefsSide = makeLowPassKernel(outRate, filterFreq, kernelLen);
     this.filterSide = new FIRFilter(coefsSide);
     this.hilbertMul = upper ? -1 : 1;
     this.sigRatio = inRate / outRate;
@@ -200,7 +59,7 @@ export class SSBDemodulator {
    * Demodulates the given I/Q samples.
    * @param samplesI The I component of the samples to demodulate.
    * @param samplesQ The Q component of the samples to demodulate.
-   * @returns The demodulated sound.
+   * @returns The demodulated audio signal.
    */
   demodulateTuned(
     samplesI: Float32Array,
@@ -242,7 +101,7 @@ export class SSBDemodulator {
   }
 }
 
-/** A class to demodulate IQ-interleaved samples into a raw audio signal. */
+/** A class to demodulate an amplitude-modulated (AM) signal. */
 export class AMDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
@@ -256,7 +115,7 @@ export class AMDemodulator {
     filterFreq: number,
     kernelLen: number
   ) {
-    const coefs = getLowPassFIRCoeffs(inRate, filterFreq, kernelLen);
+    const coefs = makeLowPassKernel(inRate, filterFreq, kernelLen);
     this.downsamplerI = new Downsampler(inRate, outRate, coefs);
     this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
     this.dcBlockerI = new DcBlocker(outRate, true);
@@ -278,7 +137,7 @@ export class AMDemodulator {
    * Demodulates the given I/Q samples.
    * @param samplesI The I component of the samples to demodulate.
    * @param samplesQ The Q component of the samples to demodulate.
-   * @returns The demodulated sound.
+   * @returns The demodulated audio signal.
    */
   demodulateTuned(
     samplesI: Float32Array,
@@ -319,7 +178,7 @@ export class AMDemodulator {
   }
 }
 
-/** A class to demodulate IQ-interleaved samples into a raw audio signal. */
+/** A class to demodulate a frequency-modulated (FM) signal. */
 export class FMDemodulator {
   /**
    * @param inRate The sample rate for the input signal.
@@ -336,7 +195,7 @@ export class FMDemodulator {
     kernelLen: number
   ) {
     this.amplConv = outRate / (2 * Math.PI * maxF);
-    const coefs = getLowPassFIRCoeffs(inRate, filterFreq, kernelLen);
+    const coefs = makeLowPassKernel(inRate, filterFreq, kernelLen);
     this.downsamplerI = new Downsampler(inRate, outRate, coefs);
     this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
     this.lI = 0;
@@ -355,7 +214,7 @@ export class FMDemodulator {
    * Demodulates the given I/Q samples.
    * @param samplesI The I component of the samples to demodulate.
    * @param samplesQ The Q component of the samples to demodulate.
-   * @returns The demodulated sound.
+   * @returns The demodulated audio signal.
    */
   demodulateTuned(
     samplesI: Float32Array,
@@ -490,43 +349,6 @@ export class StereoSeparator {
   }
 }
 
-/** A de-emphasis filter with the given time constant. */
-export class Deemphasizer {
-  /**
-   * @param sampleRate The signal's sample rate.
-   * @param timeConstant_uS The filter's time constant in microseconds.
-   */
-  constructor(sampleRate: number, timeConstant_uS: number) {
-    this.alpha = 1 - Math.exp(-1 / ((sampleRate * timeConstant_uS) / 1e6));
-    this.val = 0;
-  }
-
-  private alpha: number;
-  private val: number;
-
-  /** Returns a copy of this deemphasizer. */
-  clone(): Deemphasizer {
-    let copy = new Deemphasizer(1, 1);
-    copy.alpha = this.alpha;
-    copy.val = this.val;
-    return copy;
-  }
-
-  /**
-   * Deemphasizes the given samples in place.
-   * @param samples The samples to deemphasize.
-   */
-  inPlace(samples: Float32Array) {
-    const alpha = this.alpha;
-    let val = this.val;
-    for (let i = 0; i < samples.length; ++i) {
-      val += alpha * (samples[i] - val);
-      samples[i] = val;
-    }
-    this.val = val;
-  }
-}
-
 /** An exponential moving average accumulator. */
 class ExpAverage {
   /**
@@ -566,119 +388,5 @@ class ExpAverage {
    */
   getStd() {
     return this.std;
-  }
-}
-
-/** Automatic gain control for audio signals. */
-export class AGC {
-  constructor(private sampleRate: number, timeConstantSeconds: number) {
-    this.dcBlocker = new DcBlocker(sampleRate);
-    this.alpha = 1 - Math.exp(-1 / (sampleRate * timeConstantSeconds));
-    this.counter = 0;
-    this.maxPower = 0;
-  }
-
-  private dcBlocker: DcBlocker;
-  private alpha: number;
-  private counter: number;
-  private maxPower: number;
-
-  inPlace(samples: Float32Array) {
-    const alpha = this.alpha;
-    let maxPower = this.maxPower;
-    let counter = this.counter;
-    let gain;
-    this.dcBlocker.inPlace(samples);
-    for (let i = 0; i < samples.length; ++i) {
-      const v = samples[i];
-      const power = v * v;
-      if (power > 0.9 * maxPower) {
-        counter = this.sampleRate;
-        if (power > maxPower) {
-          maxPower = power;
-        }
-      } else if (counter > 0) {
-        --counter;
-      } else {
-        maxPower -= alpha * maxPower;
-      }
-      gain = Math.min(10, 1 / Math.sqrt(maxPower));
-      samples[i] *= gain;
-    }
-    this.maxPower = maxPower;
-    this.counter = counter;
-  }
-}
-
-/** DC blocker. */
-export class DcBlocker {
-  constructor(sampleRate: number, private restricted?: boolean) {
-    this.alpha = 1 - Math.exp(-1 / (sampleRate / 2));
-    this.dc = 0;
-    this.restricted = this.restricted || false;
-  }
-
-  private alpha: number;
-  private dc: number;
-
-  inPlace(samples: Float32Array) {
-    const alpha = this.alpha;
-    let dc = this.dc;
-    for (let i = 0; i < samples.length; ++i) {
-      dc += alpha * (samples[i] - dc);
-      if (!this.restricted || dc * dc < 6e-5) samples[i] -= dc;
-    }
-    this.dc = dc;
-  }
-}
-
-/**
- * Converts the given buffer of unsigned 8-bit samples into a pair of 32-bit
- *     floating-point sample streams.
- * @param buffer A buffer containing the unsigned 8-bit samples.
- * @returns An array that contains first the I stream
- *     and next the Q stream.
- */
-export function iqSamplesFromUint8(
-  buffer: ArrayBuffer
-): [Float32Array, Float32Array] {
-  const arr = new Uint8Array(buffer);
-  const len = arr.length / 2;
-  let outI = new Float32Array(len);
-  let outQ = new Float32Array(len);
-  for (let i = 0; i < len; ++i) {
-    outI[i] = arr[2 * i] / 128 - 0.995;
-    outQ[i] = arr[2 * i + 1] / 128 - 0.995;
-  }
-  return [outI, outQ];
-}
-
-/**
- * Shifts IQ samples by a given frequency.
- */
-export class FrequencyShifter {
-  constructor(private sampleRate: number) {
-    this.cosine = 1;
-    this.sine = 0;
-  }
-
-  private cosine: number;
-  private sine: number;
-
-  inPlace(I: Float32Array, Q: Float32Array, freq: number) {
-    let cosine = this.cosine;
-    let sine = this.sine;
-    const deltaCos = Math.cos((2 * Math.PI * freq) / this.sampleRate);
-    const deltaSin = Math.sin((2 * Math.PI * freq) / this.sampleRate);
-    for (let i = 0; i < I.length; ++i) {
-      const newI = I[i] * cosine - Q[i] * sine;
-      Q[i] = I[i] * sine + Q[i] * cosine;
-      I[i] = newI;
-      const newSine = cosine * deltaSin + sine * deltaCos;
-      cosine = cosine * deltaCos - sine * deltaSin;
-      sine = newSine;
-    }
-    this.cosine = cosine;
-    this.sine = sine;
   }
 }

@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { makeLowPassKernel } from "../dsp/coefficients";
+import { AMDemodulator } from "../dsp/demodulators";
+import { FrequencyShifter, AGC } from "../dsp/filters";
+import { Downsampler } from "../dsp/resamplers";
 import { Demodulated, ModulationScheme } from "./scheme";
-import * as DSP from "../dsp/dsp";
 
 /** A demodulator for amplitude modulated signals. */
 export class SchemeAM implements ModulationScheme {
@@ -23,19 +26,19 @@ export class SchemeAM implements ModulationScheme {
    * @param bandwidth The bandwidth of the input signal.
    */
   constructor(inRate: number, outRate: number, bandwidth: number) {
-    const INTER_RATE = 48000;
+    const interRate = 48000;
     const filterF = bandwidth / 2;
-    this.shifter = new DSP.FrequencyShifter(inRate);
-    this.demodulator = new DSP.AMDemodulator(inRate, INTER_RATE, filterF, 351);
-    const filterCoefs = DSP.getLowPassFIRCoeffs(INTER_RATE, 10000, 41);
-    this.downSampler = new DSP.Downsampler(INTER_RATE, outRate, filterCoefs);
-    this.agc = new DSP.AGC(outRate, 1);
+    this.shifter = new FrequencyShifter(inRate);
+    this.demodulator = new AMDemodulator(inRate, interRate, filterF, 351);
+    const kernel = makeLowPassKernel(interRate, 10000, 41);
+    this.downSampler = new Downsampler(interRate, outRate, kernel);
+    this.agc = new AGC(outRate, 1);
   }
 
-  private shifter: DSP.FrequencyShifter;
-  private demodulator: DSP.AMDemodulator;
-  private downSampler: DSP.Downsampler;
-  private agc: DSP.AGC;
+  private shifter: FrequencyShifter;
+  private demodulator: AMDemodulator;
+  private downSampler: Downsampler;
+  private agc: AGC;
 
   /**
    * Demodulates the signal.
@@ -44,7 +47,11 @@ export class SchemeAM implements ModulationScheme {
    * @param freqOffset The offset of the signal in the samples.
    * @returns The demodulated audio signal.
    */
-  demodulate(samplesI: Float32Array, samplesQ: Float32Array, freqOffset: number): Demodulated {
+  demodulate(
+    samplesI: Float32Array,
+    samplesQ: Float32Array,
+    freqOffset: number
+  ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
     let audio = this.downSampler.downsample(demodulated);
