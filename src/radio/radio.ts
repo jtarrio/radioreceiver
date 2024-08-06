@@ -14,7 +14,7 @@
 
 /** State machine to orchestrate the RTL2832, demodulation, and audio playing. */
 
-import { iqSamplesFromUint8 } from "../dsp/converters";
+import { U8ToFloat32 } from "../dsp/converters";
 import { RadioError, RadioErrorType } from "../errors";
 import { RtlDevice, RtlDeviceProvider } from "../rtlsdr/rtldevice";
 import { Channel } from "./msgqueue";
@@ -478,11 +478,13 @@ class Transfers {
   ) {
     this.buffersWanted = 0;
     this.buffersRunning = 0;
+    this.iqConverter = new U8ToFloat32(this.samplesPerBuf);
     this.stopCallback = Transfers.nilCallback;
   }
 
   private buffersWanted: number;
   private buffersRunning: number;
+  private iqConverter: U8ToFloat32;
   private stopCallback: () => void;
 
   static PARALLEL_BUFFERS = 2;
@@ -516,7 +518,7 @@ class Transfers {
   async oneShot(): Promise<boolean> {
     await this.rtl.resetBuffer();
     let buffer = await this.rtl.readSamples(this.samplesPerBuf);
-    let [I, Q] = iqSamplesFromUint8(buffer);
+    let [I, Q] = this.iqConverter.convert(buffer);
     return this.sampleReceiver.checkForSignal(
       I,
       Q,
@@ -529,7 +531,7 @@ class Transfers {
     this.rtl
       .readSamples(this.samplesPerBuf)
       .then((b) => {
-        let [I, Q] = iqSamplesFromUint8(b);
+        let [I, Q] = this.iqConverter.convert(b);
         this.sampleReceiver.receiveSamples(
           I,
           Q,

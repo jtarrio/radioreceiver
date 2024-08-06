@@ -16,6 +16,7 @@
 import { makeLowPassKernel, makeHilbertKernel } from "./coefficients";
 import { Downsampler } from "./resamplers";
 import { FIRFilter, DcBlocker } from "./filters";
+import { RealBuffer } from "./buffers";
 
 /** A class to demodulate a single-sideband (SSB) signal. */
 export class SSBDemodulator {
@@ -73,19 +74,17 @@ export class SSBDemodulator {
     let sigSqrSum = 0;
     this.filterDelay.loadSamples(I);
     this.filterHilbert.loadSamples(Q);
-    let prefilter = new Float32Array(I.length);
-    for (let i = 0; i < prefilter.length; ++i) {
-      prefilter[i] =
+    for (let i = 0; i < I.length; ++i) {
+      I[i] =
         this.filterDelay.getDelayed(i) +
         this.filterHilbert.get(i) * this.hilbertMul;
     }
-    this.filterSide.loadSamples(prefilter);
-    let out = new Float32Array(I.length);
-    for (let i = 0; i < out.length; ++i) {
+    this.filterSide.loadSamples(I);
+    for (let i = 0; i < I.length; ++i) {
       const sig = this.filterSide.get(i);
       const power = sig * sig;
       sigSqrSum += power;
-      out[i] = sig;
+      I[i] = sig;
       const origIndex = Math.floor(i * sigRatio);
       const origI = samplesI[origIndex];
       const origQ = samplesQ[origIndex];
@@ -93,7 +92,7 @@ export class SSBDemodulator {
     }
 
     this.relSignalPower = sigSqrSum / specSqrSum;
-    return out;
+    return I;
   }
 
   getRelSignalPower() {
@@ -152,14 +151,13 @@ export class AMDemodulator {
     let specSqrSum = 0;
     let sigSqrSum = 0;
     let sigSum = 0;
-    let out = new Float32Array(I.length);
-    for (let i = 0; i < out.length; ++i) {
+    for (let i = 0; i < I.length; ++i) {
       const vI = I[i];
       const vQ = Q[i];
 
       const power = vI * vI + vQ * vQ;
       const amplitude = Math.sqrt(power);
-      out[i] = amplitude;
+      I[i] = amplitude;
 
       const origIndex = Math.floor(i * sigRatio);
       const origI = samplesI[origIndex];
@@ -169,8 +167,8 @@ export class AMDemodulator {
       sigSum += amplitude;
     }
     this.relSignalPower = sigSqrSum / specSqrSum;
-    this.dcBlockerA.inPlace(out);
-    return out;
+    this.dcBlockerA.inPlace(I);
+    return I;
   }
 
   getRelSignalPower() {
@@ -222,16 +220,17 @@ export class FMDemodulator {
   ): Float32Array {
     const I = this.downsamplerI.downsample(samplesI);
     const Q = this.downsamplerQ.downsample(samplesQ);
-    let out = new Float32Array(I.length);
 
     const amplConv = this.amplConv;
     let prev = 0;
     let difSqrSum = 0;
     let lI = this.lI;
     let lQ = this.lQ;
-    for (let i = 0; i < out.length; ++i) {
+    for (let i = 0; i < I.length; ++i) {
       let real = lI * I[i] + lQ * Q[i];
       let imag = lI * Q[i] - I[i] * lQ;
+      lI = I[i];
+      lQ = Q[i];
       let sgn = 1;
       let circ = 0;
       let ang = 0;
@@ -254,7 +253,7 @@ export class FMDemodulator {
         div = real / imag;
         sgn = -sgn;
       }
-      out[i] =
+      const value =
         circ +
         sgn *
           (ang +
@@ -262,17 +261,16 @@ export class FMDemodulator {
               (0.98419158358617365 +
                 div * (0.093485702629671305 + div * 0.19556307900617517))) *
           amplConv;
-      lI = I[i];
-      lQ = Q[i];
-      const dif = prev - out[i];
+      const dif = prev - value;
       difSqrSum += dif * dif;
-      prev = out[i];
+      prev = value;
+      I[i] = value;
     }
 
     this.lI = lI;
     this.lQ = lQ;
-    this.relSignalPower = 1 - Math.sqrt(difSqrSum / out.length);
-    return out;
+    this.relSignalPower = 1 - Math.sqrt(difSqrSum / I.length);
+    return I;
   }
 
   getRelSignalPower() {
@@ -287,6 +285,7 @@ export class StereoSeparator {
    * @param pilotFreq The frequency of the pilot tone.
    */
   constructor(sampleRate: number, pilotFreq: number) {
+    this.buffer = new RealBuffer(4);
     this.sin = 0;
     this.cos = 1;
     this.iavg = new ExpAverage(9999);
@@ -304,6 +303,7 @@ export class StereoSeparator {
 
   private static STD_THRES = 400;
 
+  private buffer: RealBuffer;
   private sin: number;
   private cos: number;
   private iavg: ExpAverage;
@@ -321,12 +321,12 @@ export class StereoSeparator {
    *     reconstructed stereo carrier.
    */
   separate(samples: Float32Array): { found: boolean; diff: Float32Array } {
-    let out = new Float32Array(samples);
+    let out = this.buffer.get(samples.length);
     let sin = this.sin;
     let cos = this.cos;
     for (let i = 0; i < out.length; ++i) {
-      let hdev = this.iavg.add(out[i] * sin);
-      let vdev = this.qavg.add(out[i] * cos);
+      let hdev = this.iavg.add(samples[i] * sin);
+      let vdev = this.qavg.add(samples[i] * cos);
       out[i] *= sin * cos * 2;
       let corr;
       if (hdev > 0) {

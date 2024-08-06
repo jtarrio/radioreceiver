@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { RealBuffer, U8Buffer } from "../../dsp/buffers";
 import { RtlDevice, RtlDeviceProvider } from "../rtldevice";
 import { Generator } from "./types";
 
@@ -31,6 +32,8 @@ export class FakeRtl implements RtlDevice {
     this.gain = null;
     this.centerFrequency = 100000000;
     this.directSamplingMode = false;
+    this.u8Buffer = new U8Buffer(4);
+    this.realBuffer = new RealBuffer(4);
     this.timeBase = undefined;
     this.nextSample = 0;
     this.queue = [];
@@ -42,6 +45,8 @@ export class FakeRtl implements RtlDevice {
   private gain: number | null;
   private centerFrequency: number;
   private directSamplingMode: boolean;
+  private u8Buffer: U8Buffer;
+  private realBuffer: RealBuffer;
   private timeBase?: number;
   private nextSample: number;
   private queue: Array<{
@@ -134,7 +139,7 @@ export class FakeRtl implements RtlDevice {
   }
 
   private generateSamples(sample: number, length: number): ArrayBuffer {
-    let floats = new Float32Array(length);
+    let floats = this.realBuffer.get(length).fill(0);
     for (let gen of this.generators) {
       gen.generateSamples(
         sample,
@@ -143,7 +148,7 @@ export class FakeRtl implements RtlDevice {
         floats
       );
     }
-    let bytes = new Uint8Array(length);
+    let bytes = this.u8Buffer.get(length);
     for (let i = 0; i < length; ++i) {
       bytes[i] = Math.floor((floats[i] + 1) * 127.5);
     }

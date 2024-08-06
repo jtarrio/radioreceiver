@@ -55,12 +55,17 @@ export class FIRFilter implements Filter {
    * @param samples The samples to load.
    */
   loadSamples(samples: Float32Array) {
-    let newSamples = new Float32Array(samples.length + this.offset);
-    newSamples.set(
-      this.curSamples.subarray(this.curSamples.length - this.offset)
-    );
-    newSamples.set(samples, this.offset);
-    this.curSamples = newSamples;
+    const len = samples.length + this.offset;
+    if (this.curSamples.length != len) {
+      let newSamples = new Float32Array(len);
+      newSamples.set(
+        this.curSamples.subarray(this.curSamples.length - this.offset)
+      );
+      this.curSamples = newSamples;
+    } else {
+      this.curSamples.copyWithin(0, samples.length);
+    }
+    this.curSamples.set(samples, this.offset);
   }
 
   /**
