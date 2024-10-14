@@ -54,7 +54,7 @@ export class Spectrum implements SampleReceiver {
     spectrum.fill(-Infinity);
     for (let i = 0; i < output.real.length && i < spectrum.length; ++i) {
       const power =
-        output.real[i] * output.real[i] + output.imag[i] + output.imag[i];
+        output.real[i] * output.real[i] + output.imag[i] * output.imag[i];
       spectrum[i] = 10 * Math.log10(power);
     }
   }

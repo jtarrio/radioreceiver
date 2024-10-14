@@ -59,8 +59,8 @@ export class RadioReceiverMain extends LitElement {
   render() {
     return html`<rr-spectrum
         id="spectrum"
-        min-decibels=${-50}
-        max-decibels=${-10}
+        min-decibels=${-90}
+        max-decibels=${-20}
         center-frequency=${this.frequency}
         bandwidth=${RtlSampleRate}
         frequency-scale=${1000}
