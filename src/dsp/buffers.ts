@@ -88,3 +88,56 @@ export class IqBuffer {
     return out;
   }
 }
+
+/**
+ * A circular buffer, where you can store data and then copy out the latest N values.
+ */
+export class CircularBuffer {
+  constructor(size: number) {
+    this.buffer = new Float32Array(size);
+    this.position = 0;
+  }
+
+  private buffer: Float32Array;
+  private position: number;
+
+  store(data: Float32Array) {
+    let count = Math.min(data.length, data.length, this.buffer.length);
+    let { dstOffset } = CircularBuffer.doCopy(
+      count,
+      data,
+      0,
+      this.buffer,
+      this.position
+    );
+    this.position = dstOffset;
+  }
+
+  copyTo(data: Float32Array) {
+    let count = Math.min(data.length, this.buffer.length, data.length);
+    let srcOffset =
+      (this.position + this.buffer.length - count) % this.buffer.length;
+    CircularBuffer.doCopy(count, this.buffer, srcOffset, data, 0);
+  }
+
+  private static doCopy(
+    count: number,
+    src: Float32Array,
+    srcOffset: number,
+    dst: Float32Array,
+    dstOffset: number
+  ): { srcOffset: number; dstOffset: number } {
+    while (count > 0) {
+      const copyCount = Math.min(
+        count,
+        src.length - srcOffset,
+        dst.length - dstOffset
+      );
+      dst.set(src.subarray(srcOffset, srcOffset + copyCount), dstOffset);
+      srcOffset = (srcOffset + copyCount) % src.length;
+      dstOffset = (dstOffset + copyCount) % dst.length;
+      count -= copyCount;
+    }
+    return { srcOffset, dstOffset };
+  }
+}

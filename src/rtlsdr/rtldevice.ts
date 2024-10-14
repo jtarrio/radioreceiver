@@ -20,8 +20,8 @@ export interface RtlDevice {
   setGain(gain: number | null): Promise<void>;
   getGain(): number | null;
   setCenterFrequency(freq: number): Promise<number>;
-  setDirectSamplingMode(enable: boolean): Promise<void>;
-  getDirectSamplingMode(): boolean;
+  enableDirectSampling(enable: boolean): Promise<void>;
+  isDirectSamplingEnabled(): boolean;
   resetBuffer(): Promise<void>;
   readSamples(length: number): Promise<ArrayBuffer>;
   close(): Promise<void>;

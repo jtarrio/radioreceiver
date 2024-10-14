@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { CircularBuffer, RealBuffer } from "./buffers";
+
 /** Fast Fourier Transform implementation. */
 
 /**
@@ -27,6 +29,9 @@ export function actualLength(minimumLength: number): number {
   while (realLength < minimumLength) realLength <<= 1;
   return realLength;
 }
+
+/** The output of the transform functions. */
+export type FFTOutput = { real: Float32Array; imag: Float32Array };
 
 /** Fast Fourier Transform and reverse transform with a given length. */
 export class FFT {
@@ -45,93 +50,81 @@ export class FFT {
     let [fwd, bwd] = makeFftCoefficients(length);
     this.fwd = fwd;
     this.bwd = bwd;
+    this.copy = new RealBuffer(4, length);
+    this.out = new RealBuffer(4, length);
+    this.window = new Float32Array(length);
+    this.window.fill(1);
   }
 
   private revIndex: Int32Array;
   private fwd: ComplexArray[];
   private bwd: ComplexArray[];
+  private copy: RealBuffer;
+  private out: RealBuffer;
+  private window: Float32Array;
 
-  /**
-   * Transforms the given time-domain input, storing the result in the given output arrays.
-   * The input and output arrays must be the same length as the FFT.
-   * @param inReal An array of real parts.
-   * @param inImag An array of imaginary parts.
-   * @param outReal A preallocated array that will hold the real parts.
-   * @param outImag A preallocated array that will hold the imaginary parts.
-   * @param inOffset An offset into the input arrays. If specified, the input arrays are treated as ring buffers.
-   */
-  transform(
-    inReal: Float32Array,
-    inImag: Float32Array,
-    outReal: Float32Array,
-    outImag: Float32Array,
-    inOffset?: number
-  ): void;
-  transform(
-    inReal: number[],
-    inImag: number[],
-    outReal: Float32Array,
-    outImag: Float32Array,
-    inOffset?: number
-  ): void;
-  transform<T extends Array<number>>(
-    inReal: T,
-    inImag: T,
-    outReal: Float32Array,
-    outImag: Float32Array,
-    inOffset?: number
-  ): void {
-    const offset = inOffset || 0;
-    const length = this.length;
-    for (let i = 0; i < length; ++i) {
-      const oi = (i + offset) % length;
-      const ri = this.revIndex[i];
-      outReal[ri] = inReal[oi] / length;
-      outImag[ri] = inImag[oi] / length;
-    }
-    doFastTransform(this.length, this.fwd, outReal, outImag);
+  /** Sets the window function for this FFT. */
+  setWindow(window: Float32Array) {
+    this.window.set(window);
   }
 
+  /**
+   * Transforms the given time-domain input.
+   * @param real An array of real parts.
+   * @param imag An array of imaginary parts.
+   * @return An object containing an array of real parts and an array of imaginary parts.
+   */
+  transform(real: Float32Array, imag: Float32Array): FFTOutput;
+  transform(real: number[], imag: number[]): FFTOutput;
+  transform<T extends Array<number>>(real: T, imag: T): FFTOutput {
+    const length = this.length;
+    let outReal = this.out.get(length);
+    let outImag = this.out.get(length);
+    outReal.fill(0);
+    outImag.fill(0);
+    for (let i = 0; i < length && i < real.length && i < imag.length; ++i) {
+      const ri = this.revIndex[i];
+      outReal[ri] = (this.window[i] * real[i]) / length;
+      outImag[ri] = (this.window[i] * imag[i]) / length;
+    }
+    doFastTransform(this.length, this.fwd, outReal, outImag);
+    return { real: outReal, imag: outImag };
+  }
+
+  transformCircularBuffers(
+    real: CircularBuffer,
+    imag: CircularBuffer
+  ): FFTOutput {
+    const length = this.length;
+    let copyReal = this.copy.get(length);
+    let copyImag = this.copy.get(length);
+    real.copyTo(copyReal);
+    imag.copyTo(copyImag);
+    return this.transform(copyReal, copyImag);
+  }
 
   /**
    * Does a reverse transform of the given frequency-domain input, storing the result in the given output arrays.
    * The input and output arrays must be the same length as the FFT.
-   * @param inReal An array of real parts.
-   * @param inImag An array of imaginary parts.
-   * @param outReal A preallocated array that will hold the real parts.
-   * @param outImag A preallocated array that will hold the imaginary parts.
-   * @param inOffset An offset into the input arrays. If specified, the input arrays are treated as ring buffers.
+   * @param real An array of real parts.
+   * @param imag An array of imaginary parts.
+   * @return An object containing an array of real parts and an array of imaginary parts.
    */
-  reverse(
-    inReal: Float32Array,
-    inImag: Float32Array,
-    outReal: Float32Array,
-    outImag: Float32Array,
-    inOffset?: number
-  ): void;
-  reverse(
-    inReal: number[],
-    inImag: number[],
-    outReal: Float32Array,
-    outImag: Float32Array,
-    inOffset?: number
-  ): void;
-  reverse<T extends Array<number>>(
-    inReal: T,
-    inImag: T,
-    outReal: Float32Array,
-    outImag: Float32Array,
-    inOffset?: number
-  ): void {
-    const offset = inOffset || 0;
+  reverse(real: Float32Array, imag: Float32Array): FFTOutput;
+  reverse(real: number[], imag: number[]): FFTOutput;
+  reverse<T extends Array<number>>(real: T, imag: T): FFTOutput {
     const length = this.length;
-    for (let i = 0; i < length; ++i) {
-      const oi = (i + offset) % length;
+    let outReal = this.out.get(length);
+    let outImag = this.out.get(length);
+    outReal.fill(0);
+    outImag.fill(0);
+    for (let i = 0; i < length && i < real.length && i < imag.length; ++i) {
       const ri = this.revIndex[i];
-      outReal[ri] = inReal[oi] / length;
-      outImag[ri] = inImag[oi] / length;
+      outReal[ri] = (this.window[i] * real[i]) / length;
+      outImag[ri] = (this.window[i] * imag[i]) / length;
     }
     doFastTransform(this.length, this.bwd, outReal, outImag);
+    return { real: outReal, imag: outImag };
   }
 }
 

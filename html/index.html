@@ -1,92 +1,11 @@
 <!doctype html>
-<!--
-// Copyright 2024 Jacobo Tarrio Barreiro. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
--->
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="style.css" />
     <script src="main.js"></script>
   </head>
-
   <body>
-    <rr-face-basic></rr-face-basic>
-    <sl-card>
-      <h1 slot="header">What is this?</h1>
-      <p>In few words: an HTML5 web-based RTL-SDR stereo FM radio receiver.</p>
-      <p>
-        In more words: this webpage can use
-        <a href="https://www.rtl-sdr.com/about-rtl-sdr/"
-          >a cheap USB digital TV receiver</a
-        >
-        to capture radio signals, do FM demodulation in the browser, and play
-        the resulting audio signal through your computer's speakers or
-        headphones.
-      </p>
-      <p>
-        This is called SDR (Software-Defined Radio) because all the radio signal
-        processing is done by software running in the computer, not by specially
-        built hardware.
-      </p>
-      <p>
-        This is <em>not</em> streaming radio.
-        <strong
-          >You must plug an RTL-SDR receiver into your computer's USB port to
-          use this webpage.</strong
-        >
-      </p>
-      <h1>Requirements</h1>
-      <ul>
-        <li>An RTL2832U digital TV receiver with an R820T or R820T2 tuner.</li>
-        <li>A browser that supports the HTML5 USB API.</li>
-        <li>
-          Windows: use <a href="https://zadig.akeo.ie/">Zadig</a> to install a
-          WinUSB driver for the RTL2832UHIDIR/RTL2832U device.
-        </li>
-        <li>
-          Linux: you may need to disable the
-          <code>dvb_usb_rtl28xxu</code> driver.
-        </li>
-        <li>Mac, ChromeOS, and Android: it should work out of the box.</li>
-      </ul>
-      <h1>Plans</h1>
-      <p>This webpage will be updated to support modern RTL-SDR devices.</p>
-      <p>
-        It will also be updated to provide the type of UI that people have come
-        to expect of RTL-SDR software, with a waterfall, multiple modulation
-        schemes, etc.
-      </p>
-      <h1>Credits and acknowledgements</h1>
-      <p>
-        Written by
-        <a href="https://jacobo.tarrio.org">Jacobo Tarrío</a>.
-      </p>
-      <p>
-        Source code available at
-        <a href="https://github.com/jtarrio/radioreceiver"
-          >github.com/jtarrio/radioreceiver</a
-        >.
-      </p>
-      <p>
-        Portions of this software were forked from
-        <a href="https://github.com/google/radioreceiver"
-          >github.com/google/radioreceiver</a
-        >.
-      </p>
-    </sl-card>
-
-    <rr-error-dialog id="errorDialog"></rr-error-dialog>
+    <radioreceiver-main></radioreceiver-main>
   </body>
 </html>

@@ -15,13 +15,38 @@
 /** Interface for classes that get samples from a Radio class. */
 export interface SampleReceiver {
   /** Receives samples that should be demodulated. */
-  receiveSamples(I: Float32Array, Q: Float32Array, freqOffset: number): void;
+  receiveSamples(I: Float32Array, Q: Float32Array): void;
 
-  /**
-   * Returns whether there is a signal in these samples.
-   *
-   * This function is used for scanning. When this function
-   * is called, 'receiveSamples' is not called.
-   */
-  checkForSignal(I: Float32Array, Q: Float32Array, freqOffset: number): Promise<boolean>;
+  /** Sets a sample receiver to be executed right after this one. */
+  andThen(next: SampleReceiver): SampleReceiver;
+}
+
+export function concatenateReceivers(prev: SampleReceiver, next: SampleReceiver): SampleReceiver {
+  let list = [];
+  if (prev instanceof ReceiverSequence) {
+    list.push(...prev.receivers);
+  } else {
+    list.push(prev);
+  }
+  if (next instanceof ReceiverSequence) {
+    list.push(...next.receivers);
+  } else {
+    list.push(next);
+  }
+  return new ReceiverSequence(list);
+}
+
+class ReceiverSequence implements SampleReceiver {
+  constructor(public receivers: SampleReceiver[]) {
+  }
+
+  receiveSamples(I: Float32Array, Q: Float32Array): void {
+    for (let receiver of this.receivers) {
+      receiver.receiveSamples(I, Q);
+    }
+  }
+
+  andThen(next: SampleReceiver): SampleReceiver {
+    return concatenateReceivers(this, next);
+  }
 }

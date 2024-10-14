@@ -83,11 +83,11 @@ export class FakeRtl implements RtlDevice {
     return freq;
   }
 
-  async setDirectSamplingMode(enable: boolean): Promise<void> {
+  async enableDirectSampling(enable: boolean): Promise<void> {
     this.directSamplingMode = enable;
   }
 
-  getDirectSamplingMode(): boolean {
+  isDirectSamplingEnabled(): boolean {
     return this.directSamplingMode;
   }
 

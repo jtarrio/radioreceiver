@@ -75,14 +75,14 @@ export class RTL2832U implements RtlDevice {
     this.centerFrequency = 0;
     this.ppm = 0;
     this.gain = null;
-    this.directSamplingMode = false;
+    this.directSamplingEnabled = false;
     this.directSampling = false;
   }
 
   private centerFrequency: number;
   private ppm: number;
   private gain: number | null;
-  private directSamplingMode: boolean;
+  private directSamplingEnabled: boolean;
   private directSampling: boolean;
 
   /**
@@ -280,22 +280,24 @@ export class RTL2832U implements RtlDevice {
     }
   }
 
-  /** Enables or disables direct sampling mode. */
-  async setDirectSamplingMode(enable: boolean) {
-    if (this.directSamplingMode == enable) return;
-    this.directSamplingMode = enable;
+  /**
+   * Enables or disables the ability to use direct sampling mode.
+   * If enabled, the radio will enter direct sampling mode for low frequencies. */
+  async enableDirectSampling(enable: boolean) {
+    if (this.directSamplingEnabled == enable) return;
+    this.directSamplingEnabled = enable;
     if (this.centerFrequency != 0) {
       await this.setCenterFrequency(this.centerFrequency);
     }
   }
 
-  /** Returns whether direct sampling mode is enabled. */
-  getDirectSamplingMode(): boolean {
-    return this.directSamplingMode;
+  /** Returns whether direct sampling is enabled. */
+  isDirectSamplingEnabled(): boolean {
+    return this.directSamplingEnabled;
   }
 
   private async _maybeSetDirectSampling(enable: boolean) {
-    enable = enable && this.directSamplingMode;
+    enable = enable && this.directSamplingEnabled;
     if (this.directSampling == enable) return;
     this.directSampling = enable;
     if (enable) {

@@ -14,61 +14,48 @@
 
 // Continuous spectrum analyzer.
 
+import { CircularBuffer } from "../dsp/buffers";
+import { makeBlackmanWindow } from "../dsp/coefficients";
 import { FFT } from "../dsp/fft";
-import { SampleReceiver } from "../radio/sample_receiver";
+import { concatenateReceivers, SampleReceiver } from "../radio/sample_receiver";
 
 export class Spectrum implements SampleReceiver {
-    constructor(private downstream: SampleReceiver) {    
-        this.I = new Float32Array(2048);
-        this.Q = new Float32Array(2048);
-        this.fdI = new Float32Array(2048);
-        this.fdQ = new Float32Array(2048);
-        this.offset = 0;
-        this.fft = FFT.ofLength(2048);
+  constructor(fftSize?: number) {
+    if (fftSize === undefined) {
+      fftSize = 2048;
+    } else {
+      fftSize = Math.max(32, Math.min(131072, fftSize));
     }
+    this.I = new CircularBuffer(131072);
+    this.Q = new CircularBuffer(131072);
+    this.fft = FFT.ofLength(fftSize);
+    this.fft.setWindow(makeBlackmanWindow(this.fft.length));
+  }
 
-    private I: Float32Array;
-    private Q: Float32Array;
-    private fdI: Float32Array;
-    private fdQ: Float32Array;
-    private offset: number;
-    private fft: FFT;
+  private I: CircularBuffer;
+  private Q: CircularBuffer;
+  private fft: FFT;
 
-    populateSpectrum(outSpectrum: Float32Array) {
-        this.fft.transform(this.I, this.Q, this.fdI, this.fdQ, this.offset);
-        for (let i = 0; i < this.fdI.length; ++i) {
-            outSpectrum[i] = 10 * Math.log10(this.fdI[i] * this.fdI[i] + this.fdQ[i] * this.fdQ[i]);
-        }
+  get size() {
+    return this.fft.length;
+  }
+
+  receiveSamples(I: Float32Array, Q: Float32Array): void {
+    this.I.store(I);
+    this.Q.store(Q);
+  }
+
+  andThen(next: SampleReceiver): SampleReceiver {
+    return concatenateReceivers(this, next);
+  }
+
+  getSpectrum(spectrum: Float32Array) {
+    let output = this.fft.transformCircularBuffers(this.I, this.Q);
+    spectrum.fill(-Infinity);
+    for (let i = 0; i < output.real.length && i < spectrum.length; ++i) {
+      const power =
+        output.real[i] * output.real[i] + output.imag[i] + output.imag[i];
+      spectrum[i] = 10 * Math.log10(power);
     }
-
-    receiveSamples(I: Float32Array, Q: Float32Array, freqOffset: number): void {
-        this.downstream.receiveSamples(I, Q, freqOffset);
-        this._update(I, Q);
-    }
-
-    checkForSignal(I: Float32Array, Q: Float32Array, freqOffset: number): Promise<boolean> {
-        let ret = this.downstream.checkForSignal(I, Q, freqOffset);
-        this._update(I, Q);
-        return ret;
-    }
-
-    private _update(I: Float32Array, Q: Float32Array) {
-        if (this.I.length <= I.length) {
-            this.I.set(I.subarray(I.length - this.I.length, I.length));
-            this.Q.set(I.subarray(I.length - this.I.length, I.length));
-            this.offset = 0;
-            return;
-        }
-        let off = 0;
-        let rem = I.length;
-        while (rem > 0) {
-            let len = Math.min(rem, I.length - this.offset);
-            this.I.set(I.subarray(off, len), this.offset);
-            this.Q.set(Q.subarray(off, len), this.offset);
-            rem -= len;
-            off += len;
-            this.offset = len;
-            if (this.offset == this.I.length) this.offset = 0;
-        }
-    }
+  }
 }

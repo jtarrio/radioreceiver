@@ -64,3 +64,19 @@ export function makeHilbertKernel(length: number): Float32Array {
   }
   return out;
 }
+
+/**
+ * Returns coefficients for a Blackman window.
+ * @param length The length of the kernel.
+ * @returns The kernel coefficients.
+ */
+export function makeBlackmanWindow(length: number): Float32Array {
+  let window = new Float32Array(length);
+  for (let n = 0; n < length; ++n) {
+    window[n] =
+      0.42 -
+      0.5 * Math.cos((2 * Math.PI * n) / (length - 1)) +
+      0.08 * Math.cos((4 * Math.PI * n) / (length - 1));
+  }
+  return window;
+}

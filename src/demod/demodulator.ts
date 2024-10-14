@@ -32,7 +32,7 @@ import { SchemeNBFM } from "./scheme-nbfm";
 import { SchemeSSB } from "./scheme-ssb";
 import { SchemeWBFM } from "./scheme-wbfm";
 import { Player } from "../audio/player";
-import { SampleReceiver } from "../radio/sample_receiver";
+import { concatenateReceivers, SampleReceiver } from "../radio/sample_receiver";
 
 /** The various contents of the events that the demodulator emits. */
 export type DemodulatorEventType =
@@ -70,6 +70,7 @@ export class Demodulator extends EventTarget implements SampleReceiver {
     this.mode = { scheme: "WBFM" };
     this.scheme = this.getScheme(this.mode);
     this.player = new Player();
+    this.frequencyOffset = 0;
     this.stereo = false;
     this.squelch = 0;
     this.signalLevelDispatcher = new SignalLevelDispatcher(
@@ -84,6 +85,8 @@ export class Demodulator extends EventTarget implements SampleReceiver {
   private scheme: ModulationScheme;
   /** The audio output device. */
   private player: Player;
+  /** The frequency offset to demodulate from. */
+  private frequencyOffset: number;
   /** Whether to demodulate in stereo, when available. */
   private stereo: boolean;
   /** Squelch level, 0 to 1. */
@@ -101,6 +104,16 @@ export class Demodulator extends EventTarget implements SampleReceiver {
   /** Returns the current modulation parameters. */
   getMode(): Mode {
     return this.mode;
+  }
+
+  /** Changes the frequency offset. */
+  setFrequencyOffset(offset: number) {
+    this.frequencyOffset = offset;
+  }
+
+  /** Returns the current frequency offset. */
+  getFrequencyOffset() {
+    return this.frequencyOffset;
   }
 
   /** Sets the audio volume level, from 0 to 1. */
@@ -176,26 +189,19 @@ export class Demodulator extends EventTarget implements SampleReceiver {
   }
 
   /** Receives radio samples. */
-  receiveSamples(I: Float32Array, Q: Float32Array, freqOffset: number): void {
-    this.demod(I, Q, freqOffset);
-  }
-
-  /** Receives radio samples and returns whether there is a signal in it. */
-  async checkForSignal(I: Float32Array, Q: Float32Array, freqOffset: number): Promise<boolean> {
-    return this.demod(I, Q, freqOffset) > 0.5;
-  }
-
-  /** Demodulates the given samples. */
-  private demod(I: Float32Array, Q: Float32Array, freqOffset: number): number {
+  receiveSamples(I: Float32Array, Q: Float32Array): void {
     let { left, right, signalLevel } = this.scheme.demodulate(
       I,
       Q,
-      freqOffset,
+      this.frequencyOffset,
       this.stereo
     );
     this.player.play(left, right, signalLevel, this.squelch);
     this.signalLevelDispatcher.dispatch(signalLevel, left.length);
-    return signalLevel;
+  }
+
+  andThen(next: SampleReceiver): SampleReceiver {
+    return concatenateReceivers(this, next);
   }
 
   addEventListener(

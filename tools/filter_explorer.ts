@@ -393,11 +393,7 @@ class FilterAdaptor {
       impulseR = shiftedR;
       impulseI = shiftedI;
     }
-    let output = {
-      real: new Float32Array(length),
-      imag: new Float32Array(length),
-    };
-    transformer.transform(impulseR, impulseI, output.real, output.imag);
+    let output = transformer.transform(impulseR, impulseI);
     return output;
   }
 }

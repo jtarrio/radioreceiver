@@ -44,24 +44,3 @@ export class U8ToFloat32 {
     return out;
   }
 }
-
-/**
- * Converts the given buffer of unsigned 8-bit samples into a pair of 32-bit
- *     floating-point sample streams.
- * @param buffer A buffer containing the unsigned 8-bit samples.
- * @returns An array that contains first the I stream
- *     and next the Q stream.
- */
-export function iqSamplesFromUint8(
-  buffer: ArrayBuffer
-): [Float32Array, Float32Array] {
-  const arr = new Uint8Array(buffer);
-  const len = arr.length / 2;
-  let outI = new Float32Array(len);
-  let outQ = new Float32Array(len);
-  for (let i = 0; i < len; ++i) {
-    outI[i] = arr[2 * i] / 128 - 0.995;
-    outQ[i] = arr[2 * i + 1] / 128 - 0.995;
-  }
-  return [outI, outQ];
-}
