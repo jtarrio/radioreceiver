@@ -15,13 +15,16 @@
 /** Interface for classes that get samples from a Radio class. */
 export interface SampleReceiver {
   /** Receives samples that should be demodulated. */
-  receiveSamples(I: Float32Array, Q: Float32Array): void;
+  receiveSamples(I: Float32Array, Q: Float32Array, frequency: number): void;
 
   /** Sets a sample receiver to be executed right after this one. */
   andThen(next: SampleReceiver): SampleReceiver;
 }
 
-export function concatenateReceivers(prev: SampleReceiver, next: SampleReceiver): SampleReceiver {
+export function concatenateReceivers(
+  prev: SampleReceiver,
+  next: SampleReceiver
+): SampleReceiver {
   let list = [];
   if (prev instanceof ReceiverSequence) {
     list.push(...prev.receivers);
@@ -37,12 +40,11 @@ export function concatenateReceivers(prev: SampleReceiver, next: SampleReceiver)
 }
 
 class ReceiverSequence implements SampleReceiver {
-  constructor(public receivers: SampleReceiver[]) {
-  }
+  constructor(public receivers: SampleReceiver[]) {}
 
-  receiveSamples(I: Float32Array, Q: Float32Array): void {
+  receiveSamples(I: Float32Array, Q: Float32Array, frequency: number): void {
     for (let receiver of this.receivers) {
-      receiver.receiveSamples(I, Q);
+      receiver.receiveSamples(I, Q, frequency);
     }
   }
 

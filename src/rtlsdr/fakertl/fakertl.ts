@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { RealBuffer, U8Buffer } from "../../dsp/buffers";
-import { RtlDevice, RtlDeviceProvider } from "../rtldevice";
+import { RtlDevice, RtlDeviceProvider, SampleBlock } from "../rtldevice";
 import { Generator } from "./types";
 
 export class FakeRtlProvider implements RtlDeviceProvider {
@@ -104,10 +104,12 @@ export class FakeRtl implements RtlDevice {
     this.nextSample = 0;
   }
 
-  async readSamples(byteLength: number): Promise<ArrayBuffer> {
+  async readSamples(byteLength: number): Promise<SampleBlock> {
+    const frequency = this.centerFrequency;
     const sample = this.nextSample;
     this.nextSample += byteLength / 2;
-    return this.addToQueue(sample, byteLength);
+    const data = await this.addToQueue(sample, byteLength);
+    return { frequency, data };
   }
 
   private async addToQueue(

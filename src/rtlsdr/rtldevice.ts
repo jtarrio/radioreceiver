@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export type SampleBlock = {
+  frequency: number;
+  data: ArrayBuffer;
+};
+
 /** Interface for an RTL-type device. */
 export interface RtlDevice {
   setSampleRate(rate: number): Promise<number>;
@@ -23,7 +28,7 @@ export interface RtlDevice {
   enableDirectSampling(enable: boolean): Promise<void>;
   isDirectSamplingEnabled(): boolean;
   resetBuffer(): Promise<void>;
-  readSamples(length: number): Promise<ArrayBuffer>;
+  readSamples(length: number): Promise<SampleBlock>;
   close(): Promise<void>;
 }
 

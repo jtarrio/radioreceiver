@@ -34,6 +34,11 @@ import { SchemeWBFM } from "./scheme-wbfm";
 import { Player } from "../audio/player";
 import { concatenateReceivers, SampleReceiver } from "../radio/sample_receiver";
 
+type Frequency = {
+  center: number;
+  offset: number;
+};
+
 /** The demodulator class. */
 export class Demodulator implements SampleReceiver {
   /** Fixed input rate. */
@@ -62,6 +67,8 @@ export class Demodulator implements SampleReceiver {
   private stereo: boolean;
   /** Squelch level, 0 to 1. */
   private squelch: number;
+  /** A frequency change we are expecting. */
+  private expectingFrequency?: Frequency;
 
   /** Changes the modulation parameters. */
   setMode(mode: Mode) {
@@ -82,6 +89,11 @@ export class Demodulator implements SampleReceiver {
   /** Returns the current frequency offset. */
   getFrequencyOffset() {
     return this.frequencyOffset;
+  }
+
+  /** Waits until samples arrive with the given center frequency and then sets the offset. */
+  expectFrequencyAndSetOffset(center: number, offset: number) {
+    this.expectingFrequency = { center, offset };
   }
 
   /** Sets the audio volume level, from 0 to 1. */
@@ -152,7 +164,12 @@ export class Demodulator implements SampleReceiver {
   }
 
   /** Receives radio samples. */
-  receiveSamples(I: Float32Array, Q: Float32Array): void {
+  receiveSamples(I: Float32Array, Q: Float32Array, frequency: number): void {
+    if (this.expectingFrequency?.center === frequency) {
+      this.frequencyOffset = this.expectingFrequency.offset;
+      this.expectingFrequency = undefined;
+    }
+
     let { left, right, signalLevel } = this.scheme.demodulate(
       I,
       Q,

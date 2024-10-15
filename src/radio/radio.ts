@@ -36,8 +36,8 @@ type Message =
 
 /** The information in a 'radio' event. */
 export type RadioEventType =
-  | Message
-  | { type: "stop_scan"; frequency: number }
+  | { type: "started" }
+  | { type: "stopped" }
   | { type: "error"; exception: any };
 
 /** The type of 'radio' events. */
@@ -162,7 +162,6 @@ export class Radio extends EventTarget {
         switch (this.state) {
           case State.OFF: {
             if (msg.type == "frequency" && this.frequency != msg.value) {
-              this.dispatchEvent(new RadioEvent(msg));
               this.frequency = msg.value;
             }
             if (
@@ -170,17 +169,14 @@ export class Radio extends EventTarget {
               this.frequencyCorrection != msg.value
             ) {
               this.frequencyCorrection = msg.value;
-              this.dispatchEvent(new RadioEvent(msg));
             }
             if (msg.type == "gain" && this.gain != msg.value) {
-              this.dispatchEvent(new RadioEvent(msg));
               this.gain = msg.value;
             }
             if (
               msg.type == "directSamplingEnabled" &&
               this.directSamplingEnabled != msg.value
             ) {
-              this.dispatchEvent(new RadioEvent(msg));
               this.directSamplingEnabled = msg.value;
             }
             if (msg.type != "start") continue;
@@ -199,7 +195,7 @@ export class Radio extends EventTarget {
             );
             transfers.startStream();
             this.state = State.PLAYING;
-            this.dispatchEvent(new RadioEvent(msg));
+            this.dispatchEvent(new RadioEvent({ type: "started" }));
             break;
           }
           case State.PLAYING: {
@@ -208,35 +204,31 @@ export class Radio extends EventTarget {
                 if (this.frequency != msg.value) {
                   this.frequency = msg.value;
                   await rtl!.setCenterFrequency(this.frequency);
-                  this.dispatchEvent(new RadioEvent(msg));
                 }
                 break;
               case "gain":
                 if (this.gain != msg.value) {
                   this.gain = msg.value;
                   await rtl!.setGain(this.gain);
-                  this.dispatchEvent(new RadioEvent(msg));
                 }
                 break;
               case "frequencyCorrection":
                 if (this.frequencyCorrection != msg.value) {
                   this.frequencyCorrection = msg.value;
                   await rtl!.setFrequencyCorrection(this.frequencyCorrection);
-                  this.dispatchEvent(new RadioEvent(msg));
                 }
                 break;
               case "directSamplingEnabled":
                 if (this.directSamplingEnabled != msg.value) {
                   this.directSamplingEnabled = msg.value;
                   await rtl!.enableDirectSampling(this.directSamplingEnabled);
-                  this.dispatchEvent(new RadioEvent(msg));
                 }
                 break;
               case "stop":
                 await transfers!.stopStream();
                 await rtl!.close();
                 this.state = State.OFF;
-                this.dispatchEvent(new RadioEvent(msg));
+                this.dispatchEvent(new RadioEvent({ type: "stopped" }));
                 break;
               default:
               // do nothing.
@@ -327,8 +319,8 @@ class Transfers {
     this.rtl
       .readSamples(this.samplesPerBuf)
       .then((b) => {
-        let [I, Q] = this.iqConverter.convert(b);
-        this.sampleReceiver.receiveSamples(I, Q);
+        let [I, Q] = this.iqConverter.convert(b.data);
+        this.sampleReceiver.receiveSamples(I, Q, b.frequency);
         if (this.buffersRunning <= this.buffersWanted) return this.readStream();
         --this.buffersRunning;
         if (this.buffersRunning == 0) {

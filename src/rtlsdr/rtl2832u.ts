@@ -16,7 +16,7 @@
 import { RadioError, RadioErrorType } from "../errors";
 import { R820T } from "./r820t";
 import { RtlCom } from "./rtlcom";
-import { RtlDevice, RtlDeviceProvider } from "./rtldevice";
+import { RtlDevice, RtlDeviceProvider, SampleBlock } from "./rtldevice";
 import { Tuner } from "./tuner";
 
 /** Known RTL2832 devices. */
@@ -274,7 +274,7 @@ export class RTL2832U implements RtlDevice {
    * @returns a promise that resolves to the actual tuned frequency.
    */
   async setCenterFrequency(freq: number): Promise<number> {
-    await this._maybeSetDirectSampling(freq < 24000000);
+    await this._maybeSetDirectSampling(freq < 28800000);
     if (this.directSampling) {
       return this._setIfFrequency(freq);
     } else {
@@ -349,8 +349,10 @@ export class RTL2832U implements RtlDevice {
    *     unsigned 8-bit integers; the first one is the sample's I value, and
    *     the second one is its Q value.
    */
-  async readSamples(length: number): Promise<ArrayBuffer> {
-    return this.com.getSamples(length * RTL2832U.BYTES_PER_SAMPLE);
+  async readSamples(length: number): Promise<SampleBlock> {
+    const data = await this.com.getSamples(length * RTL2832U.BYTES_PER_SAMPLE);
+    const frequency = this.centerFrequency;
+    return { frequency, data };
   }
 
   /** Stops the demodulator. */

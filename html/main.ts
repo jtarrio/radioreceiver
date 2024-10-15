@@ -1,6 +1,6 @@
 import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
-import { Demodulator, DemodulatorEvent } from "../src/demod/demodulator";
+import { Demodulator } from "../src/demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../src/demod/sample-counter";
 import { Spectrum } from "../src/demod/spectrum";
 import { RealBuffer } from "../src/dsp/buffers";
@@ -186,14 +186,31 @@ export class RadioReceiverMain extends LitElement {
 
   private onCenterFrequencyChange(e: Event) {
     let input = e.target as HTMLInputElement;
+    let value = Number(input.value);
+    let newFreq = {
+      ...this.frequency,
+      center: value,
+      offset: this.frequency.center + this.frequency.offset - value,
+    };
+    if (!this.isFrequencyValid(newFreq)) {
+      newFreq = { ...newFreq, offset: 0 };
+    }
+    if (newFreq.offset != this.frequency.offset) {
+      this.demodulator.expectFrequencyAndSetOffset(
+        newFreq.center,
+        newFreq.offset
+      );
+    }
     this.radio.setFrequency(Number(input.value));
+    this.frequency = newFreq;
   }
 
   private onTunedFrequencyChange(e: Event) {
     let input = e.target as HTMLInputElement;
+    let value = Number(input.value);
     let newFreq = {
       ...this.frequency,
-      offset: Number(input.value) - this.frequency.center,
+      offset: value - this.frequency.center,
     };
     if (!this.isFrequencyValid(newFreq)) {
       newFreq = {
@@ -202,11 +219,16 @@ export class RadioReceiverMain extends LitElement {
         offset: 0,
       };
     }
-    this.demodulator.setFrequencyOffset(newFreq.offset);
-    this.frequency.offset = newFreq.offset;
     if (newFreq.center != this.frequency.center) {
+      this.demodulator.expectFrequencyAndSetOffset(
+        newFreq.center,
+        newFreq.offset
+      );
       this.radio.setFrequency(newFreq.center);
+    } else {
+      this.demodulator.setFrequencyOffset(newFreq.offset);
     }
+    this.frequency = newFreq;
   }
 
   private onGainChange(e: Event) {
@@ -216,33 +238,16 @@ export class RadioReceiverMain extends LitElement {
     } else {
       this.radio.setGain(Number(input.value));
     }
+    this.gain = this.radio.getGain();
   }
 
   private onRadioEvent(e: RadioEvent) {
     switch (e.detail.type) {
-      case "start":
+      case "started":
         this.playing = true;
         break;
-      case "stop":
+      case "stopped":
         this.playing = false;
-        break;
-      case "frequency":
-        let newFreq = {
-          ...this.frequency,
-          center: e.detail.value,
-          offset:
-            this.frequency.center + this.frequency.offset - e.detail.value,
-        };
-        if (!this.isFrequencyValid(newFreq)) {
-          newFreq = { ...newFreq, offset: 0 };
-        }
-        if (newFreq.offset != this.frequency.offset) {
-          this.demodulator.setFrequencyOffset(newFreq.offset);
-        }
-        this.frequency = newFreq;
-        break;
-      case "gain":
-        this.gain = e.detail.value;
         break;
       case "error":
         let error = e.detail.exception;
