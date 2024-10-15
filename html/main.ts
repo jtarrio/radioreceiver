@@ -1,13 +1,12 @@
 import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
-import { Radio, RadioEvent } from "../src/radio/radio";
-import { RadioErrorType } from "../src/errors";
-import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
-import { Spectrum } from "../src/demod/spectrum";
+import { Demodulator, DemodulatorEvent } from "../src/demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../src/demod/sample-counter";
+import { Spectrum } from "../src/demod/spectrum";
 import { RealBuffer } from "../src/dsp/buffers";
+import { RadioErrorType } from "../src/errors";
 import { RtlSampleRate } from "../src/radio/constants";
-import { RrSpectrum } from "../src/ui/spectrum/spectrum";
+import { Radio, RadioEvent } from "../src/radio/radio";
 import { FakeRtlProvider } from "../src/rtlsdr/fakertl/fakertl";
 import {
   AmGenerator,
@@ -15,9 +14,18 @@ import {
   NoiseGenerator,
   ToneGenerator,
 } from "../src/rtlsdr/fakertl/generators";
+import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
 import { RtlDeviceProvider } from "../src/rtlsdr/rtldevice";
+import { RrSpectrum } from "../src/ui/spectrum/spectrum";
+import "../src/ui/controls/window";
 import "../src/ui/spectrum/spectrum";
-import { Demodulator } from "../src/demod/demodulator";
+
+type Frequency = {
+  center: number;
+  offset: number;
+  leftBand: number;
+  rightBand: number;
+};
 
 const FAKE_RTL = false;
 
@@ -52,6 +60,12 @@ export class RadioReceiverMain extends LitElement {
           flex: 1;
           margin: 0;
         }
+
+        #controls {
+          position: absolute;
+          bottom: 1em;
+          left: 1em;
+        }
       `,
     ];
   }
@@ -61,12 +75,12 @@ export class RadioReceiverMain extends LitElement {
         id="spectrum"
         min-decibels=${-90}
         max-decibels=${-20}
-        center-frequency=${this.frequency}
-        bandwidth=${RtlSampleRate}
+        center-frequency=${this.frequency.center}
+        bandwidth=${this.bandwidth}
         frequency-scale=${1000}
       ></rr-spectrum>
 
-      <rr-window>
+      <rr-window title="Controls" id="controls">
         <input
           type="button"
           id="start"
@@ -81,13 +95,21 @@ export class RadioReceiverMain extends LitElement {
           .hidden=${!this.playing}
           @click=${this.onStop}
         />
-        <label for="frequency">Center frequency: </label
+        <label for="centerFrequency">Center frequency: </label
         ><input
           type="number"
-          id="frequency"
+          id="centerFrequency"
           step="any"
-          .value=${String(this.frequency)}
-          @change=${this.onFrequencyChange}
+          .value=${String(this.frequency.center)}
+          @change=${this.onCenterFrequencyChange}
+        />
+        <label for="tunedFrequency">Tuned frequency: </label
+        ><input
+          type="number"
+          id="tunedFrequency"
+          step="any"
+          .value=${String(this.frequency.center + this.frequency.offset)}
+          @change=${this.onTunedFrequencyChange}
         />
         <label for="gain">Gain: </label
         ><input
@@ -100,8 +122,14 @@ export class RadioReceiverMain extends LitElement {
       </rr-window>`;
   }
 
+  @state() private bandwidth: number = RtlSampleRate;
   @state() private playing: boolean = false;
-  @state() private frequency: number = 88500000;
+  @state() private frequency: Frequency = {
+    center: 88500000,
+    offset: 0,
+    leftBand: 75000,
+    rightBand: 75000,
+  };
   @state() private gain: number | null = null;
   @query("#spectrum") private spectrumView?: RrSpectrum;
   private spectrumBuffer: RealBuffer;
@@ -122,7 +150,7 @@ export class RadioReceiverMain extends LitElement {
     );
 
     this.radio.enableDirectSampling(true);
-    this.radio.setFrequency(this.frequency);
+    this.radio.setFrequency(this.frequency.center);
     this.radio.setGain(this.gain);
 
     this.demodulator.setVolume(1);
@@ -134,6 +162,12 @@ export class RadioReceiverMain extends LitElement {
     this.sampleCounter.addEventListener("sample-click", (e) =>
       this.onSampleClickEvent(e)
     );
+  }
+
+  private isFrequencyValid(freq: Frequency): boolean {
+    const leftEdge = freq.offset - freq.leftBand;
+    const rightEdge = freq.offset + freq.rightBand;
+    return -this.bandwidth / 2 <= leftEdge && rightEdge <= this.bandwidth / 2;
   }
 
   private onSampleClickEvent(e: SampleClickEvent) {
@@ -150,9 +184,29 @@ export class RadioReceiverMain extends LitElement {
     this.radio.stop();
   }
 
-  private onFrequencyChange(e: Event) {
+  private onCenterFrequencyChange(e: Event) {
     let input = e.target as HTMLInputElement;
     this.radio.setFrequency(Number(input.value));
+  }
+
+  private onTunedFrequencyChange(e: Event) {
+    let input = e.target as HTMLInputElement;
+    let newFreq = {
+      ...this.frequency,
+      offset: Number(input.value) - this.frequency.center,
+    };
+    if (!this.isFrequencyValid(newFreq)) {
+      newFreq = {
+        ...newFreq,
+        center: newFreq.center + newFreq.offset,
+        offset: 0,
+      };
+    }
+    this.demodulator.setFrequencyOffset(newFreq.offset);
+    this.frequency.offset = newFreq.offset;
+    if (newFreq.center != this.frequency.center) {
+      this.radio.setFrequency(newFreq.center);
+    }
   }
 
   private onGainChange(e: Event) {
@@ -173,7 +227,19 @@ export class RadioReceiverMain extends LitElement {
         this.playing = false;
         break;
       case "frequency":
-        this.frequency = e.detail.value;
+        let newFreq = {
+          ...this.frequency,
+          center: e.detail.value,
+          offset:
+            this.frequency.center + this.frequency.offset - e.detail.value,
+        };
+        if (!this.isFrequencyValid(newFreq)) {
+          newFreq = { ...newFreq, offset: 0 };
+        }
+        if (newFreq.offset != this.frequency.offset) {
+          this.demodulator.setFrequencyOffset(newFreq.offset);
+        }
+        this.frequency = newFreq;
         break;
       case "gain":
         this.gain = e.detail.value;
