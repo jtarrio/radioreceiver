@@ -239,7 +239,9 @@ export class RTL2832U implements RtlDevice {
   async setGain(gain: number | null) {
     this.gain = gain;
     await this.com.openI2C();
-    if (this.gain === null) {
+    if (this.directSampling) {
+      this._enableRtlAgc(gain == null);
+    } else if (this.gain === null) {
       await this.tuner.setAutoGain();
     } else {
       await this.tuner.setManualGain(this.gain);
@@ -249,6 +251,10 @@ export class RTL2832U implements RtlDevice {
 
   getGain(): number | null {
     return this.gain;
+  }
+
+  private async _enableRtlAgc(enable: boolean) {
+    await this.com.setDemodReg(0, 0x19, enable ? 0x25 : 0x05, 1);
   }
 
   private _getXtalFrequency(): number {
@@ -310,6 +316,7 @@ export class RTL2832U implements RtlDevice {
       await this.com.setDemodReg(1, 0x15, 0b00000000, 1);
       // [5:4] exchange ADC_I, ADC_Q datapath
       await this.com.setDemodReg(0, 0x06, 0b10010000, 1);
+      await this._enableRtlAgc(this.gain == null);
     } else {
       await this.com.openI2C();
       await this.tuner.open();
@@ -322,6 +329,8 @@ export class RTL2832U implements RtlDevice {
       await this.com.setDemodReg(1, 0x15, 0b00000001, 1);
       // [5:4] default ADC_I, ADC_Q datapath
       await this.com.setDemodReg(0, 0x06, 0b10000000, 1);
+      await this._enableRtlAgc(false);
+      await this.setGain(this.getGain());
     }
   }
 

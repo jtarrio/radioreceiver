@@ -121,6 +121,7 @@ export class RadioReceiverMain extends LitElement {
       this.spectrum.andThen(this.demodulator).andThen(this.sampleCounter)
     );
 
+    this.radio.enableDirectSampling(true);
     this.radio.setFrequency(this.frequency);
     this.radio.setGain(this.gain);
 
