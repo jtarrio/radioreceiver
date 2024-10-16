@@ -1,7 +1,8 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, nothing } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { Demodulator } from "../src/demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../src/demod/sample-counter";
+import { type Mode } from "../src/demod/scheme";
 import { Spectrum } from "../src/demod/spectrum";
 import { Float32Buffer } from "../src/dsp/buffers";
 import { RadioErrorType } from "../src/errors";
@@ -26,6 +27,14 @@ type Frequency = {
   leftBand: number;
   rightBand: number;
 };
+
+const DefaultModes: Array<Mode> = [
+  { scheme: "WBFM" },
+  { scheme: "NBFM", maxF: 2500 },
+  { scheme: "AM", bandwidth: 10000 },
+  { scheme: "LSB", bandwidth: 2800 },
+  { scheme: "USB", bandwidth: 2800 },
+];
 
 const FAKE_RTL = false;
 
@@ -81,46 +90,91 @@ export class RadioReceiverMain extends LitElement {
       ></rr-spectrum>
 
       <rr-window title="Controls" id="controls">
-        <input
-          type="button"
-          id="start"
-          value="Start"
-          .hidden=${this.playing}
-          @click=${this.onStart}
-        />
-        <input
-          type="button"
-          id="stop"
-          value="Stop"
-          .hidden=${!this.playing}
-          @click=${this.onStop}
-        />
-        <label for="centerFrequency">Center frequency: </label
-        ><input
-          type="number"
-          id="centerFrequency"
-          step="any"
-          .value=${String(this.frequency.center)}
-          @change=${this.onCenterFrequencyChange}
-        />
-        <label for="tunedFrequency">Tuned frequency: </label
-        ><input
-          type="number"
-          id="tunedFrequency"
-          step="any"
-          .value=${String(this.frequency.center + this.frequency.offset)}
-          @change=${this.onTunedFrequencyChange}
-        />
-        <label for="gain">Gain: </label
-        ><input
-          type="number"
-          id="gain"
-          step="any"
-          .value=${this.gain === null ? "" : String(this.gain)}
-          @change=${this.onGainChange}
-        />
+        <div>
+          <input
+            type="button"
+            id="start"
+            value="Start"
+            .hidden=${this.playing}
+            @click=${this.onStart}
+          />
+          <input
+            type="button"
+            id="stop"
+            value="Stop"
+            .hidden=${!this.playing}
+            @click=${this.onStop}
+          />
+          <label for="centerFrequency">Center frequency: </label
+          ><input
+            type="number"
+            id="centerFrequency"
+            min="0"
+            max="1800000000"
+            step="any"
+            .value=${String(this.frequency.center)}
+            @change=${this.onCenterFrequencyChange}
+          />
+          <label for="tunedFrequency">Tuned frequency: </label
+          ><input
+            type="number"
+            id="tunedFrequency"
+            min="0"
+            max="1800000000"
+            step="any"
+            .value=${String(this.frequency.center + this.frequency.offset)}
+            @change=${this.onTunedFrequencyChange}
+          />
+        </div>
+        <div>
+          <label for="scheme">Modulation: </label>
+          <select id="scheme" @change=${this.onSchemeChange}>
+            ${this.availableModes
+              .keys()
+              .map(
+                (k) =>
+                  html`<option value="${k}" .selected=${this.mode.scheme == k}>
+                    ${k}
+                  </option>`
+              )}
+          </select>
+          <label for="bandwidth">Bandwidth: </label
+          ><input
+            type="number"
+            id="bandwidth"
+            min="0"
+            max="20000"
+            step="any"
+            .value=${this.mode.scheme == "WBFM"
+              ? "150000"
+              : this.mode.scheme == "NBFM"
+                ? String(this.mode.maxF * 2)
+                : String(this.mode.bandwidth)}
+            .disabled=${this.mode.scheme == "WBFM"}
+            @change=${this.onBandwidthChange}
+          />
+          <label for="gain">Gain: </label
+          ><input
+            type="number"
+            id="gain"
+            min="0"
+            max="50"
+            step="any"
+            .value=${this.gain === null ? "" : String(this.gain)}
+            @change=${this.onGainChange}
+          />
+        </div>
       </rr-window>`;
   }
+
+  private spectrumBuffer: Float32Buffer;
+  private spectrum: Spectrum;
+  private demodulator: Demodulator;
+  private sampleCounter: SampleCounter;
+  private radio: Radio;
+  private availableModes = new Map(
+    DefaultModes.map((s) => [s.scheme as string, { ...s } as Mode])
+  );
 
   @state() private bandwidth: number = RtlSampleRate;
   @state() private playing: boolean = false;
@@ -130,13 +184,10 @@ export class RadioReceiverMain extends LitElement {
     leftBand: 75000,
     rightBand: 75000,
   };
+  @state() private mode: Mode = this.availableModes.get("WBFM")!;
   @state() private gain: number | null = null;
+
   @query("#spectrum") private spectrumView?: RrSpectrum;
-  private spectrumBuffer: Float32Buffer;
-  private spectrum: Spectrum;
-  private demodulator: Demodulator;
-  private sampleCounter: SampleCounter;
-  private radio: Radio;
 
   constructor() {
     super();
@@ -231,14 +282,81 @@ export class RadioReceiverMain extends LitElement {
     this.frequency = newFreq;
   }
 
+  private onSchemeChange(e: Event) {
+    let value = (e.target as HTMLSelectElement).selectedOptions[0].value;
+    let mode = this.availableModes.get(value);
+    if (mode === undefined) return;
+    this.demodulator.setMode(mode);
+    this.mode = mode;
+    this.updateFrequencyBands();
+  }
+
+  private onBandwidthChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let value = Number(target.value);
+    let newMode = { ...this.mode };
+    switch (newMode.scheme) {
+      case "WBFM":
+        break;
+      case "NBFM":
+        newMode.maxF = value / 2;
+        break;
+      default:
+        newMode.bandwidth = value;
+        break;
+    }
+    this.demodulator.setMode(newMode);
+    this.mode = newMode;
+    this.updateFrequencyBands();
+  }
+
+  private updateFrequencyBands() {
+    let newFreq = { ...this.frequency };
+    switch (this.mode.scheme) {
+      case "WBFM":
+        newFreq.leftBand = newFreq.rightBand = 75000;
+        break;
+      case "NBFM":
+        newFreq.leftBand = newFreq.rightBand = this.mode.maxF;
+        break;
+      case "AM":
+        newFreq.leftBand = newFreq.rightBand = this.mode.bandwidth / 2;
+        break;
+      case "USB":
+        newFreq.leftBand = 0;
+        newFreq.rightBand = this.mode.bandwidth;
+        break;
+      case "LSB":
+        newFreq.leftBand = this.mode.bandwidth;
+        newFreq.rightBand = 0;
+    }
+    if (!this.isFrequencyValid(newFreq)) {
+      newFreq = {
+        ...newFreq,
+        center: newFreq.center + newFreq.offset,
+        offset: 0,
+      };
+      if (newFreq.center != this.frequency.center) {
+        this.demodulator.expectFrequencyAndSetOffset(
+          newFreq.center,
+          newFreq.offset
+        );
+        this.radio.setFrequency(newFreq.center);
+      } else {
+        this.demodulator.setFrequencyOffset(newFreq.offset);
+      }
+    }
+    this.frequency = newFreq;
+  }
+
   private onGainChange(e: Event) {
     let input = e.target as HTMLInputElement;
-    if (input.value == "") {
-      this.radio.setGain(null);
-    } else {
-      this.radio.setGain(Number(input.value));
+    let gain = null;
+    if (input.value != "") {
+      gain = Number(input.value);
     }
-    this.gain = this.radio.getGain();
+    this.radio.setGain(gain);
+    this.gain = gain;
   }
 
   private onRadioEvent(e: RadioEvent) {

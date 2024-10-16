@@ -8,6 +8,7 @@
     ],
     "module": "esnext",
     "moduleResolution": "node",
+    "isolatedModules": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "emitDecoratorMetadata": true,
