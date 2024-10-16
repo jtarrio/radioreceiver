@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { RealBuffer } from "./buffers";
+import { Float32Buffer } from "./buffers";
 import { FIRFilter } from "./filters";
 
 /** A class to convert the input to a lower sample rate. */
@@ -27,12 +27,12 @@ export class Downsampler {
   constructor(inRate: number, outRate: number, coefficients: Float32Array) {
     this.filter = new FIRFilter(coefficients);
     this.rateMul = inRate / outRate;
-    this.buffer = new RealBuffer(2);
+    this.buffer = new Float32Buffer(2);
   }
 
   private filter: FIRFilter;
   private rateMul: number;
-  private buffer: RealBuffer;
+  private buffer: Float32Buffer;
 
   /**
    * Returns a downsampled version of the given samples.

@@ -14,7 +14,7 @@
 
 // Continuous spectrum analyzer.
 
-import { CircularBuffer } from "../dsp/buffers";
+import { Float32RingBuffer } from "../dsp/buffers";
 import { makeBlackmanWindow } from "../dsp/coefficients";
 import { FFT } from "../dsp/fft";
 import { concatenateReceivers, SampleReceiver } from "../radio/sample_receiver";
@@ -26,15 +26,26 @@ export class Spectrum implements SampleReceiver {
     } else {
       fftSize = Math.max(32, Math.min(131072, fftSize));
     }
-    this.I = new CircularBuffer(131072);
-    this.Q = new CircularBuffer(131072);
+    this.I = new Float32RingBuffer(131072);
+    this.Q = new Float32RingBuffer(131072);
     this.fft = FFT.ofLength(fftSize);
     this.fft.setWindow(makeBlackmanWindow(this.fft.length));
+    this.lastOutput = new Float32Array(this.fft.length);
+    this.dirty = true;
   }
 
-  private I: CircularBuffer;
-  private Q: CircularBuffer;
+  private I: Float32RingBuffer;
+  private Q: Float32RingBuffer;
   private fft: FFT;
+  private lastOutput: Float32Array;
+  private dirty: boolean;
+
+  set size(newSize: number) {
+    this.fft = FFT.ofLength(newSize);
+    this.fft.setWindow(makeBlackmanWindow(this.fft.length));
+    this.lastOutput = new Float32Array(this.fft.length);
+    this.dirty = true;
+  }
 
   get size() {
     return this.fft.length;
@@ -43,6 +54,7 @@ export class Spectrum implements SampleReceiver {
   receiveSamples(I: Float32Array, Q: Float32Array, _: number): void {
     this.I.store(I);
     this.Q.store(Q);
+    this.dirty = true;
   }
 
   andThen(next: SampleReceiver): SampleReceiver {
@@ -50,12 +62,16 @@ export class Spectrum implements SampleReceiver {
   }
 
   getSpectrum(spectrum: Float32Array) {
-    let output = this.fft.transformCircularBuffers(this.I, this.Q);
-    spectrum.fill(-Infinity);
-    for (let i = 0; i < output.real.length && i < spectrum.length; ++i) {
-      const power =
-        output.real[i] * output.real[i] + output.imag[i] * output.imag[i];
-      spectrum[i] = 10 * Math.log10(power);
+    if (this.dirty) {
+      let fft = this.fft.transformCircularBuffers(this.I, this.Q);
+      this.lastOutput.fill(-Infinity);
+      for (let i = 0; i < this.lastOutput.length; ++i) {
+        this.lastOutput[i] =
+          10 *
+          Math.log10(fft.real[i] * fft.real[i] + fft.imag[i] * fft.imag[i]);
+      }
+      this.dirty = false;
     }
+    spectrum.set(this.lastOutput.subarray(0, spectrum.length));
   }
 }

@@ -16,7 +16,7 @@
 import { makeLowPassKernel, makeHilbertKernel } from "./coefficients";
 import { Downsampler } from "./resamplers";
 import { FIRFilter, DcBlocker } from "./filters";
-import { RealBuffer } from "./buffers";
+import { Float32Buffer } from "./buffers";
 
 /** A class to demodulate a single-sideband (SSB) signal. */
 export class SSBDemodulator {
@@ -285,7 +285,7 @@ export class StereoSeparator {
    * @param pilotFreq The frequency of the pilot tone.
    */
   constructor(sampleRate: number, pilotFreq: number) {
-    this.buffer = new RealBuffer(4);
+    this.buffer = new Float32Buffer(4);
     this.sin = 0;
     this.cos = 1;
     this.iavg = new ExpAverage(9999);
@@ -303,7 +303,7 @@ export class StereoSeparator {
 
   private static STD_THRES = 400;
 
-  private buffer: RealBuffer;
+  private buffer: Float32Buffer;
   private sin: number;
   private cos: number;
   private iavg: ExpAverage;

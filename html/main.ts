@@ -3,7 +3,7 @@ import { customElement, query, state } from "lit/decorators.js";
 import { Demodulator } from "../src/demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../src/demod/sample-counter";
 import { Spectrum } from "../src/demod/spectrum";
-import { RealBuffer } from "../src/dsp/buffers";
+import { Float32Buffer } from "../src/dsp/buffers";
 import { RadioErrorType } from "../src/errors";
 import { RtlSampleRate } from "../src/radio/constants";
 import { Radio, RadioEvent } from "../src/radio/radio";
@@ -132,7 +132,7 @@ export class RadioReceiverMain extends LitElement {
   };
   @state() private gain: number | null = null;
   @query("#spectrum") private spectrumView?: RrSpectrum;
-  private spectrumBuffer: RealBuffer;
+  private spectrumBuffer: Float32Buffer;
   private spectrum: Spectrum;
   private demodulator: Demodulator;
   private sampleCounter: SampleCounter;
@@ -140,7 +140,7 @@ export class RadioReceiverMain extends LitElement {
 
   constructor() {
     super();
-    this.spectrumBuffer = new RealBuffer(2, 2048);
+    this.spectrumBuffer = new Float32Buffer(2, 2048);
     this.spectrum = new Spectrum();
     this.demodulator = new Demodulator();
     this.sampleCounter = new SampleCounter(20);

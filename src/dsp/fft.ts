@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { CircularBuffer, RealBuffer } from "./buffers";
+import { Float32RingBuffer, IqBuffer } from "./buffers";
 
 /** Fast Fourier Transform implementation. */
 
@@ -50,8 +50,8 @@ export class FFT {
     let [fwd, bwd] = makeFftCoefficients(length);
     this.fwd = fwd;
     this.bwd = bwd;
-    this.copy = new RealBuffer(4, length);
-    this.out = new RealBuffer(4, length);
+    this.copy = new IqBuffer(2, length);
+    this.out = new IqBuffer(2, length);
     this.window = new Float32Array(length);
     this.window.fill(1);
   }
@@ -59,8 +59,8 @@ export class FFT {
   private revIndex: Int32Array;
   private fwd: ComplexArray[];
   private bwd: ComplexArray[];
-  private copy: RealBuffer;
-  private out: RealBuffer;
+  private copy: IqBuffer;
+  private out: IqBuffer;
   private window: Float32Array;
 
   /** Sets the window function for this FFT. */
@@ -78,8 +78,7 @@ export class FFT {
   transform(real: number[], imag: number[]): FFTOutput;
   transform<T extends Array<number>>(real: T, imag: T): FFTOutput {
     const length = this.length;
-    let outReal = this.out.get(length);
-    let outImag = this.out.get(length);
+    let [outReal, outImag] = this.out.get(length);
     outReal.fill(0);
     outImag.fill(0);
     for (let i = 0; i < length && i < real.length && i < imag.length; ++i) {
@@ -92,19 +91,18 @@ export class FFT {
   }
 
   transformCircularBuffers(
-    real: CircularBuffer,
-    imag: CircularBuffer
+    real: Float32RingBuffer,
+    imag: Float32RingBuffer
   ): FFTOutput {
     const length = this.length;
-    let copyReal = this.copy.get(length);
-    let copyImag = this.copy.get(length);
+    let [copyReal, copyImag] = this.copy.get(length);
     real.copyTo(copyReal);
     imag.copyTo(copyImag);
     return this.transform(copyReal, copyImag);
   }
 
   /**
-   * Does a reverse transform of the given frequency-domain input, storing the result in the given output arrays.
+   * Does a reverse transform of the given frequency-domain input.
    * The input and output arrays must be the same length as the FFT.
    * @param real An array of real parts.
    * @param imag An array of imaginary parts.
@@ -114,8 +112,7 @@ export class FFT {
   reverse(real: number[], imag: number[]): FFTOutput;
   reverse<T extends Array<number>>(real: T, imag: T): FFTOutput {
     const length = this.length;
-    let outReal = this.out.get(length);
-    let outImag = this.out.get(length);
+    let [outReal, outImag] = this.out.get(length);
     outReal.fill(0);
     outImag.fill(0);
     for (let i = 0; i < length && i < real.length && i < imag.length; ++i) {
