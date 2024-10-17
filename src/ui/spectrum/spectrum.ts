@@ -2,24 +2,14 @@ import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { defaultMaxDecibels, defaultMinDecibels, GridLine } from "./common";
-import {
-  FrequencyDragCancelEvent,
-  FrequencyDragCompleteEvent,
-  FrequencyDragEvent,
-  FrequencySelectedEvent,
-  FrequencyDragStartEvent,
-  FrequencyTapEvent,
-} from "./events";
 import { Direction, getGridLines, Orientation } from "./grid-lines";
 import { RrOverlay } from "./overlay";
 import { RrScope } from "./scope";
-import { RrSelection } from "./selection";
 import { RrWaterfall } from "./waterfall";
 import "./captions";
 import "./event-source";
 import "./overlay";
 import "./scope";
-import "./selection";
 import "./waterfall";
 
 @customElement("rr-spectrum")
@@ -34,12 +24,6 @@ export class RrSpectrum extends LitElement {
   minDecibels: number = defaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = defaultMaxDecibels;
-  @property({ type: Boolean, reflect: true })
-  selectable: boolean = false;
-  @property({ attribute: false })
-  get selection() {
-    return this.selector?.selection;
-  }
   @state()
   lines: Array<GridLine> = [];
 
@@ -118,20 +102,14 @@ export class RrSpectrum extends LitElement {
           min-decibels=${this.minDecibels}
           max-decibels=${this.maxDecibels}
         ></rr-scope
-        ><rr-overlay
-          id="scopeOverlay"
-          .lines=${this.lines}
-        ></rr-overlay
+        ><rr-overlay id="scopeOverlay" .lines=${this.lines}></rr-overlay
         ><rr-captions
           id="scopeFrequencies"
           .lines=${this.lines}
           ?horizontal=${true}
           scale=${this.frequencyScale}
         ></rr-captions
-        ><rr-captions
-          id="scopeDecibels"
-          .lines=${this.lines}
-        ></rr-captions>
+        ><rr-captions id="scopeDecibels" .lines=${this.lines}></rr-captions>
       </div>
       <div id="waterfallBox" class="box">
         <rr-waterfall
@@ -140,11 +118,6 @@ export class RrSpectrum extends LitElement {
           max-decibels=${this.maxDecibels}
         ></rr-waterfall>
       </div>
-      <rr-selection
-        id="selector"
-        bandwidth=${ifDefined(this.bandwidth)}
-        center-frequency=${this.centerFrequency}
-      ></rr-selection>
       <rr-event-source
         id="eventSource"
         bandwidth=${ifDefined(this.bandwidth)}
@@ -155,18 +128,6 @@ export class RrSpectrum extends LitElement {
   @query("#scope") scope?: RrScope;
   @query("#scopeOverlay") scopeOverlay?: RrOverlay;
   @query("#waterfall") waterfall?: RrWaterfall;
-  @query("#selector") selector?: RrSelection;
-
-  constructor() {
-    super();
-    this.addEventListener("frequency-drag-start", (e) => this._dragStart(e));
-    this.addEventListener("frequency-drag", (e) => this._dragContinue(e));
-    this.addEventListener("frequency-drag-complete", (e) =>
-      this._dragComplete(e)
-    );
-    this.addEventListener("frequency-drag-cancel", (e) => this._dragCancel(e));
-    this.addEventListener("frequency-tap", (e) => this._tap(e));
-  }
 
   protected firstUpdated(): void {
     const resizeObserver = new ResizeObserver(() => this._computeLines());
@@ -182,47 +143,6 @@ export class RrSpectrum extends LitElement {
   addFloatSpectrum(spectrum: Float32Array) {
     this.scope?.addFloatSpectrum(spectrum);
     this.waterfall?.addFloatSpectrum(spectrum);
-  }
-
-  selectFrequencies(from: number, to: number) {
-    const oldSelection = this.selection;
-    this.selector?.selectFrequencies(from, to);
-    this.requestUpdate("selection", oldSelection);
-  }
-
-  selectPositions(start: number, end: number) {
-    const oldSelection = this.selection;
-    this.selector?.selectPositions(start, end);
-    this.requestUpdate("selection", oldSelection);
-  }
-
-  clearSelection() {
-    const oldSelection = this.selection;
-    this.selector?.clearSelection();
-    this.requestUpdate("selection", oldSelection);
-  }
-
-  private _dragStart(e: FrequencyDragStartEvent) {
-    if (this.selectable) this.clearSelection();
-  }
-
-  private _dragContinue(e: FrequencyDragEvent) {
-    if (this.selectable) this.selectFrequencies(e.detail.from, e.detail.to);
-  }
-
-  private _dragComplete(e: FrequencyDragCompleteEvent) {
-    if (this.selectable) {
-      this.selectFrequencies(e.detail.from, e.detail.to);
-      this.dispatchEvent(new FrequencySelectedEvent(e.detail));
-    }
-  }
-
-  private _dragCancel(e: FrequencyDragCancelEvent) {
-    if (this.selectable) this.clearSelection();
-  }
-
-  private _tap(e: FrequencyTapEvent) {
-    if (this.selectable) this.clearSelection();
   }
 
   private _computeLines() {
