@@ -32,7 +32,7 @@ type Frequency = {
 
 const DefaultModes: Array<Mode> = [
   { scheme: "WBFM" },
-  { scheme: "NBFM", maxF: 2500 },
+  { scheme: "NBFM", maxF: 5000 },
   { scheme: "AM", bandwidth: 10000 },
   { scheme: "LSB", bandwidth: 2800 },
   { scheme: "USB", bandwidth: 2800 },
@@ -102,6 +102,17 @@ export class RadioReceiverMain extends LitElement {
         center-frequency=${this.frequency.center}
         bandwidth=${this.bandwidth}
         frequency-scale=${this.scale}
+        .highlight=${{
+          frequency: this.frequency.center + this.frequency.offset,
+          from:
+            this.frequency.center +
+            this.frequency.offset -
+            this.frequency.leftBand,
+          to:
+            this.frequency.center +
+            this.frequency.offset +
+            this.frequency.rightBand,
+        }}
       ></rr-spectrum>
 
       <rr-window label="Controls" id="controls">
@@ -132,7 +143,7 @@ export class RadioReceiverMain extends LitElement {
             id="tunedFrequency"
             min="0"
             max="1800000000"
-            .frequency=${this.frequency.center}
+            .frequency=${this.frequency.center + this.frequency.offset}
             .scale=${this.scale}
             @change=${this.onTunedFrequencyChange}
             @scale-change=${this.onScaleChange}
@@ -279,7 +290,7 @@ export class RadioReceiverMain extends LitElement {
 
   private onTunedFrequencyChange(e: Event) {
     let input = e.target as RrFrequencyInput;
-    let value = input.frequency
+    let value = input.frequency;
     let newFreq = {
       ...this.frequency,
       offset: value - this.frequency.center,

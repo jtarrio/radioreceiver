@@ -100,13 +100,13 @@ export class RrWindow extends LitElement {
   @state() private dragging?: Dragging;
   private resizeObserver?: ResizeObserver;
 
-  protected connectedCallback(): void {
+  connectedCallback(): void {
     super.connectedCallback();
     this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
     this.resizeObserver.observe(document.body);
   }
 
-  protected disconnectedCallback(): void {
+  disconnectedCallback(): void {
     super.disconnectedCallback();
     this.resizeObserver?.disconnect();
   }

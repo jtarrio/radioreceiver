@@ -14,10 +14,14 @@ export type GridLine = {
 
 // Selected frequency range.
 export type GridSelection = {
+  // Selected point, as a fraction of the width from the left.
+  point?: number;
   // Start of the selection, as a fraction of the width from the left.
   start?: number;
   // End of the selection, as a fraction of the width from the left.
   end?: number;
+  // Selected frequency.
+  frequency?: number;
   // Start of the selection, as a frequency.
   from?: number;
   // End of the selection, as a frequency.

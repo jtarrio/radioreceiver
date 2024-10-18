@@ -1,13 +1,19 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
-import { defaultMaxDecibels, defaultMinDecibels, GridLine } from "./common";
+import {
+  defaultMaxDecibels,
+  defaultMinDecibels,
+  GridLine,
+  type GridSelection,
+} from "./common";
 import { Direction, getGridLines, Orientation } from "./grid-lines";
 import { RrOverlay } from "./overlay";
 import { RrScope } from "./scope";
 import { RrWaterfall } from "./waterfall";
 import "./captions";
 import "./event-source";
+import "./highlight";
 import "./overlay";
 import "./scope";
 import "./waterfall";
@@ -24,8 +30,8 @@ export class RrSpectrum extends LitElement {
   minDecibels: number = defaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = defaultMaxDecibels;
-  @state()
-  lines: Array<GridLine> = [];
+  @property({ attribute: false })
+  highlight?: GridSelection;
 
   static get styles() {
     return [
@@ -84,7 +90,8 @@ export class RrSpectrum extends LitElement {
         }
 
         #selector,
-        #eventSource {
+        #eventSource,
+        #highlight {
           position: absolute;
           left: var(--left-caption-margin);
           top: var(--top-caption-margin);
@@ -122,12 +129,19 @@ export class RrSpectrum extends LitElement {
         id="eventSource"
         bandwidth=${ifDefined(this.bandwidth)}
         center-frequency=${this.centerFrequency}
-      ></rr-event-source>`;
+      ></rr-event-source>
+      <rr-highlight
+        id="highlight"
+        bandwidth=${ifDefined(this.bandwidth)}
+        center-frequency=${this.centerFrequency}
+        .selection=${this.highlight}
+      ></rr-highlight>`;
   }
 
   @query("#scope") scope?: RrScope;
   @query("#scopeOverlay") scopeOverlay?: RrOverlay;
   @query("#waterfall") waterfall?: RrWaterfall;
+  @state() private lines: Array<GridLine> = [];
 
   protected firstUpdated(): void {
     const resizeObserver = new ResizeObserver(() => this._computeLines());
