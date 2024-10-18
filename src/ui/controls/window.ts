@@ -1,10 +1,10 @@
-import { css, html, LitElement } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { css, html, LitElement, PropertyValues } from "lit";
+import { customElement, property, query, state } from "lit/decorators.js";
 
 @customElement("rr-window")
 export class RrWindow extends LitElement {
   @property({ type: String, reflect: true })
-  title: string = "";
+  label: string = "";
 
   static get styles() {
     return [
@@ -13,20 +13,44 @@ export class RrWindow extends LitElement {
           position: absolute;
           width: auto;
           height: auto;
+          display: flex;
           flex-direction: column;
           box-sizing: border-box;
         }
 
-        .title {
-          flex: none;
+        .label {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
           border: 2px solid var(--ips-border-color);
           border-bottom: none;
           border-radius: 10px 10px 0 0;
-          padding: 3px;
-          padding-left: 16px;
-          background: var(--ips-title-background);
-          color: var(--ips-title-color);
-          cursor: move;
+          padding: 3px 16px 3px 16px;
+          background: var(--ips-label-background);
+          color: var(--ips-label-color);
+          cursor: grab;
+        }
+
+        .label.moving {
+          cursor: grabbing;
+        }
+
+        .label-left,
+        .label-middle,
+        .label-right {
+          display: inline-block;
+        }
+
+        .label-middle {
+          flex: 1;
+        }
+
+        .label-left ::slotted(*) {
+          margin-right: 8px;
+        }
+
+        .label-right ::slotted(*) {
+          margin-left: 8px;
         }
 
         .content {
@@ -41,8 +65,8 @@ export class RrWindow extends LitElement {
           --ips-border-color: var(--rr-window-border-color, black);
           --ips-background: var(--rr-window-background, white);
           --ips-color: var(--rr-window-color, black);
-          --ips-title-background: var(--rr-title-background, #4f5fff);
-          --ips-title-color: var(--rr-title-color, white);
+          --ips-label-background: var(--rr-label-background, #4f5fff);
+          --ips-label-color: var(--rr-label-color, white);
         }
 
         @media (prefers-color-scheme: dark) {
@@ -50,8 +74,8 @@ export class RrWindow extends LitElement {
             --ips-border-color: var(--rr-window-border-color, white);
             --ips-background: var(--rr-window-background, black);
             --ips-color: var(--rr-window-color, white);
-            --ips-title-background: var(--rr-title-background, #1f2f7f);
-            --ips-title-color: var(--rr-title-color, white);
+            --ips-label-background: var(--rr-label-background, #1f2f7f);
+            --ips-label-color: var(--rr-label-color, white);
           }
         }
       `,
@@ -60,18 +84,36 @@ export class RrWindow extends LitElement {
 
   render() {
     return html`<div
-        class="title"
+        class="label${this.dragging !== undefined ? " moving" : ""}"
         @pointerdown=${this.dragStart}
         @pointermove=${this.drag}
         @pointerup=${this.dragEnd}
         @pointercancel=${this.dragCancel}
       >
-        ${this.title}
+        <div class="label-left"><slot name="label-left"></slot></div>
+        <div class="label-middle"><slot name="label">${this.label}</slot></div>
+        <div class="label-right"><slot name="label-right"></slot></div>
       </div>
       <div class="content"><slot></slot></div>`;
   }
 
-  private dragging?: Dragging;
+  @state() private dragging?: Dragging;
+  private resizeObserver?: ResizeObserver;
+
+  protected connectedCallback(): void {
+    super.connectedCallback();
+    this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
+    this.resizeObserver.observe(document.body);
+  }
+
+  protected disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.resizeObserver?.disconnect();
+  }
+
+  protected firstUpdated(): void {
+    fixElement(this);
+  }
 
   private dragStart(e: PointerEvent) {
     this.dragging?.cancel(e);
@@ -91,6 +133,39 @@ export class RrWindow extends LitElement {
     this.dragging?.cancel(e);
     this.dragging = undefined;
   }
+
+  private onWindowResize() {
+    moveElementWithinViewport(this, this.offsetLeft, this.offsetTop);
+  }
+}
+
+function fixElement(element: HTMLElement) {
+  let rect = element.getBoundingClientRect();
+  element.style.width = rect.width + "px";
+  element.style.height = rect.height + "px";
+  element.style.left = rect.left + "px";
+  element.style.top = rect.top + "px";
+  element.style.right = "";
+  element.style.bottom = "";
+}
+
+function moveElementWithinViewport(element: HTMLElement, x: number, y: number) {
+  let origX = element.offsetLeft;
+  let origY = element.offsetTop;
+  if (x >= visualViewport!.width - element.offsetWidth)
+    x = visualViewport!.width - element.offsetWidth;
+  if (y >= visualViewport!.height - element.offsetHeight)
+    y = visualViewport!.height - element.offsetHeight;
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (x != origX || y != origY) {
+    moveElement(element, Math.floor(x), Math.floor(y));
+  }
+}
+
+function moveElement(element: HTMLElement, x: number, y: number) {
+  element.style.left = x + "px";
+  element.style.top = y + "px";
 }
 
 class Dragging {
@@ -102,7 +177,6 @@ class Dragging {
     this.elemY = element.offsetTop;
     this.startX = firstEvent.clientX;
     this.startY = firstEvent.clientY;
-    this.fixElement();
     (firstEvent.target as HTMLElement).setPointerCapture(firstEvent.pointerId);
     firstEvent.preventDefault();
   }
@@ -115,15 +189,11 @@ class Dragging {
   drag(e: PointerEvent) {
     let deltaX = e.clientX - this.startX;
     let deltaY = e.clientY - this.startY;
-    let x = this.elemX + deltaX;
-    let y = this.elemY + deltaY;
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
-    if (x >= visualViewport!.width - this.element.offsetWidth)
-      x = visualViewport!.width - this.element.offsetWidth;
-    if (y >= visualViewport!.height - this.element.offsetHeight)
-      y = visualViewport!.height - this.element.offsetHeight;
-    this.moveElement(Math.floor(x), Math.floor(y));
+    moveElementWithinViewport(
+      this.element,
+      this.elemX + deltaX,
+      this.elemY + deltaY
+    );
     e.preventDefault();
   }
 
@@ -133,22 +203,7 @@ class Dragging {
   }
 
   cancel(e: PointerEvent) {
-    this.moveElement(this.elemX, this.elemY);
+    moveElement(this.element, this.elemX, this.elemY);
     this.finish(e);
-  }
-
-  private fixElement() {
-    let rect = this.element.getBoundingClientRect();
-    this.element.style.width = rect.width + "px";
-    this.element.style.height = rect.height + "px";
-    this.element.style.left = rect.left + "px";
-    this.element.style.top = rect.top + "px";
-    this.element.style.right = "";
-    this.element.style.bottom = "";
-  }
-
-  private moveElement(x: number, y: number) {
-    this.element.style.left = x + "px";
-    this.element.style.top = y + "px";
   }
 }

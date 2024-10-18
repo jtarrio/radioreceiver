@@ -17,7 +17,9 @@ import {
 } from "../src/rtlsdr/fakertl/generators";
 import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
 import { RtlDeviceProvider } from "../src/rtlsdr/rtldevice";
+import { RrFrequencyInput } from "../src/ui/controls/frequency-input";
 import { RrSpectrum } from "../src/ui/spectrum/spectrum";
+import "../src/ui/controls/frequency-input";
 import "../src/ui/controls/window";
 import "../src/ui/spectrum/spectrum";
 
@@ -75,6 +77,19 @@ export class RadioReceiverMain extends LitElement {
           bottom: 1em;
           left: 1em;
         }
+
+        button:has(svg) {
+          padding-inline: 0;
+          width: 24px;
+          height: 24px;
+        }
+
+        button > svg {
+          display: block;
+          width: 16px;
+          height: 16px;
+          margin: auto;
+        }
       `,
     ];
   }
@@ -86,45 +101,42 @@ export class RadioReceiverMain extends LitElement {
         max-decibels=${-20}
         center-frequency=${this.frequency.center}
         bandwidth=${this.bandwidth}
-        frequency-scale=${1000}
+        frequency-scale=${this.scale}
       ></rr-spectrum>
 
-      <rr-window title="Controls" id="controls">
+      <rr-window label="Controls" id="controls">
+        ${this.playing
+          ? html`<button slot="label-left" id="stop" @click=${this.onStop}>
+              <svg version="1.1" width="16" height="16">
+                <g><path d="M2,2v12h12V2z"></path></g>
+              </svg>
+            </button>`
+          : html`<button slot="label-left" id="start" @click=${this.onStart}>
+              <svg version="1.1" width="16" height="16">
+                <g><path d="M3,2v12l10,-6z"></path></g>
+              </svg>
+            </button>`}
         <div>
-          <input
-            type="button"
-            id="start"
-            value="Start"
-            .hidden=${this.playing}
-            @click=${this.onStart}
-          />
-          <input
-            type="button"
-            id="stop"
-            value="Stop"
-            .hidden=${!this.playing}
-            @click=${this.onStop}
-          />
           <label for="centerFrequency">Center frequency: </label
-          ><input
-            type="number"
+          ><rr-frequency-input
             id="centerFrequency"
             min="0"
             max="1800000000"
-            step="any"
-            .value=${String(this.frequency.center)}
+            .frequency=${this.frequency.center}
+            .scale=${this.scale}
             @change=${this.onCenterFrequencyChange}
-          />
+            @scale-change=${this.onScaleChange}
+          ></rr-frequency-input>
           <label for="tunedFrequency">Tuned frequency: </label
-          ><input
-            type="number"
+          ><rr-frequency-input
             id="tunedFrequency"
             min="0"
             max="1800000000"
-            step="any"
-            .value=${String(this.frequency.center + this.frequency.offset)}
+            .frequency=${this.frequency.center}
+            .scale=${this.scale}
             @change=${this.onTunedFrequencyChange}
-          />
+            @scale-change=${this.onScaleChange}
+          ></rr-frequency-input>
         </div>
         <div>
           <label for="scheme">Modulation: </label>
@@ -178,6 +190,7 @@ export class RadioReceiverMain extends LitElement {
 
   @state() private bandwidth: number = RtlSampleRate;
   @state() private playing: boolean = false;
+  @state() private scale: number = 1000;
   @state() private frequency: Frequency = {
     center: 88500000,
     offset: 0,
@@ -227,17 +240,25 @@ export class RadioReceiverMain extends LitElement {
     this.spectrumView!.addFloatSpectrum(spectrum);
   }
 
-  private onStart() {
+  private onStart(e: Event) {
     this.radio.start();
+    e.preventDefault();
   }
 
-  private onStop() {
+  private onStop(e: Event) {
     this.radio.stop();
+    e.preventDefault();
+  }
+
+  private onScaleChange(e: Event) {
+    let input = e.target as RrFrequencyInput;
+    let scale = input.scale;
+    this.scale = scale;
   }
 
   private onCenterFrequencyChange(e: Event) {
-    let input = e.target as HTMLInputElement;
-    let value = Number(input.value);
+    let input = e.target as RrFrequencyInput;
+    let value = input.frequency;
     let newFreq = {
       ...this.frequency,
       center: value,
@@ -252,13 +273,13 @@ export class RadioReceiverMain extends LitElement {
         newFreq.offset
       );
     }
-    this.radio.setFrequency(Number(input.value));
+    this.radio.setFrequency(newFreq.center);
     this.frequency = newFreq;
   }
 
   private onTunedFrequencyChange(e: Event) {
-    let input = e.target as HTMLInputElement;
-    let value = Number(input.value);
+    let input = e.target as RrFrequencyInput;
+    let value = input.frequency
     let newFreq = {
       ...this.frequency,
       offset: value - this.frequency.center,
