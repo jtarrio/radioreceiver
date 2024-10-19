@@ -12,18 +12,15 @@ export type GridLine = {
   horizontal: boolean;
 };
 
-// Selected frequency range.
+/** Selected frequency range. */
 export type GridSelection = {
-  // Selected point, as a fraction of the width from the left.
+  /** Selected point, as a fraction of the displayed bandwidth. */
   point?: number;
-  // Start of the selection, as a fraction of the width from the left.
-  start?: number;
-  // End of the selection, as a fraction of the width from the left.
-  end?: number;
-  // Selected frequency.
-  frequency?: number;
-  // Start of the selection, as a frequency.
-  from?: number;
-  // End of the selection, as a frequency.
-  to?: number;
+  /** Selected bandwidth. */
+  band?: {
+    /** Left end of the bandwidth, as a fraction of the displayed bandwidth. */
+    left: number;
+    /** Right end of the bandwidth, as a fraction of the displayed bandwidth. */
+    right: number;
+  };
 };

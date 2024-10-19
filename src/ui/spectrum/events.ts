@@ -7,6 +7,11 @@ export type FrequencyRangeEventType = {
   to: number;
 };
 
+export type FrequencySidebandEventType = {
+  side: "left" | "right";
+  frequency: number;
+};
+
 export class FrequencyEvent extends CustomEvent<FrequencyEventType> {
   constructor(type: string, e: FrequencyEventType) {
     super(type, { detail: e, bubbles: true, composed: true });
@@ -61,6 +66,22 @@ export class FrequencyTapEvent extends FrequencyEvent {
   }
 }
 
+export class FrequencyChangedEvent extends FrequencyEvent {
+  constructor(e: FrequencyEventType) {
+    super("frequency-changed", e);
+  }
+}
+
+export class FrequencySidebandChangedEvent extends CustomEvent<FrequencySidebandEventType> {
+  constructor(e: FrequencySidebandEventType) {
+    super("frequency-sideband-changed", {
+      detail: e,
+      bubbles: true,
+      composed: true,
+    });
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "frequency-drag-start": FrequencyDragStartEvent;
@@ -70,5 +91,7 @@ declare global {
     "frequency-hover": FrequencyHoverEvent;
     "frequency-selected": FrequencySelectedEvent;
     "frequency-tap": FrequencyTapEvent;
+    "frequency-changed": FrequencyChangedEvent;
+    "frequency-sideband-changed": FrequencySidebandChangedEvent;
   }
 }

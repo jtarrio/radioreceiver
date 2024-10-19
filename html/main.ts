@@ -18,6 +18,10 @@ import {
 import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
 import { RtlDeviceProvider } from "../src/rtlsdr/rtldevice";
 import { RrFrequencyInput } from "../src/ui/controls/frequency-input";
+import {
+  FrequencyChangedEvent,
+  FrequencySidebandChangedEvent,
+} from "../src/ui/spectrum/events";
 import { RrSpectrum } from "../src/ui/spectrum/spectrum";
 import "../src/ui/controls/frequency-input";
 import "../src/ui/controls/window";
@@ -33,7 +37,7 @@ type Frequency = {
 const DefaultModes: Array<Mode> = [
   { scheme: "WBFM" },
   { scheme: "NBFM", maxF: 5000 },
-  { scheme: "AM", bandwidth: 10000 },
+  { scheme: "AM", bandwidth: 15000 },
   { scheme: "LSB", bandwidth: 2800 },
   { scheme: "USB", bandwidth: 2800 },
 ];
@@ -103,16 +107,25 @@ export class RadioReceiverMain extends LitElement {
         bandwidth=${this.bandwidth}
         frequency-scale=${this.scale}
         .highlight=${{
-          frequency: this.frequency.center + this.frequency.offset,
-          from:
-            this.frequency.center +
-            this.frequency.offset -
-            this.frequency.leftBand,
-          to:
-            this.frequency.center +
-            this.frequency.offset +
-            this.frequency.rightBand,
+          point: this.frequency.offset / this.bandwidth + 0.5,
+          band: {
+            left:
+              (this.frequency.offset - this.frequency.leftBand) /
+                this.bandwidth +
+              0.5,
+            right:
+              (this.frequency.offset + this.frequency.rightBand) /
+                this.bandwidth +
+              0.5,
+          },
         }}
+        .highlightDraggablePoint=${true}
+        .highlightDraggableLeft=${this.mode.scheme != "WBFM" &&
+        this.mode.scheme != "USB"}
+        .highlightDraggableRight=${this.mode.scheme != "WBFM" &&
+        this.mode.scheme != "LSB"}
+        @frequency-changed=${this.onHighlighedFrequencyChanged}
+        @frequency-sideband-changed=${this.onHighlightedSidebandChanged}
       ></rr-spectrum>
 
       <rr-window label="Controls" id="controls">
@@ -293,6 +306,10 @@ export class RadioReceiverMain extends LitElement {
   private onTunedFrequencyChange(e: Event) {
     let input = e.target as RrFrequencyInput;
     let value = input.frequency;
+    this.setTunedFrequency(value);
+  }
+
+  private setTunedFrequency(value: number) {
     let newFreq = {
       ...this.frequency,
       offset: value - this.frequency.center,
@@ -320,9 +337,7 @@ export class RadioReceiverMain extends LitElement {
     let value = (e.target as HTMLSelectElement).selectedOptions[0].value;
     let mode = this.availableModes.get(value);
     if (mode === undefined) return;
-    this.demodulator.setMode(mode);
-    this.mode = mode;
-    this.updateFrequencyBands();
+    this.setMode(mode);
   }
 
   private onBandwidthChange(e: Event) {
@@ -339,8 +354,25 @@ export class RadioReceiverMain extends LitElement {
         newMode.bandwidth = value;
         break;
     }
-    this.demodulator.setMode(newMode);
-    this.mode = newMode;
+    this.setMode(newMode);
+  }
+
+  private setMode(mode: Mode) {
+    switch (mode.scheme) {
+      case "WBFM":
+        break;
+      case "NBFM":
+        mode.maxF = Math.max(250, Math.min(mode.maxF, 20000));
+        break;
+      case "AM":
+        mode.bandwidth = Math.max(250, Math.min(mode.bandwidth, 20000));
+        break;
+      default:
+        mode.bandwidth = Math.max(10, Math.min(mode.bandwidth, 10000));
+        break;
+    }
+    this.demodulator.setMode(mode);
+    this.mode = mode;
     this.updateFrequencyBands();
   }
 
@@ -391,6 +423,50 @@ export class RadioReceiverMain extends LitElement {
     }
     this.radio.setGain(gain);
     this.gain = gain;
+  }
+
+  private onHighlighedFrequencyChanged(e: FrequencyChangedEvent) {
+    const min =
+      this.frequency.center - this.bandwidth / 2 + this.frequency.rightBand;
+    const max =
+      this.frequency.center + this.bandwidth / 2 - this.frequency.leftBand;
+    let frequency = Math.max(min, Math.min(e.detail.frequency, max));
+    frequency = this.scale * Math.round(frequency / this.scale);
+    if (frequency < min) frequency += this.scale;
+    if (frequency > max) frequency -= this.scale;
+    this.setTunedFrequency(frequency);
+  }
+
+  private onHighlightedSidebandChanged(e: FrequencySidebandChangedEvent) {
+    const min = this.frequency.center - this.bandwidth / 2;
+    const max = this.frequency.center + this.bandwidth / 2;
+    const frequency = this.frequency.center + this.frequency.offset;
+    let size =
+      e.detail.side == "left"
+        ? frequency - e.detail.frequency
+        : e.detail.frequency - frequency;
+    if (frequency - size < min) {
+      size = frequency - min;
+    }
+    if (frequency + size > max) {
+      size = max - frequency;
+    }
+    size = Math.floor(size);
+
+    let newMode = { ...this.mode };
+    switch (newMode.scheme) {
+      case "WBFM":
+        break;
+      case "NBFM":
+        newMode.maxF = size;
+        break;
+      case "AM":
+        newMode.bandwidth = size * 2;
+        break;
+      default:
+        newMode.bandwidth = size;
+    }
+    this.setMode(newMode);
   }
 
   private onRadioEvent(e: RadioEvent) {
