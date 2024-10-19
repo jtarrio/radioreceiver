@@ -1,15 +1,12 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { ifDefined } from "lit/directives/if-defined.js";
 import {
   defaultMaxDecibels,
   defaultMinDecibels,
   GridLine,
   type GridSelection,
 } from "./common";
-import { FrequencyChangedEvent, FrequencySidebandChangedEvent } from "./events";
 import { Direction, getGridLines, Orientation } from "./grid-lines";
-import { HighlightDragEvent } from "./highlight";
 import { RrOverlay } from "./overlay";
 import { RrScope } from "./scope";
 import { RrWaterfall } from "./waterfall";
@@ -133,20 +130,13 @@ export class RrSpectrum extends LitElement {
           max-decibels=${this.maxDecibels}
         ></rr-waterfall>
       </div>
-      <rr-event-source
-        id="eventSource"
-        bandwidth=${ifDefined(this.bandwidth)}
-        center-frequency=${this.centerFrequency}
-      ></rr-event-source>
+      <rr-event-source id="eventSource"></rr-event-source>
       <rr-highlight
         id="highlight"
-        bandwidth=${ifDefined(this.bandwidth)}
-        center-frequency=${this.centerFrequency}
         .selection=${this.highlight}
         .draggableLeft=${this.highlightDraggableLeft}
         .draggableRight=${this.highlightDraggableRight}
         .draggablePoint=${this.highlightDraggablePoint}
-        @highlight-drag=${this.onHighlightDrag}
       ></rr-highlight>`;
   }
 
@@ -169,27 +159,6 @@ export class RrSpectrum extends LitElement {
   addFloatSpectrum(spectrum: Float32Array) {
     this.scope?.addFloatSpectrum(spectrum);
     this.waterfall?.addFloatSpectrum(spectrum);
-  }
-
-  private onHighlightDrag(e: HighlightDragEvent) {
-    if (this.bandwidth === undefined) return;
-    let frequency = (e.detail.fraction - 0.5) * this.bandwidth + this.centerFrequency;
-    if (frequency === undefined) return;
-    switch (e.detail.type) {
-      case "point":
-        this.dispatchEvent(new FrequencyChangedEvent({ frequency }));
-        break;
-      case "start":
-        this.dispatchEvent(
-          new FrequencySidebandChangedEvent({ side: "left", frequency })
-        );
-        break;
-      case "end":
-        this.dispatchEvent(
-          new FrequencySidebandChangedEvent({ side: "right", frequency })
-        );
-        break;
-    }
   }
 
   private _computeLines() {

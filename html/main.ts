@@ -1,4 +1,4 @@
-import { css, html, LitElement, nothing } from "lit";
+import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { Demodulator } from "../src/demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../src/demod/sample-counter";
@@ -19,8 +19,8 @@ import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
 import { RtlDeviceProvider } from "../src/rtlsdr/rtldevice";
 import { RrFrequencyInput } from "../src/ui/controls/frequency-input";
 import {
-  FrequencyChangedEvent,
-  FrequencySidebandChangedEvent,
+  SpectrumHighlightChangedEvent,
+  SpectrumTapEvent,
 } from "../src/ui/spectrum/events";
 import { RrSpectrum } from "../src/ui/spectrum/spectrum";
 import "../src/ui/controls/frequency-input";
@@ -124,8 +124,8 @@ export class RadioReceiverMain extends LitElement {
         this.mode.scheme != "USB"}
         .highlightDraggableRight=${this.mode.scheme != "WBFM" &&
         this.mode.scheme != "LSB"}
-        @frequency-changed=${this.onHighlighedFrequencyChanged}
-        @frequency-sideband-changed=${this.onHighlightedSidebandChanged}
+        @spectrum-tap=${this.onSpectrumTap}
+        @spectrum-highlight-changed=${this.onSpectrumHighlightChanged}
       ></rr-spectrum>
 
       <rr-window label="Controls" id="controls">
@@ -425,26 +425,43 @@ export class RadioReceiverMain extends LitElement {
     this.gain = gain;
   }
 
-  private onHighlighedFrequencyChanged(e: FrequencyChangedEvent) {
+  private onSpectrumTap(e: SpectrumTapEvent) {
+    this.setFrequencyFraction(e.detail.fraction);
+  }
+
+  private onSpectrumHighlightChanged(e: SpectrumHighlightChangedEvent) {
+    if (e.detail.fraction !== undefined) {
+      this.setFrequencyFraction(e.detail.fraction);
+    } else if (e.detail.startFraction !== undefined) {
+      this.setSidebandFraction("left", e.detail.startFraction);
+    } else if (e.detail.endFraction !== undefined) {
+      this.setSidebandFraction("right", e.detail.endFraction);
+    }
+  }
+
+  private setFrequencyFraction(fraction: number) {
     const min =
       this.frequency.center - this.bandwidth / 2 + this.frequency.rightBand;
     const max =
       this.frequency.center + this.bandwidth / 2 - this.frequency.leftBand;
-    let frequency = Math.max(min, Math.min(e.detail.frequency, max));
+    let frequency = Math.max(
+      min,
+      Math.min(this.frequency.center + this.bandwidth * (fraction - 0.5), max)
+    );
     frequency = this.scale * Math.round(frequency / this.scale);
     if (frequency < min) frequency += this.scale;
     if (frequency > max) frequency -= this.scale;
     this.setTunedFrequency(frequency);
   }
 
-  private onHighlightedSidebandChanged(e: FrequencySidebandChangedEvent) {
+  private setSidebandFraction(sideband: "left" | "right", fraction: number) {
     const min = this.frequency.center - this.bandwidth / 2;
     const max = this.frequency.center + this.bandwidth / 2;
     const frequency = this.frequency.center + this.frequency.offset;
+    const sidebandEdge =
+      this.frequency.center + this.bandwidth * (fraction - 0.5);
     let size =
-      e.detail.side == "left"
-        ? frequency - e.detail.frequency
-        : e.detail.frequency - frequency;
+      sideband == "left" ? frequency - sidebandEdge : sidebandEdge - frequency;
     if (frequency - size < min) {
       size = frequency - min;
     }

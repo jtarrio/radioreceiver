@@ -1,97 +1,34 @@
-export type FrequencyEventType = {
-  frequency: number;
-};
+export type SpectrumEventType = {
+  fraction: number;
+}
 
-export type FrequencyRangeEventType = {
-  from: number;
-  to: number;
-};
-
-export type FrequencySidebandEventType = {
-  side: "left" | "right";
-  frequency: number;
-};
-
-export class FrequencyEvent extends CustomEvent<FrequencyEventType> {
-  constructor(type: string, e: FrequencyEventType) {
+export class SpectrumEvent extends CustomEvent<SpectrumEventType> {
+  constructor(type: string, e: SpectrumEventType) {
     super(type, { detail: e, bubbles: true, composed: true });
   }
 }
 
-export class FrequencyRangeEvent extends CustomEvent<FrequencyRangeEventType> {
-  constructor(type: string, e: FrequencyRangeEventType) {
-    super(type, { detail: e, bubbles: true, composed: true });
+export class SpectrumTapEvent extends SpectrumEvent {
+  constructor(e: SpectrumEventType) {
+    super("spectrum-tap", e);
   }
 }
 
-export class FrequencyDragStartEvent extends FrequencyEvent {
-  constructor(e: FrequencyEventType) {
-    super("frequency-drag-start", e);
-  }
+export type SpectrumHighlightChangedEventType = {
+  fraction?: number;
+  startFraction?: number;
+  endFraction?: number;
 }
 
-export class FrequencyDragEvent extends FrequencyRangeEvent {
-  constructor(e: FrequencyRangeEventType) {
-    super("frequency-drag", e);
-  }
-}
-
-export class FrequencyDragCompleteEvent extends FrequencyRangeEvent {
-  constructor(e: FrequencyRangeEventType) {
-    super("frequency-drag-complete", e);
-  }
-}
-
-export class FrequencyDragCancelEvent extends FrequencyEvent {
-  constructor(e: FrequencyEventType) {
-    super("frequency-drag-cancel", e);
-  }
-}
-
-export class FrequencyHoverEvent extends FrequencyEvent {
-  constructor(e: FrequencyEventType) {
-    super("frequency-hover", e);
-  }
-}
-
-export class FrequencySelectedEvent extends FrequencyRangeEvent {
-  constructor(e: FrequencyRangeEventType) {
-    super("frequency-selected", e);
-  }
-}
-
-export class FrequencyTapEvent extends FrequencyEvent {
-  constructor(e: FrequencyEventType) {
-    super("frequency-tap", e);
-  }
-}
-
-export class FrequencyChangedEvent extends FrequencyEvent {
-  constructor(e: FrequencyEventType) {
-    super("frequency-changed", e);
-  }
-}
-
-export class FrequencySidebandChangedEvent extends CustomEvent<FrequencySidebandEventType> {
-  constructor(e: FrequencySidebandEventType) {
-    super("frequency-sideband-changed", {
-      detail: e,
-      bubbles: true,
-      composed: true,
-    });
+export class SpectrumHighlightChangedEvent extends CustomEvent<SpectrumHighlightChangedEventType> {
+  constructor(e: SpectrumHighlightChangedEventType) {
+    super("spectrum-highlight-changed", {detail: e, bubbles: true, composed: true});
   }
 }
 
 declare global {
   interface HTMLElementEventMap {
-    "frequency-drag-start": FrequencyDragStartEvent;
-    "frequency-drag": FrequencyDragEvent;
-    "frequency-drag-complete": FrequencyDragCompleteEvent;
-    "frequency-drag-cancel": FrequencyDragCancelEvent;
-    "frequency-hover": FrequencyHoverEvent;
-    "frequency-selected": FrequencySelectedEvent;
-    "frequency-tap": FrequencyTapEvent;
-    "frequency-changed": FrequencyChangedEvent;
-    "frequency-sideband-changed": FrequencySidebandChangedEvent;
+    "spectrum-tap": SpectrumTapEvent,
+    "spectrum-highlight-changed": SpectrumHighlightChangedEventType,
   }
 }

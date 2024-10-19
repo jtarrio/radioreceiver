@@ -1,25 +1,10 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { type GridSelection } from "./common";
-
-export type DragType = "point" | "start" | "end";
-export type HighlightDragEventType = {
-  type: DragType;
-  fraction: number;
-};
-
-export class HighlightDragEvent extends CustomEvent<HighlightDragEventType> {
-  constructor(e: HighlightDragEventType) {
-    super("highlight-drag", { detail: e });
-  }
-}
+import { SpectrumHighlightChangedEvent } from "./events";
 
 @customElement("rr-highlight")
 export class RrHighlight extends LitElement {
-  @property({ type: Number, reflect: true })
-  bandwidth?: number;
-  @property({ type: Number, reflect: true, attribute: "center-frequency" })
-  centerFrequency?: number = 0;
   @property({ type: Boolean, reflect: true, attribute: "draggable-point" })
   draggablePoint: boolean = false;
   @property({ type: Boolean, reflect: true, attribute: "draggable-left" })
@@ -32,6 +17,14 @@ export class RrHighlight extends LitElement {
   static get styles() {
     return [
       css`
+        :host {
+          pointer-events: none;
+        }
+
+        .handle {
+          pointer-events: all;
+        }
+
         #point,
         #band,
         .handle {
@@ -53,6 +46,11 @@ export class RrHighlight extends LitElement {
           width: 4px;
           cursor: ew-resize;
         }
+
+        #pointHandle {
+            cursor: col-resize;
+        }
+
 
         #pointHandle:hover {
           background: var(--rr-highlight-handle-color, rgba(255, 255, 0, 1));
@@ -119,7 +117,8 @@ export class RrHighlight extends LitElement {
   }
 
   private draggingPoint?: Dragging;
-  private dragPointStart(e: PointerEvent) {
+  private dragPointStart(e: PointerEvent) { 
+    if (e.button != 0) return;
     this.draggingPoint?.cancel(e);
     this.draggingPoint = new Dragging("point", this, e);
   }
@@ -137,6 +136,7 @@ export class RrHighlight extends LitElement {
 
   private draggingLeft?: Dragging;
   private dragLeftStart(e: PointerEvent) {
+    if (e.button != 0) return;
     this.draggingLeft?.cancel(e);
     this.draggingLeft = new Dragging("start", this, e);
   }
@@ -154,6 +154,7 @@ export class RrHighlight extends LitElement {
 
   private draggingRight?: Dragging;
   private dragRightStart(e: PointerEvent) {
+    if (e.button != 0) return;
     this.draggingRight?.cancel(e);
     this.draggingRight = new Dragging("end", this, e);
   }
@@ -169,6 +170,8 @@ export class RrHighlight extends LitElement {
     this.draggingRight = undefined;
   }
 }
+
+type DragType = "point" | "start" | "end";
 
 class Dragging {
   constructor(
@@ -198,7 +201,13 @@ class Dragging {
       if (fraction < 0) fraction = 0;
       if (fraction > 1) fraction = 1;
       this.highlight.dispatchEvent(
-        new HighlightDragEvent({ type: this.type, fraction })
+        new SpectrumHighlightChangedEvent(
+          this.type == "point"
+            ? { fraction }
+            : this.type == "start"
+              ? { startFraction: fraction }
+              : { endFraction: fraction }
+        )
       );
     }
     e.preventDefault();
@@ -218,7 +227,13 @@ class Dragging {
           : this.original?.band?.right;
     if (fraction !== undefined) {
       this.highlight.dispatchEvent(
-        new HighlightDragEvent({ type: this.type, fraction })
+        new SpectrumHighlightChangedEvent(
+          this.type == "point"
+            ? { fraction }
+            : this.type == "start"
+              ? { startFraction: fraction }
+              : { endFraction: fraction }
+        )
       );
     }
     this.finish(e);
