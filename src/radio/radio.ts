@@ -38,6 +38,7 @@ type Message =
 export type RadioEventType =
   | { type: "started" }
   | { type: "stopped" }
+  | { type: "directSampling"; active: boolean }
   | { type: "error"; exception: any };
 
 /** The type of 'radio' events. */
@@ -142,12 +143,14 @@ export class Radio extends EventTarget {
 
   /**
    * Enables or disables direct sampling mode.
-   * @param enable
    */
   enableDirectSampling(enable: boolean) {
     this.channel.send({ type: "directSamplingEnabled", value: enable });
   }
 
+  /**
+   * Returns whether direct sampling mode is enabled.
+   */
   isDirectSamplingEnabled(): boolean {
     return this.directSamplingEnabled;
   }
@@ -282,12 +285,14 @@ class Transfers {
     this.buffersWanted = 0;
     this.buffersRunning = 0;
     this.iqConverter = new U8ToFloat32(this.samplesPerBuf);
+    this.directSampling = false;
     this.stopCallback = Transfers.nilCallback;
   }
 
   private buffersWanted: number;
   private buffersRunning: number;
   private iqConverter: U8ToFloat32;
+  private directSampling: boolean;
   private stopCallback: () => void;
 
   static PARALLEL_BUFFERS = 2;
@@ -321,6 +326,15 @@ class Transfers {
       .then((b) => {
         let [I, Q] = this.iqConverter.convert(b.data);
         this.sampleReceiver.receiveSamples(I, Q, b.frequency);
+        if (this.directSampling != b.directSampling) {
+          this.directSampling = b.directSampling;
+          this.radio.dispatchEvent(
+            new RadioEvent({
+              type: "directSampling",
+              active: this.directSampling,
+            })
+          );
+        }
         if (this.buffersRunning <= this.buffersWanted) return this.readStream();
         --this.buffersRunning;
         if (this.buffersRunning == 0) {

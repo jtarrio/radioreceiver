@@ -316,7 +316,7 @@ export class RTL2832U implements RtlDevice {
       await this.com.setDemodReg(1, 0x15, 0b00000000, 1);
       // [5:4] exchange ADC_I, ADC_Q datapath
       await this.com.setDemodReg(0, 0x06, 0b10010000, 1);
-      await this._enableRtlAgc(this.gain == null);
+      await this._enableRtlAgc(true);
     } else {
       await this.com.openI2C();
       await this.tuner.open();
@@ -344,15 +344,13 @@ export class RTL2832U implements RtlDevice {
   /**
    * Reads a block of samples off the device.
    * @param length The number of samples to read.
-   * @returns a promise that resolves to an ArrayBuffer
-   *     containing the read samples, which you can interpret as pairs of
-   *     unsigned 8-bit integers; the first one is the sample's I value, and
-   *     the second one is its Q value.
+   * @returns a promise that resolves to a SampleBlock.
    */
   async readSamples(length: number): Promise<SampleBlock> {
     const data = await this.com.getSamples(length * RTL2832U.BYTES_PER_SAMPLE);
     const frequency = this.centerFrequency;
-    return { frequency, data };
+    const directSampling = this.directSampling;
+    return { frequency, directSampling, data };
   }
 
   /** Stops the demodulator. */

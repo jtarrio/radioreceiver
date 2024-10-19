@@ -13,8 +13,12 @@
 // limitations under the License.
 
 export type SampleBlock = {
+  /** The frequency the radio was tuned at when these samples were captured. */
   frequency: number;
+  /** The samples as an sequence of (U8, U8) pairs, where the first U8 is the I value and the second is the Q value. */
   data: ArrayBuffer;
+  /** Whether the radio was in direct sampling mode. */
+  directSampling: boolean;
 };
 
 /** Interface for an RTL-type device. */

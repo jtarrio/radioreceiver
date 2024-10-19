@@ -109,7 +109,7 @@ export class FakeRtl implements RtlDevice {
     const sample = this.nextSample;
     this.nextSample += byteLength / 2;
     const data = await this.addToQueue(sample, byteLength);
-    return { frequency, data };
+    return { frequency, data, directSampling: false };
   }
 
   private async addToQueue(

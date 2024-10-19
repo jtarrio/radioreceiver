@@ -184,6 +184,7 @@ export class RadioReceiverMain extends LitElement {
             max="50"
             step="any"
             .value=${this.gain === null ? "" : String(this.gain)}
+            .disabled=${this.gainDisabled}
             @change=${this.onGainChange}
           />
         </div>
@@ -210,6 +211,7 @@ export class RadioReceiverMain extends LitElement {
   };
   @state() private mode: Mode = this.availableModes.get("WBFM")!;
   @state() private gain: number | null = null;
+  @state() private gainDisabled: boolean = false;
 
   @query("#spectrum") private spectrumView?: RrSpectrum;
 
@@ -398,6 +400,9 @@ export class RadioReceiverMain extends LitElement {
         break;
       case "stopped":
         this.playing = false;
+        break;
+      case "directSampling":
+        this.gainDisabled = e.detail.active;
         break;
       case "error":
         let error = e.detail.exception;
