@@ -32,6 +32,7 @@ import { SchemeNBFM } from "./scheme-nbfm";
 import { SchemeSSB } from "./scheme-ssb";
 import { SchemeWBFM } from "./scheme-wbfm";
 import { Player } from "../audio/player";
+import { RtlSampleRate } from "../radio/constants";
 import { concatenateReceivers, SampleReceiver } from "../radio/sample_receiver";
 
 type Frequency = {
@@ -42,7 +43,7 @@ type Frequency = {
 /** The demodulator class. */
 export class Demodulator implements SampleReceiver {
   /** Fixed input rate. */
-  private static IN_RATE = 1024000;
+  private static IN_RATE = RtlSampleRate;
   /** Fixed output rate. */
   private static OUT_RATE = 48000;
 

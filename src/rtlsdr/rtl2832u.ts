@@ -275,15 +275,16 @@ export class RTL2832U implements RtlDevice {
    */
   async setCenterFrequency(freq: number): Promise<number> {
     await this._maybeSetDirectSampling(freq < 28800000);
+    let actualFreq;
     if (this.directSampling) {
-      return this._setIfFrequency(freq);
+      actualFreq = this._setIfFrequency(freq);
     } else {
       await this.com.openI2C();
-      let actualFreq = await this.tuner.setFrequency(freq);
-      this.centerFrequency = freq;
+      actualFreq = await this.tuner.setFrequency(freq);
       await this.com.closeI2C();
-      return actualFreq;
     }
+    this.centerFrequency = freq;
+    return actualFreq;
   }
 
   /**
