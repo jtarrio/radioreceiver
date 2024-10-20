@@ -6,7 +6,7 @@ import {
   defaultMinDecibels,
 } from "./common";
 import { CubeHelix, Palette } from "./palette";
-import { getCropWindow, CropWindow, type Zoom } from "./zoom";
+import { getCropWindow, CropWindow, type Zoom, DefaultZoom } from "./zoom";
 
 const defaultWidth = defaultFftSize;
 
@@ -17,7 +17,7 @@ export class RrWaterfall extends LitElement {
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = defaultMaxDecibels;
   @property({ attribute: false })
-  zoom?: Zoom;
+  zoom: Zoom = DefaultZoom;
 
   static get styles() {
     return [

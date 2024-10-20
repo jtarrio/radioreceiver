@@ -1,3 +1,5 @@
+import { Zoom } from "./zoom";
+
 export type SpectrumEventType = {
   fraction: number;
 }
@@ -26,9 +28,16 @@ export class SpectrumHighlightChangedEvent extends CustomEvent<SpectrumHighlight
   }
 }
 
+export class SpectrumZoomEvent extends CustomEvent<Zoom> {
+  constructor(e: Zoom) {
+    super("spectrum-zoom", {detail: e, bubbles: true, composed: true});
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "spectrum-tap": SpectrumTapEvent,
     "spectrum-highlight-changed": SpectrumHighlightChangedEventType,
+    "spectrum-zoom": SpectrumZoomEvent,
   }
 }

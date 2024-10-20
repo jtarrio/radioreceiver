@@ -2,7 +2,7 @@ import { css, html, LitElement, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { type GridSelection } from "./common";
 import { SpectrumHighlightChangedEvent } from "./events";
-import { getZoomedFraction, type Zoom } from "./zoom";
+import { DefaultZoom, getZoomedFraction, type Zoom } from "./zoom";
 
 @customElement("rr-highlight")
 export class RrHighlight extends LitElement {
@@ -13,7 +13,7 @@ export class RrHighlight extends LitElement {
   @property({ type: Boolean, reflect: true, attribute: "draggable-right" })
   draggableRight: boolean = false;
   @property({ attribute: false })
-  zoom?: Zoom;
+  zoom: Zoom = DefaultZoom;
   @property({ attribute: false })
   selection?: GridSelection;
 

@@ -5,7 +5,7 @@ import {
   defaultMaxDecibels,
   defaultMinDecibels,
 } from "./common";
-import { getSampleWindow, SampleWindow, type Zoom } from "./zoom";
+import { DefaultZoom, getSampleWindow, SampleWindow, type Zoom } from "./zoom";
 
 const defaultWidth = defaultFftSize;
 
@@ -16,7 +16,7 @@ export class RrScope extends LitElement {
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = defaultMaxDecibels;
   @property({ attribute: false })
-  zoom?: Zoom;
+  zoom: Zoom = DefaultZoom;
 
   static get styles() {
     return [

@@ -1,12 +1,12 @@
 import { LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { SpectrumTapEvent } from "./events";
-import { getUnzoomedFraction, type Zoom } from "./zoom";
+import { DefaultZoom, getUnzoomedFraction, type Zoom } from "./zoom";
 
 @customElement("rr-event-source")
 export class RrEventSource extends LitElement {
   @property({ attribute: false })
-  zoom?: Zoom;
+  zoom: Zoom = DefaultZoom;
 
   constructor() {
     super();

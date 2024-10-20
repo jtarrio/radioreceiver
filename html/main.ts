@@ -78,7 +78,7 @@ export class RadioReceiverMain extends LitElement {
 
         #controls {
           position: absolute;
-          bottom: 1em;
+          bottom: calc(1em + 24px);
           left: 1em;
         }
 
@@ -132,11 +132,13 @@ export class RadioReceiverMain extends LitElement {
         ${this.playing
           ? html`<button slot="label-left" id="stop" @click=${this.onStop}>
               <svg version="1.1" width="16" height="16">
+                <title>Stop playing</title>
                 <g><path d="M2,2v12h12V2z"></path></g>
               </svg>
             </button>`
           : html`<button slot="label-left" id="start" @click=${this.onStart}>
               <svg version="1.1" width="16" height="16">
+                <title>Start playing</title>
                 <g><path d="M3,2v12l10,-6z"></path></g>
               </svg>
             </button>`}

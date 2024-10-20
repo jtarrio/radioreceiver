@@ -6,17 +6,25 @@ import {
   GridLine,
   type GridSelection,
 } from "./common";
+import { SpectrumZoomEvent } from "./events";
 import { Direction, getGridLines, Orientation } from "./grid-lines";
 import { RrOverlay } from "./overlay";
 import { RrScope } from "./scope";
 import { RrWaterfall } from "./waterfall";
-import { getRangeWindow, getZoomedFraction, type Zoom } from "./zoom";
+import {
+  DefaultZoom,
+  getRangeWindow,
+  getZoomedFraction,
+  type Zoom,
+} from "./zoom";
 import "./captions";
 import "./event-source";
 import "./highlight";
 import "./overlay";
 import "./scope";
+import "./scrollbar";
 import "./waterfall";
+import "./zoombar";
 
 @customElement("rr-spectrum")
 export class RrSpectrum extends LitElement {
@@ -31,7 +39,7 @@ export class RrSpectrum extends LitElement {
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = defaultMaxDecibels;
   @property({ attribute: false })
-  zoom?: Zoom;
+  zoom: Zoom = DefaultZoom;
   @property({ attribute: false })
   highlight?: GridSelection;
   @property({ attribute: false })
@@ -78,6 +86,10 @@ export class RrSpectrum extends LitElement {
           flex: 2;
         }
 
+        #bottomBox {
+          height: 24px;
+        }
+
         #scopeBox > * {
           margin-top: var(--top-caption-margin);
           margin-left: var(--left-caption-margin);
@@ -97,14 +109,18 @@ export class RrSpectrum extends LitElement {
           width: var(--left-caption-margin);
         }
 
-        #selector,
         #eventSource,
         #highlight {
           position: absolute;
           left: var(--left-caption-margin);
           top: var(--top-caption-margin);
           right: 0;
-          bottom: 0;
+          bottom: 24px;
+        }
+
+        #zoomControls {
+          display: flex;
+          flex-direction: row;
         }
       `,
     ];
@@ -140,6 +156,18 @@ export class RrSpectrum extends LitElement {
           .zoom=${this.zoom}
         ></rr-waterfall>
       </div>
+      <div id="bottomBox" class="box">
+        <div id="zoomControls">
+          <rr-zoombar
+            .zoom=${this.zoom}
+            @spectrum-zoom=${this.onZoom}
+          ></rr-zoombar>
+          <rr-scrollbar
+            .zoom=${this.zoom}
+            @spectrum-zoom=${this.onZoom}
+          ></rr-scrollbar>
+        </div>
+      </div>
       <rr-event-source id="eventSource" .zoom=${this.zoom}></rr-event-source>
       <rr-highlight
         id="highlight"
@@ -171,6 +199,10 @@ export class RrSpectrum extends LitElement {
   addFloatSpectrum(spectrum: Float32Array) {
     this.scope?.addFloatSpectrum(spectrum);
     this.waterfall?.addFloatSpectrum(spectrum);
+  }
+
+  private onZoom(e: SpectrumZoomEvent) {
+    this.zoom = e.detail;
   }
 
   private computeLines() {
