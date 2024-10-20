@@ -2,6 +2,7 @@ import { css, html, LitElement, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { type GridSelection } from "./common";
 import { SpectrumHighlightChangedEvent } from "./events";
+import { getZoomedFraction, type Zoom } from "./zoom";
 
 @customElement("rr-highlight")
 export class RrHighlight extends LitElement {
@@ -11,6 +12,8 @@ export class RrHighlight extends LitElement {
   draggableLeft: boolean = false;
   @property({ type: Boolean, reflect: true, attribute: "draggable-right" })
   draggableRight: boolean = false;
+  @property({ attribute: false })
+  zoom?: Zoom;
   @property({ attribute: false })
   selection?: GridSelection;
 
@@ -73,7 +76,7 @@ export class RrHighlight extends LitElement {
 
   private renderPoint() {
     if (this.selection?.point === undefined) return nothing;
-    let x = this.selection.point * this.offsetWidth;
+    let x = getZoomedFraction(this.selection.point, this.zoom) * this.offsetWidth;
     return html`<div id="point" style="left:${x - 1}px"></div>
       ${this.draggablePoint
         ? html`<div
@@ -90,8 +93,8 @@ export class RrHighlight extends LitElement {
 
   private renderBand() {
     if (this.selection?.band === undefined) return nothing;
-    let l = this.selection.band.left * this.offsetWidth;
-    let r = this.selection.band.right * this.offsetWidth;
+    let l = getZoomedFraction(this.selection.band.left, this.zoom) * this.offsetWidth;
+    let r = getZoomedFraction(this.selection.band.right, this.zoom) * this.offsetWidth;
     return html`<div id="band" style="left:${l}px;width:${r - l}px"></div>
       ${this.draggableLeft
         ? html`<div
@@ -189,6 +192,7 @@ class Dragging {
   private original?: GridSelection;
 
   drag(e: PointerEvent) {
+    const zoom = this.highlight.zoom === undefined ? 1 : this.highlight.zoom.multiplier;
     let deltaX = e.clientX - this.startX;
     let fraction =
       this.type == "point"
@@ -197,7 +201,7 @@ class Dragging {
           ? this.original?.band?.left
           : this.original?.band?.right;
     if (fraction !== undefined) {
-      fraction += deltaX / this.highlight.offsetWidth;
+      fraction += deltaX / (this.highlight.offsetWidth * zoom);
       if (fraction < 0) fraction = 0;
       if (fraction > 1) fraction = 1;
       this.highlight.dispatchEvent(

@@ -10,6 +10,7 @@ import { Direction, getGridLines, Orientation } from "./grid-lines";
 import { RrOverlay } from "./overlay";
 import { RrScope } from "./scope";
 import { RrWaterfall } from "./waterfall";
+import { getRangeWindow, getZoomedFraction, type Zoom } from "./zoom";
 import "./captions";
 import "./event-source";
 import "./highlight";
@@ -29,6 +30,8 @@ export class RrSpectrum extends LitElement {
   minDecibels: number = defaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = defaultMaxDecibels;
+  @property({ attribute: false })
+  zoom?: Zoom;
   @property({ attribute: false })
   highlight?: GridSelection;
   @property({ attribute: false })
@@ -113,13 +116,19 @@ export class RrSpectrum extends LitElement {
           id="scope"
           min-decibels=${this.minDecibels}
           max-decibels=${this.maxDecibels}
+          .zoom=${this.zoom}
         ></rr-scope
-        ><rr-overlay id="scopeOverlay" .lines=${this.lines}></rr-overlay
+        ><rr-overlay
+          id="scopeOverlay"
+          .lines=${this.lines}
+          .zoom=${this.zoom}
+        ></rr-overlay
         ><rr-captions
           id="scopeFrequencies"
           .lines=${this.lines}
           ?horizontal=${true}
           scale=${this.frequencyScale}
+          .zoom=${this.zoom}
         ></rr-captions
         ><rr-captions id="scopeDecibels" .lines=${this.lines}></rr-captions>
       </div>
@@ -128,15 +137,17 @@ export class RrSpectrum extends LitElement {
           id="waterfall"
           min-decibels=${this.minDecibels}
           max-decibels=${this.maxDecibels}
+          .zoom=${this.zoom}
         ></rr-waterfall>
       </div>
-      <rr-event-source id="eventSource"></rr-event-source>
+      <rr-event-source id="eventSource" .zoom=${this.zoom}></rr-event-source>
       <rr-highlight
         id="highlight"
         .selection=${this.highlight}
         .draggableLeft=${this.highlightDraggableLeft}
         .draggableRight=${this.highlightDraggableRight}
         .draggablePoint=${this.highlightDraggablePoint}
+        .zoom=${this.zoom}
       ></rr-highlight>`;
   }
 
@@ -145,15 +156,16 @@ export class RrSpectrum extends LitElement {
   @query("#waterfall") waterfall?: RrWaterfall;
   @state() private lines: Array<GridLine> = [];
 
-  protected firstUpdated(): void {
-    const resizeObserver = new ResizeObserver(() => this._computeLines());
+  protected firstUpdated(changed: PropertyValues): void {
+    super.firstUpdated(changed);
+    const resizeObserver = new ResizeObserver(() => this.computeLines());
     resizeObserver.observe(this.scopeOverlay!);
   }
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
     changed.delete("lines");
-    if (changed.size != 0) this._computeLines();
+    if (changed.size != 0) this.computeLines();
   }
 
   addFloatSpectrum(spectrum: Float32Array) {
@@ -161,7 +173,7 @@ export class RrSpectrum extends LitElement {
     this.waterfall?.addFloatSpectrum(spectrum);
   }
 
-  private _computeLines() {
+  private computeLines() {
     let lines = [];
     if (this.minDecibels !== undefined && this.maxDecibels !== undefined) {
       lines.push(
@@ -178,10 +190,15 @@ export class RrSpectrum extends LitElement {
       );
     }
     if (this.bandwidth !== undefined) {
+      const rangeWindow = getRangeWindow(
+        this.centerFrequency - this.bandwidth / 2,
+        this.bandwidth,
+        this.zoom
+      );
       lines.push(
         ...getGridLines(
-          this.centerFrequency - this.bandwidth / 2,
-          this.centerFrequency + this.bandwidth / 2,
+          rangeWindow.left,
+          rangeWindow.left + rangeWindow.range,
           50,
           80,
           this.scopeOverlay!.offsetWidth,
@@ -190,11 +207,14 @@ export class RrSpectrum extends LitElement {
         )
       );
     } else {
-      lines.push({
-        value: this.centerFrequency,
-        position: 0.5,
-        horizontal: false,
-      });
+      const position = getZoomedFraction(0.5, this.zoom);
+      if (position >= 0 && position <= 1) {
+        lines.push({
+          value: this.centerFrequency,
+          position,
+          horizontal: false,
+        });
+      }
     }
     this.lines = lines;
   }

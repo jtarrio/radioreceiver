@@ -111,7 +111,8 @@ export class RrWindow extends LitElement {
     this.resizeObserver?.disconnect();
   }
 
-  protected firstUpdated(): void {
+  protected firstUpdated(changed: PropertyValues): void {
+    super.firstUpdated(changed);
     fixElement(this);
   }
 

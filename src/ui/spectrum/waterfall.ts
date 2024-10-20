@@ -1,4 +1,4 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import {
   defaultFftSize,
@@ -6,6 +6,7 @@ import {
   defaultMinDecibels,
 } from "./common";
 import { CubeHelix, Palette } from "./palette";
+import { getCropWindow, CropWindow, type Zoom } from "./zoom";
 
 const defaultWidth = defaultFftSize;
 
@@ -15,6 +16,8 @@ export class RrWaterfall extends LitElement {
   minDecibels: number = defaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = defaultMaxDecibels;
+  @property({ attribute: false })
+  zoom?: Zoom;
 
   static get styles() {
     return [
@@ -26,6 +29,9 @@ export class RrWaterfall extends LitElement {
       `,
     ];
   }
+
+  private width: number = defaultWidth;
+  private cropWindow: CropWindow = getCropWindow(defaultWidth, this.zoom);
 
   render() {
     return html`<canvas id="waterfall"></canvas>`;
@@ -41,6 +47,14 @@ export class RrWaterfall extends LitElement {
   private waterfall: ImageData;
   @query("#waterfall") canvas?: HTMLCanvasElement;
   private context?: CanvasRenderingContext2D | null;
+
+  protected updated(changed: PropertyValues): void {
+    super.updated(changed);
+    if (!changed.has("zoom")) return;
+
+    this.recomputeCropWindow();
+    this.redraw();
+  }
 
   addFloatSpectrum(spectrum: Float32Array) {
     if (this.waterfall.width != spectrum.length) {
@@ -69,27 +83,38 @@ export class RrWaterfall extends LitElement {
       this.waterfall.data[i * 4 + 2] = c[2];
       this.waterfall.data[i * 4 + 3] = 255;
     }
-
-    let ctx = this._getContext();
-    if (!ctx) return;
-    if (ctx.canvas.width != spectrum.length) {
-      ctx.canvas.width = spectrum.length;
+    if (this.width != spectrum.length) {
+      this.width = spectrum.length;
+      this.recomputeCropWindow();
     }
-    ctx.putImageData(this.waterfall, 0, 0);
+    this.redraw();
   }
 
-  private _getContext(): CanvasRenderingContext2D | undefined {
+  private redraw() {
+    let ctx = this.getContext();
+    if (!ctx) return;
+    if (ctx.canvas.width != this.cropWindow.width) {
+      ctx.canvas.width = this.cropWindow.width;
+    }
+    ctx.putImageData(this.waterfall, -this.cropWindow.offset, 0);
+  }
+
+  private recomputeCropWindow() {
+    this.cropWindow = getCropWindow(this.width, this.zoom);
+  }
+
+  private getContext(): CanvasRenderingContext2D | undefined {
     if (this.context) return this.context;
     if (!this.canvas) return;
     this.canvas.width = this.waterfall.width;
     this.canvas.height = this.canvas.offsetHeight;
     this.context = this.canvas.getContext("2d")!;
-    const resizeObserver = new ResizeObserver(() => this._resize());
+    const resizeObserver = new ResizeObserver(() => this.resize());
     resizeObserver.observe(this.canvas);
     return this.context;
   }
 
-  private _resize() {
+  private resize() {
     let ctx = this.context;
     if (!ctx) return;
     ctx.canvas.height = ctx.canvas.offsetHeight;
