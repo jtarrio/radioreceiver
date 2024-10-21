@@ -51,9 +51,8 @@ export class RrHighlight extends LitElement {
         }
 
         #pointHandle {
-            cursor: col-resize;
+          cursor: col-resize;
         }
-
 
         #pointHandle:hover {
           background: var(--rr-highlight-handle-color, rgba(255, 255, 0, 1));
@@ -76,7 +75,9 @@ export class RrHighlight extends LitElement {
 
   private renderPoint() {
     if (this.selection?.point === undefined) return nothing;
-    let x = getZoomedFraction(this.selection.point, this.zoom) * this.offsetWidth;
+    let x =
+      getZoomedFraction(this.selection.point, this.zoom) * this.offsetWidth;
+    if (x < 0 || x >= this.offsetWidth) return nothing;
     return html`<div id="point" style="left:${x - 1}px"></div>
       ${this.draggablePoint
         ? html`<div
@@ -93,10 +94,16 @@ export class RrHighlight extends LitElement {
 
   private renderBand() {
     if (this.selection?.band === undefined) return nothing;
-    let l = getZoomedFraction(this.selection.band.left, this.zoom) * this.offsetWidth;
-    let r = getZoomedFraction(this.selection.band.right, this.zoom) * this.offsetWidth;
-    return html`<div id="band" style="left:${l}px;width:${r - l}px"></div>
-      ${this.draggableLeft
+    let l =
+      getZoomedFraction(this.selection.band.left, this.zoom) * this.offsetWidth;
+    let r =
+      getZoomedFraction(this.selection.band.right, this.zoom) *
+      this.offsetWidth;
+    if (l >= this.offsetWidth || r < 0) return nothing;
+    let le = Math.max(0, l);
+    let re = Math.min(r, this.offsetWidth - 1);
+    return html`<div id="band" style="left:${le}px;width:${re - le}px"></div>
+      ${this.draggableLeft && l == le
         ? html`<div
             id="leftBandHandle"
             class="handle"
@@ -106,7 +113,7 @@ export class RrHighlight extends LitElement {
             @pointerup=${this.dragLeftEnd}
             @pointercancel=${this.dragLeftCancel}
           ></div>`
-        : nothing}${this.draggableRight
+        : nothing}${this.draggableRight && r == re
         ? html`<div
             id="rightBandHandle"
             class="handle"
@@ -120,7 +127,7 @@ export class RrHighlight extends LitElement {
   }
 
   private draggingPoint?: Dragging;
-  private dragPointStart(e: PointerEvent) { 
+  private dragPointStart(e: PointerEvent) {
     if (e.button != 0) return;
     this.draggingPoint?.cancel(e);
     this.draggingPoint = new Dragging("point", this, e);
@@ -192,7 +199,8 @@ class Dragging {
   private original?: GridSelection;
 
   drag(e: PointerEvent) {
-    const zoom = this.highlight.zoom === undefined ? 1 : this.highlight.zoom.multiplier;
+    const zoom =
+      this.highlight.zoom === undefined ? 1 : this.highlight.zoom.multiplier;
     let deltaX = e.clientX - this.startX;
     let fraction =
       this.type == "point"
