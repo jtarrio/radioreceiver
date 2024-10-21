@@ -7,7 +7,7 @@ export const DefaultMinDecibels = -100;
 /** Maximum settable value for decibels. */
 export const TopDecibels = 0;
 /** Minimum settable value for decibels. */
-export const BottomDecibels = -180;
+export const BottomDecibels = -150;
 
 /** Definition of a grid line. */
 export type GridLine = {

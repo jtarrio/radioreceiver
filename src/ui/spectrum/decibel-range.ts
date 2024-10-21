@@ -31,61 +31,79 @@ export class RrDecibelRange extends LitElement {
         #palette {
           flex: 1;
           height: 24px;
-          width: 256px;
+          width: ${1.25 * (TopDecibels - BottomDecibels)}px;
         }
 
         #min,
         #max {
-          font-size: small;
           width: 7ex;
           align-content: center;
-          padding: 0 2px;
         }
 
         #min {
           text-align: right;
+          padding-right: 8px;
         }
 
         #max {
           text-align: left;
+          padding-left: 8px;
         }
 
         #minThumb,
         #maxThumb {
           position: absolute;
-          width: 8px;
           cursor: ew-resize;
+          box-sizing: border-box;
+          width: 8px;
+          height: 24px;
+          background: lightgray;
+          border: 1px outset;
+        }
+
+        #minThumb {
+          border-radius: 4px 0 0 4px;
+        }
+
+        #maxThumb {
+          border-radius: 0 4px 4px 0;
         }
       `,
     ];
   }
 
   render() {
-    return html`<div id="min">${this.minDecibels}&nbsp;dB</div>
+    return html` <input
+        id="min"
+        type="text"
+        .value=${getDisplayDbValue(this.minDecibels)}
+        @focus=${this.onMinFocus}
+        @blur=${this.onMinBlur}
+        @change=${this.onMinChange}
+      />
       <canvas id="palette" width="256" height="24"></canvas>
-      <div id="max">${this.maxDecibels}&nbsp;dB</div>
+      <input
+        id="max"
+        type="text"
+        .value=${getDisplayDbValue(this.maxDecibels)}
+        @focus=${this.onMaxFocus}
+        @blur=${this.onMaxBlur}
+        @change=${this.onMaxChange}
+      />
       <div
         id="minThumb"
         @pointerdown=${this.dragMinStart}
         @pointermove=${this.dragMin}
         @pointerup=${this.dragMinEnd}
         @pointercancel=${this.dragMinCancel}
-      >
-        <svg version="1.1" width="8" height="24">
-          <g><path d="M4,2h2l2,2v16l-2,2h-2v-1h1l1,-1v-16l-1,-1h-1Z"></path></g>
-        </svg>
-      </div>
+      ></div>
       <div
         id="maxThumb"
         @pointerdown=${this.dragMaxStart}
         @pointermove=${this.dragMax}
         @pointerup=${this.dragMaxEnd}
         @pointercancel=${this.dragMaxCancel}
-      >
-        <svg version="1.1" width="8" height="24">
-          <g><path d="M4,2h-2l-2,2v16l2,2h2v-1h-1l-1,-1v-16l1,-1h1Z"></path></g>
-        </svg>
-      </div>`;
+      ></div>`;
   }
 
   @query("#min") private minBox?: HTMLElement;
@@ -136,7 +154,6 @@ export class RrDecibelRange extends LitElement {
           (BottomDecibels - TopDecibels) +
         this.paletteBox.offsetLeft +
         "px";
-      this.minThumb.style.fill = isDark(this.palette[0]) ? "red" : "darkred";
     }
 
     if (this.maxThumb && this.paletteBox) {
@@ -145,7 +162,6 @@ export class RrDecibelRange extends LitElement {
           (TopDecibels - BottomDecibels) +
         this.paletteBox.offsetLeft +
         "px";
-      this.maxThumb.style.fill = isDark(this.palette[255]) ? "red" : "darkred";
     }
   }
 
@@ -154,6 +170,52 @@ export class RrDecibelRange extends LitElement {
     if (!this.paletteBox) return;
     this.context = this.paletteBox.getContext("2d")!;
     return this.context;
+  }
+
+  private onMinFocus(e: Event) {
+    let target = e.target as HTMLInputElement;
+    target.value = getInputDbValue(this.minDecibels);
+  }
+
+  private onMinBlur(e: Event) {
+    let target = e.target as HTMLInputElement;
+    target.value = getDisplayDbValue(this.minDecibels);
+  }
+
+  private onMinChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let value = target.value;
+    if (value.endsWith("dB"))
+      value = value.substring(0, value.length - 2).trim();
+    let input = Number(value);
+    if (isNaN(input)) {
+      target.value = getDisplayDbValue(this.minDecibels);
+    } else {
+      setMinDb(input, this);
+    }
+  }
+
+  private onMaxFocus(e: Event) {
+    let target = e.target as HTMLInputElement;
+    target.value = getInputDbValue(this.maxDecibels);
+  }
+
+  private onMaxBlur(e: Event) {
+    let target = e.target as HTMLInputElement;
+    target.value = getDisplayDbValue(this.maxDecibels);
+  }
+
+  private onMaxChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let value = target.value;
+    if (value.endsWith("dB"))
+      value = value.substring(0, value.length - 2).trim();
+    let input = Number(value);
+    if (isNaN(input)) {
+      target.value = getDisplayDbValue(this.maxDecibels);
+    } else {
+      setMaxDb(input, this);
+    }
   }
 
   private draggingMin?: Dragging;
@@ -246,18 +308,36 @@ class Dragging {
   }
 
   changeDb(db: number) {
-    db = Math.round(db);
-    if (db < BottomDecibels || db > TopDecibels) return;
-    let evt;
     if (this.type == "min") {
-      if (db >= this.range.maxDecibels) return;
-      evt = { min: db };
-      this.range.minDecibels = db;
+      setMinDb(db, this.range);
     } else {
-      if (db <= this.range.minDecibels) return;
-      evt = { max: db };
-      this.range.maxDecibels = db;
+      setMaxDb(db, this.range);
     }
-    this.range.dispatchEvent(new SpectrumDecibelRangeChangedEvent(evt));
   }
+}
+
+function setMinDb(db: number, range: RrDecibelRange) {
+  db = Math.round(db);
+  if (db < BottomDecibels) db = BottomDecibels;
+  if (db > TopDecibels) db = TopDecibels;
+  if (db > range.maxDecibels - 6) db = range.maxDecibels - 6;
+  range.minDecibels = db;
+  range.dispatchEvent(new SpectrumDecibelRangeChangedEvent({ min: db }));
+}
+
+function setMaxDb(db: number, range: RrDecibelRange) {
+  db = Math.round(db);
+  if (db < BottomDecibels) db = BottomDecibels;
+  if (db > TopDecibels) db = TopDecibels;
+  if (db < range.minDecibels + 6) db = range.minDecibels + 6;
+  range.maxDecibels = db;
+  range.dispatchEvent(new SpectrumDecibelRangeChangedEvent({ max: db }));
+}
+
+function getDisplayDbValue(value: number): string {
+  return getInputDbValue(value) + " dB";
+}
+
+function getInputDbValue(value: number): string {
+  return String(value);
 }
