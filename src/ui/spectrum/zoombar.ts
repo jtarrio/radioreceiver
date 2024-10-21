@@ -30,7 +30,7 @@ export class RrZoombar extends LitElement {
         }
 
         #zoomInput {
-          width: 4em;
+          width: 6ex;
         }
       `,
     ];
@@ -43,8 +43,10 @@ export class RrZoombar extends LitElement {
       <input
         id="zoomInput"
         type="text"
-        readonly
-        .value=${String(Math.round(this.zoom.multiplier * 10) / 10) + "x"}
+        .value=${getDisplayZoomValue(this.zoom.multiplier)}
+        @focus=${this.onZoomFocus}
+        @blur=${this.onZoomBlur}
+        @change=${this.onZoomChange}
       />
       <button @click=${this.onClickPlus}>
         ${this.renderGlass(
@@ -67,19 +69,49 @@ export class RrZoombar extends LitElement {
     </svg>`;
   }
 
+  private onZoomFocus(e: Event) {
+    let target = e.target as HTMLInputElement;
+    target.value = getInputZoomValue(this.zoom.multiplier);
+  }
+
+  private onZoomBlur(e: Event) {
+    let target = e.target as HTMLInputElement;
+    target.value = getDisplayZoomValue(this.zoom.multiplier);
+  }
+
+  private onZoomChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let value = target.value;
+    if (value.endsWith("x")) value = value.substring(0, value.length - 1);
+    let input = Number(value);
+    if (isNaN(input)) {
+      target.value = getDisplayZoomValue(this.zoom.multiplier);
+    } else {
+      this.setZoom(input);
+    }
+  }
+
   private onClickMinus() {
-    let zoom = { ...this.zoom };
-    zoom.multiplier /= Math.sqrt(2);
-    normalize(zoom);
-    this.zoom = zoom;
-    this.dispatchEvent(new SpectrumZoomEvent(zoom));
+    this.setZoom(this.zoom.multiplier / Math.sqrt(2));
   }
 
   private onClickPlus() {
+    this.setZoom(this.zoom.multiplier * Math.sqrt(2));
+  }
+
+  private setZoom(multiplier: number) {
     let zoom = { ...this.zoom };
-    zoom.multiplier *= Math.sqrt(2);
+    zoom.multiplier = multiplier;
     normalize(zoom);
     this.zoom = zoom;
     this.dispatchEvent(new SpectrumZoomEvent(zoom));
   }
+}
+
+function getDisplayZoomValue(value: number): string {
+  return getInputZoomValue(value) + "x";
+}
+
+function getInputZoomValue(value: number): string {
+  return String(Math.round(value * 100) / 100);
 }
