@@ -1,21 +1,23 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import {
-  defaultFftSize,
-  defaultMaxDecibels,
-  defaultMinDecibels,
+  DefaultFftSize,
+  DefaultMaxDecibels,
+  DefaultMinDecibels,
 } from "./common";
-import { CubeHelix, Palette } from "./palette";
+import { DefaultCubeHelix, type Palette } from "./palette";
 import { getCropWindow, CropWindow, type Zoom, DefaultZoom } from "./zoom";
 
-const defaultWidth = defaultFftSize;
+const defaultWidth = DefaultFftSize;
 
 @customElement("rr-waterfall")
 export class RrWaterfall extends LitElement {
   @property({ type: Number, reflect: true, attribute: "min-decibels" })
-  minDecibels: number = defaultMinDecibels;
+  minDecibels: number = DefaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
-  maxDecibels: number = defaultMaxDecibels;
+  maxDecibels: number = DefaultMaxDecibels;
+  @property({ attribute: false })
+  palette: Palette = DefaultCubeHelix;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
 
@@ -39,11 +41,9 @@ export class RrWaterfall extends LitElement {
 
   constructor() {
     super();
-    this.palette = CubeHelix(2, 1, 3, 1);
     this.waterfall = new ImageData(defaultWidth, screen.height);
   }
 
-  private palette: Palette;
   private waterfall: ImageData;
   @query("#waterfall") canvas?: HTMLCanvasElement;
   private context?: CanvasRenderingContext2D | null;

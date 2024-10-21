@@ -1,20 +1,20 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import {
-  defaultFftSize,
-  defaultMaxDecibels,
-  defaultMinDecibels,
+  DefaultFftSize,
+  DefaultMaxDecibels,
+  DefaultMinDecibels,
 } from "./common";
 import { DefaultZoom, getSampleWindow, SampleWindow, type Zoom } from "./zoom";
 
-const defaultWidth = defaultFftSize;
+const defaultWidth = DefaultFftSize;
 
 @customElement("rr-scope")
 export class RrScope extends LitElement {
   @property({ type: Number, reflect: true, attribute: "min-decibels" })
-  minDecibels: number = defaultMinDecibels;
+  minDecibels: number = DefaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
-  maxDecibels: number = defaultMaxDecibels;
+  maxDecibels: number = DefaultMaxDecibels;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
 
@@ -30,7 +30,7 @@ export class RrScope extends LitElement {
     ];
   }
 
-  private spectrum: Float32Array = new Float32Array(defaultFftSize);
+  private spectrum: Float32Array = new Float32Array(DefaultFftSize);
   private width: number = defaultWidth;
   private sampleWindow: SampleWindow = getSampleWindow(
     this.spectrum.length,

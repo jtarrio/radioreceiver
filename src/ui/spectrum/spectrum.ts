@@ -1,12 +1,12 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import {
-  defaultMaxDecibels,
-  defaultMinDecibels,
+  DefaultMaxDecibels,
+  DefaultMinDecibels,
   GridLine,
   type GridSelection,
 } from "./common";
-import { SpectrumZoomEvent } from "./events";
+import { SpectrumDecibelRangeChangedEvent, SpectrumZoomEvent } from "./events";
 import { Direction, getGridLines, Orientation } from "./grid-lines";
 import { RrOverlay } from "./overlay";
 import { RrScope } from "./scope";
@@ -18,6 +18,7 @@ import {
   type Zoom,
 } from "./zoom";
 import "./captions";
+import "./decibel-range";
 import "./event-source";
 import "./highlight";
 import "./overlay";
@@ -35,9 +36,9 @@ export class RrSpectrum extends LitElement {
   @property({ type: Number, reflect: true, attribute: "frequency-scale" })
   frequencyScale: number = 1;
   @property({ type: Number, reflect: true, attribute: "min-decibels" })
-  minDecibels: number = defaultMinDecibels;
+  minDecibels: number = DefaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
-  maxDecibels: number = defaultMaxDecibels;
+  maxDecibels: number = DefaultMaxDecibels;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
   @property({ attribute: false })
@@ -118,7 +119,7 @@ export class RrSpectrum extends LitElement {
           bottom: 24px;
         }
 
-        #zoomControls {
+        #bottomControls {
           display: flex;
           flex-direction: row;
         }
@@ -130,8 +131,8 @@ export class RrSpectrum extends LitElement {
     return html`<div id="scopeBox" class="box">
         <rr-scope
           id="scope"
-          min-decibels=${this.minDecibels}
-          max-decibels=${this.maxDecibels}
+          .minDecibels=${this.minDecibels}
+          .maxDecibels=${this.maxDecibels}
           .zoom=${this.zoom}
         ></rr-scope
         ><rr-overlay
@@ -142,8 +143,8 @@ export class RrSpectrum extends LitElement {
         ><rr-captions
           id="scopeFrequencies"
           .lines=${this.lines}
-          ?horizontal=${true}
-          scale=${this.frequencyScale}
+          .horizontal=${true}
+          .scale=${this.frequencyScale}
           .zoom=${this.zoom}
         ></rr-captions
         ><rr-captions id="scopeDecibels" .lines=${this.lines}></rr-captions>
@@ -151,13 +152,18 @@ export class RrSpectrum extends LitElement {
       <div id="waterfallBox" class="box">
         <rr-waterfall
           id="waterfall"
-          min-decibels=${this.minDecibels}
-          max-decibels=${this.maxDecibels}
+          .minDecibels=${this.minDecibels}
+          .maxDecibels=${this.maxDecibels}
           .zoom=${this.zoom}
         ></rr-waterfall>
       </div>
       <div id="bottomBox" class="box">
-        <div id="zoomControls">
+        <div id="bottomControls">
+          <rr-decibel-range
+            .minDecibels=${this.minDecibels}
+            .maxDecibels=${this.maxDecibels}
+            @spectrum-decibel-range-changed=${this.onDecibelRangeChanged}
+          ></rr-decibel-range>
           <rr-zoombar
             .zoom=${this.zoom}
             @spectrum-zoom=${this.onZoom}
@@ -203,6 +209,15 @@ export class RrSpectrum extends LitElement {
 
   private onZoom(e: SpectrumZoomEvent) {
     this.zoom = e.detail;
+  }
+
+  private onDecibelRangeChanged(e: SpectrumDecibelRangeChangedEvent) {
+    if (e.detail.min !== undefined) {
+      this.minDecibels = e.detail.min;
+    }
+    if (e.detail.max !== undefined) {
+      this.maxDecibels = e.detail.max;
+    }
   }
 
   private computeLines() {
