@@ -1,7 +1,8 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { DefaultZoom, normalize, type Zoom } from "./zoom";
 import { SpectrumZoomEvent } from "./events";
+import { DragController, DragHandler } from "../controls/drag-controller";
 
 @customElement("rr-scrollbar")
 export class RrScrollbar extends LitElement {
@@ -70,13 +71,7 @@ export class RrScrollbar extends LitElement {
             : 0}%"
           @click=${this.onClickAreaLeft}
         ></div>
-        <div
-          id="thumb"
-          @pointerdown=${this.dragStart}
-          @pointermove=${this.drag}
-          @pointerup=${this.dragEnd}
-          @pointercancel=${this.dragCancel}
-        ></div>
+        <div id="thumb" @pointerdown=${this.onPointerDown}></div>
         <div
           id="right"
           style="width: ${this.zoom
@@ -94,6 +89,14 @@ export class RrScrollbar extends LitElement {
   }
 
   @query("#scroll") scrollBox?: HTMLElement;
+  private dragController?: DragController;
+
+  protected firstUpdated(changed: PropertyValues): void {
+    super.firstUpdated(changed);
+    this.dragController = new DragController(
+      new ScrollbarDragHandler(this, this.scrollBox!)
+    );
+  }
 
   private onClickButtonLeft() {
     this.moveZoom(-1 / 20);
@@ -119,55 +122,32 @@ export class RrScrollbar extends LitElement {
     this.dispatchEvent(new SpectrumZoomEvent(zoom));
   }
 
-  private dragging?: Dragging;
-  private dragStart(e: PointerEvent) {
-    if (e.button != 0) return;
-    this.dragging?.cancel(e);
-    this.dragging = new Dragging(this, this.scrollBox!, e);
-  }
-  private drag(e: PointerEvent) {
-    this.dragging?.drag(e);
-  }
-  private dragEnd(e: PointerEvent) {
-    this.dragging?.finish(e);
-    this.dragging = undefined;
-  }
-  private dragCancel(e: PointerEvent) {
-    this.dragging?.cancel(e);
-    this.dragging = undefined;
+  private onPointerDown(e: PointerEvent) {
+    this.dragController?.startDragging(e);
   }
 }
 
-class Dragging {
+class ScrollbarDragHandler implements DragHandler {
   constructor(
     private scrollbar: RrScrollbar,
-    private box: HTMLElement,
-    firstEvent: PointerEvent
-  ) {
-    this.startX = firstEvent.clientX;
-    this.startZoom = { ...scrollbar.zoom };
-    (firstEvent.target as HTMLElement).setPointerCapture(firstEvent.pointerId);
-    firstEvent.preventDefault();
+    private box: HTMLElement
+  ) {}
+
+  private startZoom: Zoom = { ...DefaultZoom };
+
+  startDrag(): void {
+    this.startZoom = { ...this.scrollbar.zoom };
   }
 
-  private startX: number;
-  private startZoom: Zoom;
-
-  drag(e: PointerEvent) {
-    let deltaX = e.clientX - this.startX;
+  drag(deltaX: number, deltaY: number): void {
     let fraction = deltaX / this.box.offsetWidth;
     this.moveZoom(fraction);
-    e.preventDefault();
   }
 
-  finish(e: PointerEvent) {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    e.preventDefault();
-  }
+  finishDrag(): void {}
 
-  cancel(e: PointerEvent) {
+  cancelDrag(): void {
     this.moveZoom(0);
-    this.finish(e);
   }
 
   moveZoom(fraction: number) {

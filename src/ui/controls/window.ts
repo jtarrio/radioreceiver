@@ -1,5 +1,6 @@
 import { css, html, LitElement, PropertyValues } from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
+import { DragController, DragHandler } from "./drag-controller";
 
 @customElement("rr-window")
 export class RrWindow extends LitElement {
@@ -84,11 +85,8 @@ export class RrWindow extends LitElement {
 
   render() {
     return html`<div
-        class="label${this.dragging !== undefined ? " moving" : ""}"
-        @pointerdown=${this.dragStart}
-        @pointermove=${this.drag}
-        @pointerup=${this.dragEnd}
-        @pointercancel=${this.dragCancel}
+        class="label${this.dragging ? " moving" : ""}"
+        @pointerdown=${this.onPointerDown}
       >
         <div class="label-left"><slot name="label-left"></slot></div>
         <div class="label-middle"><slot name="label">${this.label}</slot></div>
@@ -97,7 +95,8 @@ export class RrWindow extends LitElement {
       <div class="content"><slot></slot></div>`;
   }
 
-  @state() private dragging?: Dragging;
+  @state() dragging: boolean = false;
+  private dragController?: DragController;
   private resizeObserver?: ResizeObserver;
 
   connectedCallback(): void {
@@ -113,26 +112,12 @@ export class RrWindow extends LitElement {
 
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
+    this.dragController = new DragController(new WindowDragHandler(this), true);
     fixElement(this);
   }
 
-  private dragStart(e: PointerEvent) {
-    this.dragging?.cancel(e);
-    this.dragging = new Dragging(this, e);
-  }
-
-  private drag(e: PointerEvent) {
-    this.dragging?.drag(e);
-  }
-
-  private dragEnd(e: PointerEvent) {
-    this.dragging?.finish(e);
-    this.dragging = undefined;
-  }
-
-  private dragCancel(e: PointerEvent) {
-    this.dragging?.cancel(e);
-    this.dragging = undefined;
+  private onPointerDown(e: PointerEvent) {
+    this.dragController?.startDragging(e);
   }
 
   private onWindowResize() {
@@ -169,42 +154,35 @@ function moveElement(element: HTMLElement, x: number, y: number) {
   element.style.top = y + "px";
 }
 
-class Dragging {
-  constructor(
-    private element: HTMLElement,
-    firstEvent: PointerEvent
-  ) {
-    this.elemX = element.offsetLeft;
-    this.elemY = element.offsetTop;
-    this.startX = firstEvent.clientX;
-    this.startY = firstEvent.clientY;
-    (firstEvent.target as HTMLElement).setPointerCapture(firstEvent.pointerId);
-    firstEvent.preventDefault();
+class WindowDragHandler implements DragHandler {
+  constructor(private window: RrWindow) {
+    this.elemX = window.offsetLeft;
+    this.elemY = window.offsetTop;
   }
 
   private elemX: number;
   private elemY: number;
-  private startX: number;
-  private startY: number;
 
-  drag(e: PointerEvent) {
-    let deltaX = e.clientX - this.startX;
-    let deltaY = e.clientY - this.startY;
+  startDrag(): void {
+    this.window.dragging = true;
+    this.elemX = this.window.offsetLeft;
+    this.elemY = this.window.offsetTop;
+  }
+
+  drag(deltaX: number, deltaY: number): void {
     moveElementWithinViewport(
-      this.element,
+      this.window,
       this.elemX + deltaX,
       this.elemY + deltaY
     );
-    e.preventDefault();
   }
 
-  finish(e: PointerEvent) {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    e.preventDefault();
+  finishDrag(): void {
+    this.window.dragging = false;
   }
 
-  cancel(e: PointerEvent) {
-    moveElement(this.element, this.elemX, this.elemY);
-    this.finish(e);
+  cancelDrag(): void {
+    this.window.dragging = false;
+    moveElement(this.window, this.elemX, this.elemY);
   }
 }

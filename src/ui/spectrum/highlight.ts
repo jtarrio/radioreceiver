@@ -1,8 +1,9 @@
-import { css, html, LitElement, nothing } from "lit";
+import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { type GridSelection } from "./common";
 import { SpectrumHighlightChangedEvent } from "./events";
 import { DefaultZoom, getZoomedFraction, type Zoom } from "./zoom";
+import { DragController, DragHandler } from "../controls/drag-controller";
 
 @customElement("rr-highlight")
 export class RrHighlight extends LitElement {
@@ -84,10 +85,7 @@ export class RrHighlight extends LitElement {
             id="pointHandle"
             class="handle"
             style="left:${x - 2}px"
-            @pointerdown=${this.dragPointStart}
-            @pointermove=${this.dragPoint}
-            @pointerup=${this.dragPointEnd}
-            @pointercancel=${this.dragPointCancel}
+            @pointerdown=${this.onPointPointerDown}
           ></div>`
         : nothing}`;
   }
@@ -108,146 +106,98 @@ export class RrHighlight extends LitElement {
             id="leftBandHandle"
             class="handle"
             style="left:${l - 2}px"
-            @pointerdown=${this.dragLeftStart}
-            @pointermove=${this.dragLeft}
-            @pointerup=${this.dragLeftEnd}
-            @pointercancel=${this.dragLeftCancel}
+            @pointerdown=${this.onLeftPointerDown}
           ></div>`
         : nothing}${this.draggableRight && r == re
         ? html`<div
             id="rightBandHandle"
             class="handle"
             style="left:${r - 2}px"
-            @pointerdown=${this.dragRightStart}
-            @pointermove=${this.dragRight}
-            @pointerup=${this.dragRightEnd}
-            @pointercancel=${this.dragRightCancel}
+            @pointerdown=${this.onRightPointerDown}
           ></div>`
         : nothing}`;
   }
 
-  private draggingPoint?: Dragging;
-  private dragPointStart(e: PointerEvent) {
-    if (e.button != 0) return;
-    this.draggingPoint?.cancel(e);
-    this.draggingPoint = new Dragging("point", this, e);
-  }
-  private dragPoint(e: PointerEvent) {
-    this.draggingPoint?.drag(e);
-  }
-  private dragPointEnd(e: PointerEvent) {
-    this.draggingPoint?.finish(e);
-    this.draggingPoint = undefined;
-  }
-  private dragPointCancel(e: PointerEvent) {
-    this.draggingPoint?.cancel(e);
-    this.draggingPoint = undefined;
+  private pointDragController?: DragController;
+  private leftDragController?: DragController;
+  private rightDragController?: DragController;
+
+  protected firstUpdated(changed: PropertyValues): void {
+    super.firstUpdated(changed);
+    this.pointDragController = new DragController(
+      new HighlightDragHandler("point", this)
+    );
+    this.leftDragController = new DragController(
+      new HighlightDragHandler("start", this)
+    );
+    this.rightDragController = new DragController(
+      new HighlightDragHandler("end", this)
+    );
   }
 
-  private draggingLeft?: Dragging;
-  private dragLeftStart(e: PointerEvent) {
-    if (e.button != 0) return;
-    this.draggingLeft?.cancel(e);
-    this.draggingLeft = new Dragging("start", this, e);
-  }
-  private dragLeft(e: PointerEvent) {
-    this.draggingLeft?.drag(e);
-  }
-  private dragLeftEnd(e: PointerEvent) {
-    this.draggingLeft?.finish(e);
-    this.draggingLeft = undefined;
-  }
-  private dragLeftCancel(e: PointerEvent) {
-    this.draggingLeft?.cancel(e);
-    this.draggingLeft = undefined;
+  private onPointPointerDown(e: PointerEvent) {
+    this.pointDragController?.startDragging(e);
   }
 
-  private draggingRight?: Dragging;
-  private dragRightStart(e: PointerEvent) {
-    if (e.button != 0) return;
-    this.draggingRight?.cancel(e);
-    this.draggingRight = new Dragging("end", this, e);
+  private onLeftPointerDown(e: PointerEvent) {
+    this.leftDragController?.startDragging(e);
   }
-  private dragRight(e: PointerEvent) {
-    this.draggingRight?.drag(e);
-  }
-  private dragRightEnd(e: PointerEvent) {
-    this.draggingRight?.finish(e);
-    this.draggingRight = undefined;
-  }
-  private dragRightCancel(e: PointerEvent) {
-    this.draggingRight?.cancel(e);
-    this.draggingRight = undefined;
+
+  private onRightPointerDown(e: PointerEvent) {
+    this.rightDragController?.startDragging(e);
   }
 }
 
 type DragType = "point" | "start" | "end";
 
-class Dragging {
+class HighlightDragHandler implements DragHandler {
   constructor(
     private type: DragType,
-    private highlight: RrHighlight,
-    firstEvent: PointerEvent
-  ) {
-    this.startX = firstEvent.clientX;
-    this.original = highlight.selection;
-    (firstEvent.target as HTMLElement).setPointerCapture(firstEvent.pointerId);
-    firstEvent.preventDefault();
-  }
+    private highlight: RrHighlight
+  ) {}
 
-  private startX: number;
   private original?: GridSelection;
 
-  drag(e: PointerEvent) {
+  startDrag(): void {
+    this.original = this.highlight.selection;
+  }
+
+  drag(deltaX: number, _: number): void {
     const zoom =
       this.highlight.zoom === undefined ? 1 : this.highlight.zoom.multiplier;
-    let deltaX = e.clientX - this.startX;
-    let fraction =
-      this.type == "point"
-        ? this.original?.point
-        : this.type == "start"
-          ? this.original?.band?.left
-          : this.original?.band?.right;
+    let fraction = this.getFraction();
     if (fraction !== undefined) {
       fraction += deltaX / (this.highlight.offsetWidth * zoom);
       if (fraction < 0) fraction = 0;
       if (fraction > 1) fraction = 1;
-      this.highlight.dispatchEvent(
-        new SpectrumHighlightChangedEvent(
-          this.type == "point"
-            ? { fraction }
-            : this.type == "start"
-              ? { startFraction: fraction }
-              : { endFraction: fraction }
-        )
-      );
+      this.highlight.dispatchEvent(this.getEvent(fraction));
     }
-    e.preventDefault();
   }
 
-  finish(e: PointerEvent) {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    e.preventDefault();
-  }
+  finishDrag(): void {}
 
-  cancel(e: PointerEvent) {
-    let fraction =
-      this.type == "point"
-        ? this.original?.point
-        : this.type == "start"
-          ? this.original?.band?.left
-          : this.original?.band?.right;
+  cancelDrag(): void {
+    let fraction = this.getFraction();
     if (fraction !== undefined) {
-      this.highlight.dispatchEvent(
-        new SpectrumHighlightChangedEvent(
-          this.type == "point"
-            ? { fraction }
-            : this.type == "start"
-              ? { startFraction: fraction }
-              : { endFraction: fraction }
-        )
-      );
+      this.highlight.dispatchEvent(this.getEvent(fraction));
     }
-    this.finish(e);
+  }
+
+  private getFraction(): number | undefined {
+    return this.type == "point"
+      ? this.original?.point
+      : this.type == "start"
+        ? this.original?.band?.left
+        : this.original?.band?.right;
+  }
+
+  private getEvent(fraction: number): SpectrumHighlightChangedEvent {
+    return new SpectrumHighlightChangedEvent(
+      this.type == "point"
+        ? { fraction }
+        : this.type == "start"
+          ? { startFraction: fraction }
+          : { endFraction: fraction }
+    );
   }
 }

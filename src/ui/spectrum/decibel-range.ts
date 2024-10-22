@@ -8,6 +8,7 @@ import {
 } from "./common";
 import { DefaultCubeHelix, type PaletteEntry, type Palette } from "./palette";
 import { SpectrumDecibelRangeChangedEvent } from "./events";
+import { DragController, DragHandler } from "../controls/drag-controller";
 
 @customElement("rr-decibel-range")
 export class RrDecibelRange extends LitElement {
@@ -90,20 +91,8 @@ export class RrDecibelRange extends LitElement {
         @blur=${this.onMaxBlur}
         @change=${this.onMaxChange}
       />
-      <div
-        id="minThumb"
-        @pointerdown=${this.dragMinStart}
-        @pointermove=${this.dragMin}
-        @pointerup=${this.dragMinEnd}
-        @pointercancel=${this.dragMinCancel}
-      ></div>
-      <div
-        id="maxThumb"
-        @pointerdown=${this.dragMaxStart}
-        @pointermove=${this.dragMax}
-        @pointerup=${this.dragMaxEnd}
-        @pointercancel=${this.dragMaxCancel}
-      ></div>`;
+      <div id="minThumb" @pointerdown=${this.onMinPointerDown}></div>
+      <div id="maxThumb" @pointerdown=${this.onMaxPointerDown}></div>`;
   }
 
   @query("#min") private minBox?: HTMLElement;
@@ -112,9 +101,17 @@ export class RrDecibelRange extends LitElement {
   @query("#minThumb") private minThumb?: HTMLElement;
   @query("#maxThumb") private maxThumb?: HTMLElement;
   private context?: CanvasRenderingContext2D;
+  private minDragController?: DragController;
+  private maxDragController?: DragController;
 
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
+    this.minDragController = new DragController(
+      new DecibelDragHandler("min", this, this.paletteBox!)
+    );
+    this.maxDragController = new DragController(
+      new DecibelDragHandler("max", this, this.paletteBox!)
+    );
     this.repaintPalette();
   }
 
@@ -218,52 +215,12 @@ export class RrDecibelRange extends LitElement {
     }
   }
 
-  private draggingMin?: Dragging;
-  private dragMinStart(e: PointerEvent) {
-    if (e.button != 0) return;
-    this.draggingMin?.cancel(e);
-    this.draggingMin = new Dragging(
-      "min",
-      this,
-      this.minDecibels,
-      this.paletteBox!,
-      e
-    );
-  }
-  private dragMin(e: PointerEvent) {
-    this.draggingMin?.drag(e);
-  }
-  private dragMinEnd(e: PointerEvent) {
-    this.draggingMin?.finish(e);
-    this.draggingMin = undefined;
-  }
-  private dragMinCancel(e: PointerEvent) {
-    this.draggingMin?.cancel(e);
-    this.draggingMin = undefined;
+  private onMinPointerDown(e: PointerEvent) {
+    this.minDragController?.startDragging(e);
   }
 
-  private draggingMax?: Dragging;
-  private dragMaxStart(e: PointerEvent) {
-    if (e.button != 0) return;
-    this.draggingMax?.cancel(e);
-    this.draggingMax = new Dragging(
-      "max",
-      this,
-      this.maxDecibels,
-      this.paletteBox!,
-      e
-    );
-  }
-  private dragMax(e: PointerEvent) {
-    this.draggingMax?.drag(e);
-  }
-  private dragMaxEnd(e: PointerEvent) {
-    this.draggingMax?.finish(e);
-    this.draggingMax = undefined;
-  }
-  private dragMaxCancel(e: PointerEvent) {
-    this.draggingMax?.cancel(e);
-    this.draggingMax = undefined;
+  private onMaxPointerDown(e: PointerEvent) {
+    this.maxDragController?.startDragging(e);
   }
 }
 
@@ -275,36 +232,29 @@ function isDark(entry: PaletteEntry): boolean {
   return Math.max(entry[0], entry[1], entry[2]) < 96;
 }
 
-class Dragging {
+class DecibelDragHandler implements DragHandler {
   constructor(
     private type: "min" | "max",
     private range: RrDecibelRange,
-    private startDb: number,
-    private box: HTMLElement,
-    firstEvent: PointerEvent
-  ) {
-    this.startX = firstEvent.clientX;
-    (firstEvent.target as HTMLElement).setPointerCapture(firstEvent.pointerId);
-    firstEvent.preventDefault();
+    private box: HTMLElement
+  ) {}
+
+  private startDb: number = 0;
+
+  startDrag(): void {
+    this.startDb =
+      this.type === "min" ? this.range.minDecibels : this.range.maxDecibels;
   }
 
-  private startX: number;
-
-  drag(e: PointerEvent) {
-    let deltaX = e.clientX - this.startX;
+  drag(deltaX: number, _: number): void {
     let fraction = deltaX / this.box.offsetWidth;
     this.changeDb(this.startDb + fraction * (TopDecibels - BottomDecibels));
-    e.preventDefault();
   }
 
-  finish(e: PointerEvent) {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    e.preventDefault();
-  }
+  finishDrag(): void {}
 
-  cancel(e: PointerEvent) {
+  cancelDrag(): void {
     this.changeDb(this.startDb);
-    this.finish(e);
   }
 
   changeDb(db: number) {
