@@ -20,6 +20,8 @@ export class RrWaterfall extends LitElement {
   palette: Palette = DefaultCubeHelix;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
+  @property({ type: Number, reflect: true })
+  bandwidth?: number;
 
   static get styles() {
     return [
@@ -31,9 +33,6 @@ export class RrWaterfall extends LitElement {
       `,
     ];
   }
-
-  private width: number = defaultWidth;
-  private cropWindow: CropWindow = getCropWindow(defaultWidth, this.zoom);
 
   render() {
     return html`<canvas id="waterfall"></canvas>`;
@@ -47,6 +46,9 @@ export class RrWaterfall extends LitElement {
   private waterfall: ImageData;
   @query("#waterfall") canvas?: HTMLCanvasElement;
   private context?: CanvasRenderingContext2D | null;
+  private width: number = defaultWidth;
+  private cropWindow: CropWindow = getCropWindow(defaultWidth, this.zoom);
+  private frequency: number = 0;
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
@@ -56,9 +58,15 @@ export class RrWaterfall extends LitElement {
     this.redraw();
   }
 
-  addFloatSpectrum(spectrum: Float32Array) {
+  addFloatSpectrum(frequency: number | undefined, spectrum: Float32Array) {
     if (this.waterfall.width != spectrum.length) {
       this.waterfall = new ImageData(spectrum.length, screen.height);
+    } else if (this.frequency != frequency && frequency !== undefined) {
+      if (this.bandwidth !== undefined) {
+        let amount = frequency - this.frequency;
+        this.scrollFrequency(amount / this.bandwidth);
+      }
+      this.frequency = frequency;
     }
 
     const lineSize = 4 * spectrum.length;
@@ -88,6 +96,37 @@ export class RrWaterfall extends LitElement {
       this.recomputeCropWindow();
     }
     this.redraw();
+  }
+
+  private scrollFrequency(fraction: number) {
+    if (fraction >= 1 || fraction <= -1) {
+      this.waterfall.data.fill(0);
+      this.scrollError = 0;
+      return;
+    }
+
+    let pixels = Math.round(this.width * fraction);
+    if (pixels == 0) return;
+
+    if (pixels > 0) {
+      this.waterfall.data.copyWithin(0, pixels * 4);
+      for (let i = 0; i < screen.height; ++i) {
+        this.waterfall.data.fill(
+          0,
+          ((i + 1) * this.width - pixels) * 4,
+          (i + 1) * this.width * 4
+        );
+      }
+    } else {
+      this.waterfall.data.copyWithin(-pixels * 4, 0);
+      for (let i = 0; i < screen.height; ++i) {
+        this.waterfall.data.fill(
+          0,
+          i * this.width * 4,
+          (i * this.width - pixels) * 4
+        );
+      }
+    }
   }
 
   private redraw() {

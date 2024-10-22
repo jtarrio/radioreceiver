@@ -155,6 +155,7 @@ export class RrSpectrum extends LitElement {
           .minDecibels=${this.minDecibels}
           .maxDecibels=${this.maxDecibels}
           .zoom=${this.zoom}
+          .bandwidth=${this.bandwidth}
         ></rr-waterfall>
       </div>
       <div id="bottomBox" class="box">
@@ -202,9 +203,9 @@ export class RrSpectrum extends LitElement {
     if (changed.size != 0) this.computeLines();
   }
 
-  addFloatSpectrum(spectrum: Float32Array) {
+  addFloatSpectrum(frequency: number | undefined, spectrum: Float32Array) {
     this.scope?.addFloatSpectrum(spectrum);
-    this.waterfall?.addFloatSpectrum(spectrum);
+    this.waterfall?.addFloatSpectrum(frequency, spectrum);
   }
 
   private onZoom(e: SpectrumZoomEvent) {

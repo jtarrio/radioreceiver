@@ -265,7 +265,7 @@ export class RadioReceiverMain extends LitElement {
   private onSampleClickEvent(e: SampleClickEvent) {
     let spectrum = this.spectrumBuffer.get(this.spectrum.size);
     this.spectrum.getSpectrum(spectrum);
-    this.spectrumView!.addFloatSpectrum(spectrum);
+    this.spectrumView!.addFloatSpectrum(this.spectrum.frequency(), spectrum);
   }
 
   private onStart(e: Event) {

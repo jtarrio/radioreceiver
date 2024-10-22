@@ -36,6 +36,7 @@ export class Spectrum implements SampleReceiver {
 
   private I: Float32RingBuffer;
   private Q: Float32RingBuffer;
+  private lastFrequency: number | undefined;
   private fft: FFT;
   private lastOutput: Float32Array;
   private dirty: boolean;
@@ -51,14 +52,19 @@ export class Spectrum implements SampleReceiver {
     return this.fft.length;
   }
 
-  receiveSamples(I: Float32Array, Q: Float32Array, _: number): void {
+  receiveSamples(I: Float32Array, Q: Float32Array, frequency: number): void {
     this.I.store(I);
     this.Q.store(Q);
+    this.lastFrequency = frequency;
     this.dirty = true;
   }
 
   andThen(next: SampleReceiver): SampleReceiver {
     return concatenateReceivers(this, next);
+  }
+
+  frequency(): number | undefined {
+    return this.lastFrequency;
   }
 
   getSpectrum(spectrum: Float32Array) {
