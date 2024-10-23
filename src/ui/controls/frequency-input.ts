@@ -26,8 +26,7 @@ export class RrFrequencyInput extends LitElement {
       css`
         input {
           width: 13ex;
-        }
-      `,
+        }`,
     ];
   }
 

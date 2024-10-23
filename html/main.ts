@@ -1,5 +1,6 @@
 import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
+import { RrMainControls } from "./main-controls";
 import { Demodulator } from "../src/demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../src/demod/sample-counter";
 import { type Mode } from "../src/demod/scheme";
@@ -17,14 +18,12 @@ import {
 } from "../src/rtlsdr/fakertl/generators";
 import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
 import { RtlDeviceProvider } from "../src/rtlsdr/rtldevice";
-import { RrFrequencyInput } from "../src/ui/controls/frequency-input";
 import {
   SpectrumHighlightChangedEvent,
   SpectrumTapEvent,
 } from "../src/ui/spectrum/events";
 import { RrSpectrum } from "../src/ui/spectrum/spectrum";
-import "../src/ui/controls/frequency-input";
-import "../src/ui/controls/window";
+import "./main-controls";
 import "../src/ui/spectrum/spectrum";
 
 type Frequency = {
@@ -75,25 +74,6 @@ export class RadioReceiverMain extends LitElement {
           flex: 1;
           margin: 0;
         }
-
-        #controls {
-          position: absolute;
-          bottom: calc(1em + 24px);
-          left: 1em;
-        }
-
-        button:has(svg) {
-          padding-inline: 0;
-          width: 24px;
-          height: 24px;
-        }
-
-        button > svg {
-          display: block;
-          width: 16px;
-          height: 16px;
-          margin: auto;
-        }
       `,
     ];
   }
@@ -128,82 +108,29 @@ export class RadioReceiverMain extends LitElement {
         @spectrum-highlight-changed=${this.onSpectrumHighlightChanged}
       ></rr-spectrum>
 
-      <rr-window label="Controls" id="controls">
-        ${this.playing
-          ? html`<button slot="label-left" id="stop" @click=${this.onStop}>
-              <svg version="1.1" width="16" height="16">
-                <title>Stop playing</title>
-                <g><path d="M2,2v12h12V2z"></path></g>
-              </svg>
-            </button>`
-          : html`<button slot="label-left" id="start" @click=${this.onStart}>
-              <svg version="1.1" width="16" height="16">
-                <title>Start playing</title>
-                <g><path d="M3,2v12l10,-6z"></path></g>
-              </svg>
-            </button>`}
-        <div>
-          <label for="centerFrequency">Center frequency: </label
-          ><rr-frequency-input
-            id="centerFrequency"
-            min="0"
-            max="1800000000"
-            .frequency=${this.frequency.center}
-            .scale=${this.scale}
-            @change=${this.onCenterFrequencyChange}
-            @scale-change=${this.onScaleChange}
-          ></rr-frequency-input>
-          <label for="tunedFrequency">Tuned frequency: </label
-          ><rr-frequency-input
-            id="tunedFrequency"
-            min="0"
-            max="1800000000"
-            .frequency=${this.frequency.center + this.frequency.offset}
-            .scale=${this.scale}
-            @change=${this.onTunedFrequencyChange}
-            @scale-change=${this.onScaleChange}
-          ></rr-frequency-input>
-        </div>
-        <div>
-          <label for="scheme">Modulation: </label>
-          <select id="scheme" @change=${this.onSchemeChange}>
-            ${this.availableModes
-              .keys()
-              .map(
-                (k) =>
-                  html`<option value="${k}" .selected=${this.mode.scheme == k}>
-                    ${k}
-                  </option>`
-              )}
-          </select>
-          <label for="bandwidth">Bandwidth: </label
-          ><input
-            type="number"
-            id="bandwidth"
-            min="0"
-            max="20000"
-            step="any"
-            .value=${this.mode.scheme == "WBFM"
-              ? "150000"
-              : this.mode.scheme == "NBFM"
-                ? String(this.mode.maxF * 2)
-                : String(this.mode.bandwidth)}
-            .disabled=${this.mode.scheme == "WBFM"}
-            @change=${this.onBandwidthChange}
-          />
-          <label for="gain">Gain: </label
-          ><input
-            type="number"
-            id="gain"
-            min="0"
-            max="50"
-            step="any"
-            .value=${this.gain === null ? "" : String(this.gain)}
-            .disabled=${this.gainDisabled}
-            @change=${this.onGainChange}
-          />
-        </div>
-      </rr-window>`;
+      <rr-main-controls
+        .playing=${this.playing}
+        .centerFrequency=${this.frequency.center}
+        .tunedFrequency=${this.frequency.center + this.frequency.offset}
+        .scale=${this.scale}
+        .availableModes=${[...this.availableModes.keys()]}
+        .mode=${this.mode.scheme}
+        .bandwidth=${this.mode.scheme == "WBFM"
+          ? 150000
+          : this.mode.scheme == "NBFM"
+            ? this.mode.maxF * 2
+            : this.mode.bandwidth}
+        .gain=${this.gain}
+        .gainDisabled=${this.gainDisabled}
+        @rr-start=${this.onStart}
+        @rr-stop=${this.onStop}
+        @rr-scale-changed=${this.onScaleChange}
+        @rr-center-frequency-changed=${this.onCenterFrequencyChange}
+        @rr-tuned-frequency-changed=${this.onTunedFrequencyChange}
+        @rr-mode-changed=${this.onSchemeChange}
+        @rr-bandwidth-changed=${this.onBandwidthChange}
+        @rr-gain-changed=${this.onGainChange}
+      ></rr-main-controls>`;
   }
 
   private spectrumBuffer: Float32Buffer;
@@ -279,14 +206,14 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onScaleChange(e: Event) {
-    let input = e.target as RrFrequencyInput;
+    let input = e.target as RrMainControls;
     let scale = input.scale;
     this.scale = scale;
   }
 
   private onCenterFrequencyChange(e: Event) {
-    let input = e.target as RrFrequencyInput;
-    let value = input.frequency;
+    let input = e.target as RrMainControls;
+    let value = input.centerFrequency;
     let newFreq = {
       ...this.frequency,
       center: value,
@@ -306,8 +233,8 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onTunedFrequencyChange(e: Event) {
-    let input = e.target as RrFrequencyInput;
-    let value = input.frequency;
+    let input = e.target as RrMainControls;
+    let value = input.tunedFrequency;
     this.setTunedFrequency(value);
   }
 
@@ -336,15 +263,16 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onSchemeChange(e: Event) {
-    let value = (e.target as HTMLSelectElement).selectedOptions[0].value;
+    let target = e.target as RrMainControls;
+    let value = target.mode;
     let mode = this.availableModes.get(value);
     if (mode === undefined) return;
     this.setMode(mode);
   }
 
   private onBandwidthChange(e: Event) {
-    let target = e.target as HTMLInputElement;
-    let value = Number(target.value);
+    let target = e.target as RrMainControls;
+    let value = target.bandwidth;
     let newMode = { ...this.mode };
     switch (newMode.scheme) {
       case "WBFM":
@@ -418,11 +346,8 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onGainChange(e: Event) {
-    let input = e.target as HTMLInputElement;
-    let gain = null;
-    if (input.value != "") {
-      gain = Number(input.value);
-    }
+    let target = e.target as RrMainControls;
+    let gain = target.gain;
     this.radio.setGain(gain);
     this.gain = gain;
   }
