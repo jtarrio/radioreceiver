@@ -49,6 +49,7 @@ export class RrWaterfall extends LitElement {
   private width: number = defaultWidth;
   private cropWindow: CropWindow = getCropWindow(defaultWidth, this.zoom);
   private frequency: number = 0;
+  private scrollError: number = 0;
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
@@ -105,7 +106,10 @@ export class RrWaterfall extends LitElement {
       return;
     }
 
+    fraction += this.scrollError;
     let pixels = Math.round(this.width * fraction);
+    this.scrollError = fraction - pixels / this.width;
+
     if (pixels == 0) return;
 
     if (pixels > 0) {
