@@ -1,5 +1,5 @@
 var buildCommands = [
-  { compile: "{html,tools}/**" },
+  { compile: "{apps,tools}/**" },
 ];
 
 export default buildCommands;

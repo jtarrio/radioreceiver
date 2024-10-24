@@ -1,9 +1,9 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { RrFrequencyInput } from "../src/ui/controls/frequency-input";
-import * as Icons from "../src/ui/icons";
-import "../src/ui/controls/frequency-input";
-import "../src/ui/controls/window";
+import { RrFrequencyInput } from "../../ui/controls/frequency-input";
+import * as Icons from "../../ui/icons";
+import "../../ui/controls/frequency-input";
+import "../../ui/controls/window";
 
 @customElement("rr-main-controls")
 export class RrMainControls extends LitElement {

@@ -2,31 +2,31 @@ import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { ConfigProvider, loadConfig } from "./config";
 import { RrMainControls } from "./main-controls";
-import { Demodulator } from "../src/demod/demodulator";
-import { SampleClickEvent, SampleCounter } from "../src/demod/sample-counter";
-import { type Mode } from "../src/demod/scheme";
-import { Spectrum } from "../src/demod/spectrum";
-import { Float32Buffer } from "../src/dsp/buffers";
-import { RadioErrorType } from "../src/errors";
-import { RtlSampleRate } from "../src/radio/constants";
-import { Radio, RadioEvent } from "../src/radio/radio";
-import { FakeRtlProvider } from "../src/rtlsdr/fakertl/fakertl";
+import { Demodulator } from "../../demod/demodulator";
+import { SampleClickEvent, SampleCounter } from "../../demod/sample-counter";
+import { type Mode } from "../../demod/scheme";
+import { Spectrum } from "../../demod/spectrum";
+import { Float32Buffer } from "../../dsp/buffers";
+import { RadioErrorType } from "../../errors";
+import { RtlSampleRate } from "../../radio/constants";
+import { Radio, RadioEvent } from "../../radio/radio";
+import { FakeRtlProvider } from "../../rtlsdr/fakertl/fakertl";
 import {
   AmGenerator,
   FmGenerator,
   NoiseGenerator,
   ToneGenerator,
-} from "../src/rtlsdr/fakertl/generators";
-import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
-import { RtlDeviceProvider } from "../src/rtlsdr/rtldevice";
+} from "../../rtlsdr/fakertl/generators";
+import { RTL2832U_Provider } from "../../rtlsdr/rtl2832u";
+import { RtlDeviceProvider } from "../../rtlsdr/rtldevice";
 import {
   SpectrumDecibelRangeChangedEvent,
   SpectrumHighlightChangedEvent,
   SpectrumTapEvent,
-} from "../src/ui/spectrum/events";
-import { RrSpectrum } from "../src/ui/spectrum/spectrum";
+} from "../../ui/spectrum/events";
+import { RrSpectrum } from "../../ui/spectrum/spectrum";
 import "./main-controls";
-import "../src/ui/spectrum/spectrum";
+import "../../ui/spectrum/spectrum";
 
 type Frequency = {
   center: number;
