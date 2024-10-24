@@ -20,6 +20,8 @@ export class RrFrequencyInput extends LitElement {
     this.requestUpdate("scale", oldScale);
   }
   private _scale: number = 1;
+  @property({ type: Number, reflect: true })
+  step: number = 1;
 
   static get styles() {
     return [
@@ -34,7 +36,7 @@ export class RrFrequencyInput extends LitElement {
     return html`<input
         type="number"
         id="frequency"
-        step="any"
+        .step=${String(this.step / this.scale)}
         .value=${String(this.frequency / this.scale)}
         @change=${this.onFrequencyChange}
       /><select id="scale" @change=${this.onScaleChange}>

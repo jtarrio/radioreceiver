@@ -38,7 +38,8 @@ export class RrMainControls extends LitElement {
         }
 
         label[for="centerFrequency"],
-        label[for="tunedFrequency"] {
+        label[for="tunedFrequency"],
+        label[for="tuningStep"] {
           width: 16ex;
           display: inline-block;
           text-align: right;
@@ -61,10 +62,11 @@ export class RrMainControls extends LitElement {
         <label for="centerFrequency">Center frequency: </label
         ><rr-frequency-input
           id="centerFrequency"
-          min="0"
-          max="1800000000"
+          .min=${0}
+          .max=${1800000000}
           .frequency=${this.centerFrequency}
           .scale=${this.scale}
+          .step=${this.tuningStep}
           @change=${this.onCenterFrequencyChange}
           @scale-change=${this.onScaleChange}
         ></rr-frequency-input>
@@ -73,13 +75,26 @@ export class RrMainControls extends LitElement {
         <label for="tunedFrequency">Tuned frequency: </label
         ><rr-frequency-input
           id="tunedFrequency"
-          min="0"
-          max="1800000000"
+          min=${0}
+          max=${1800000000}
           .frequency=${this.tunedFrequency}
           .scale=${this.scale}
+          .step=${this.tuningStep}
           @change=${this.onTunedFrequencyChange}
           @scale-change=${this.onScaleChange}
         ></rr-frequency-input>
+      </div>
+      <div>
+        <label for="tuningStep">Tuning step: </label
+        ><input
+          id="tuningStep"
+          type="number"
+          min="1"
+          max="500000"
+          .value=${String(this.tuningStep)}
+          @change=${this.onTuningStepChange}
+        />
+        Hz
       </div>
       <div>
         <label for="scheme">Modulation: </label>
@@ -132,6 +147,7 @@ export class RrMainControls extends LitElement {
   @property({ attribute: false }) scale: number = 1000;
   @property({ attribute: false }) centerFrequency: number = 88500000;
   @property({ attribute: false }) tunedFrequency: number = 88500000;
+  @property({ attribute: false }) tuningStep: number = 1000;
   @property({ attribute: false }) availableModes: string[] = ["WBFM"];
   @property({ attribute: false }) mode: string = "WBFM";
   @property({ attribute: false }) bandwidth: number = 150000;
@@ -164,6 +180,17 @@ export class RrMainControls extends LitElement {
     let input = e.target as RrFrequencyInput;
     this.tunedFrequency = input.frequency;
     this.dispatchEvent(new TunedFrequencyChangedEvent());
+  }
+
+  private onTuningStepChange(e: Event) {
+    let input = e.target as HTMLInputElement;
+    let step = Number(input.value);
+    if (isNaN(step)) {
+      input.value = String(this.tuningStep);
+      return;
+    }
+    this.tuningStep = step;
+    this.dispatchEvent(new TuningStepChangedEvent());
   }
 
   private onModeChange(e: Event) {
@@ -237,6 +264,12 @@ class TunedFrequencyChangedEvent extends Event {
   }
 }
 
+class TuningStepChangedEvent extends Event {
+  constructor() {
+    super("rr-tuning-step-changed", { bubbles: true, composed: true });
+  }
+}
+
 class ModeChangedEvent extends Event {
   constructor() {
     super("rr-mode-changed", { bubbles: true, composed: true });
@@ -262,6 +295,7 @@ declare global {
     "rr-scale-changed": ScaleChangedEvent;
     "rr-center-frequency-changed": CenterFrequencyChangedEvent;
     "rr-tuned-frequency-changed": TunedFrequencyChangedEvent;
+    "rr-tuning-step-changed": TuningStepChangedEvent;
     "rr-mode-changed": ModeChangedEvent;
     "rr-bandwidth-changed": BandwidthChangedEvent;
     "rr-gain-changed": GainChangedEvent;

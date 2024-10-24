@@ -87,7 +87,7 @@ export class RadioReceiverMain extends LitElement {
         .maxDecibels=${this.maxDecibels}
         .centerFrequency=${this.frequency.center}
         .bandwidth=${this.bandwidth}
-        .frequency-scale=${this.scale}
+        .frequencyScale=${this.scale}
         .highlight=${{
           point: this.frequency.offset / this.bandwidth + 0.5,
           band: {
@@ -115,6 +115,7 @@ export class RadioReceiverMain extends LitElement {
         .playing=${this.playing}
         .centerFrequency=${this.frequency.center}
         .tunedFrequency=${this.frequency.center + this.frequency.offset}
+        .tuningStep=${this.tuningStep}
         .scale=${this.scale}
         .availableModes=${[...this.availableModes.keys()]}
         .mode=${this.mode.scheme}
@@ -130,6 +131,7 @@ export class RadioReceiverMain extends LitElement {
         @rr-scale-changed=${this.onScaleChange}
         @rr-center-frequency-changed=${this.onCenterFrequencyChange}
         @rr-tuned-frequency-changed=${this.onTunedFrequencyChange}
+        @rr-tuning-step-changed=${this.onTuningStepChange}
         @rr-mode-changed=${this.onSchemeChange}
         @rr-bandwidth-changed=${this.onBandwidthChange}
         @rr-gain-changed=${this.onGainChange}
@@ -157,6 +159,7 @@ export class RadioReceiverMain extends LitElement {
     leftBand: 75000,
     rightBand: 75000,
   };
+  @state() private tuningStep: number = 1000;
   @state() private mode: Mode = this.availableModes.get("WBFM")!;
   @state() private gain: number | null = null;
   @state() private gainDisabled: boolean = false;
@@ -204,6 +207,7 @@ export class RadioReceiverMain extends LitElement {
     }
     this.setCenterFrequency(cfg.centerFrequency);
     this.setTunedFrequency(cfg.tunedFrequency);
+    this.tuningStep = cfg.tuningStep;
     this.scale = cfg.frequencyScale;
     this.setGain(cfg.gain);
     this.minDecibels = cfg.minDecibels;
@@ -271,6 +275,13 @@ export class RadioReceiverMain extends LitElement {
     let input = e.target as RrMainControls;
     let value = input.tunedFrequency;
     this.setTunedFrequency(value);
+  }
+
+  private onTuningStepChange(e: Event) {
+    let input = e.target as RrMainControls;
+    let value = input.tuningStep;
+    this.tuningStep = value;
+    this.configProvider.update((cfg) => (cfg.tuningStep = value));
   }
 
   private setTunedFrequency(value: number) {
@@ -436,9 +447,9 @@ export class RadioReceiverMain extends LitElement {
       min,
       Math.min(this.frequency.center + this.bandwidth * (fraction - 0.5), max)
     );
-    frequency = this.scale * Math.round(frequency / this.scale);
-    if (frequency < min) frequency += this.scale;
-    if (frequency > max) frequency -= this.scale;
+    frequency = this.tuningStep * Math.round(frequency / this.tuningStep);
+    if (frequency < min) frequency += this.tuningStep;
+    if (frequency > max) frequency -= this.tuningStep;
     this.setTunedFrequency(frequency);
   }
 

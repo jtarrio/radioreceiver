@@ -56,6 +56,7 @@ function blankConfig(): RawConfig {
       mode: "WBFM",
       centerFrequency: 88500000,
       tunedFrequency: 88500000,
+      tuningStep: 1000,
       frequencyScale: 1000,
       gain: null,
       minDecibels: -90,
@@ -74,6 +75,8 @@ type ConfigV1 = {
   centerFrequency: number;
   /** Frequency tuned by the demodulator. */
   tunedFrequency: number;
+  /** Step between frequencies. */
+  tuningStep: number;
   /** Current frequency scale. */
   frequencyScale: number;
   /** Current gain. */
