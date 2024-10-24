@@ -112,7 +112,7 @@ export class RrMainControls extends LitElement {
           id="bandwidth"
           min="0"
           max="20000"
-          step="any"
+          step="1"
           .value=${String(this.bandwidth)}
           .disabled=${this.mode == "WBFM"}
           @change=${this.onBandwidthChange}

@@ -76,15 +76,14 @@ export class RrHighlight extends LitElement {
 
   private renderPoint() {
     if (this.selection?.point === undefined) return nothing;
-    let x =
-      getZoomedFraction(this.selection.point, this.zoom) * this.offsetWidth;
-    if (x < 0 || x >= this.offsetWidth) return nothing;
-    return html`<div id="point" style="left:${x - 1}px"></div>
+    let c = getZoomedFraction(this.selection.point, this.zoom);
+    if (c < 0 || c > 1) return nothing;
+    return html`<div id="point" style="left:calc(${100 * c}% - 1px)"></div>
       ${this.draggablePoint
         ? html`<div
             id="pointHandle"
             class="handle"
-            style="left:${x - 2}px"
+            style="left:calc(${100 * c}% - 2px)"
             @pointerdown=${this.onPointPointerDown}
           ></div>`
         : nothing}`;
@@ -92,27 +91,27 @@ export class RrHighlight extends LitElement {
 
   private renderBand() {
     if (this.selection?.band === undefined) return nothing;
-    let l =
-      getZoomedFraction(this.selection.band.left, this.zoom) * this.offsetWidth;
-    let r =
-      getZoomedFraction(this.selection.band.right, this.zoom) *
-      this.offsetWidth;
-    if (l >= this.offsetWidth || r < 0) return nothing;
+    let l = getZoomedFraction(this.selection.band.left, this.zoom);
+    let r = getZoomedFraction(this.selection.band.right, this.zoom);
+    if (l > 1 || r < 0) return nothing;
     let le = Math.max(0, l);
-    let re = Math.min(r, this.offsetWidth - 1);
-    return html`<div id="band" style="left:${le}px;width:${re - le}px"></div>
+    let re = Math.min(r, 1);
+    return html`<div
+        id="band"
+        style="left:${100 * le}%;width:${100 * (re - le)}%"
+      ></div>
       ${this.draggableLeft && l == le
         ? html`<div
             id="leftBandHandle"
             class="handle"
-            style="left:${l - 2}px"
+            style="left:calc(${100 * l}% - 2px)"
             @pointerdown=${this.onLeftPointerDown}
           ></div>`
         : nothing}${this.draggableRight && r == re
         ? html`<div
             id="rightBandHandle"
             class="handle"
-            style="left:${r - 2}px"
+            style="left:calc(${100 * r}% - 2px)"
             @pointerdown=${this.onRightPointerDown}
           ></div>`
         : nothing}`;
