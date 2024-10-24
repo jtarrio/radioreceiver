@@ -1,5 +1,6 @@
 import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
+import { ConfigProvider, loadConfig } from "./config";
 import { RrMainControls } from "./main-controls";
 import { Demodulator } from "../src/demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../src/demod/sample-counter";
@@ -19,6 +20,7 @@ import {
 import { RTL2832U_Provider } from "../src/rtlsdr/rtl2832u";
 import { RtlDeviceProvider } from "../src/rtlsdr/rtldevice";
 import {
+  SpectrumDecibelRangeChangedEvent,
   SpectrumHighlightChangedEvent,
   SpectrumTapEvent,
 } from "../src/ui/spectrum/events";
@@ -81,11 +83,11 @@ export class RadioReceiverMain extends LitElement {
   render() {
     return html`<rr-spectrum
         id="spectrum"
-        min-decibels=${-90}
-        max-decibels=${-20}
-        center-frequency=${this.frequency.center}
-        bandwidth=${this.bandwidth}
-        frequency-scale=${this.scale}
+        .minDecibels=${this.minDecibels}
+        .maxDecibels=${this.maxDecibels}
+        .centerFrequency=${this.frequency.center}
+        .bandwidth=${this.bandwidth}
+        .frequency-scale=${this.scale}
         .highlight=${{
           point: this.frequency.offset / this.bandwidth + 0.5,
           band: {
@@ -106,6 +108,7 @@ export class RadioReceiverMain extends LitElement {
         this.mode.scheme != "LSB"}
         @spectrum-tap=${this.onSpectrumTap}
         @spectrum-highlight-changed=${this.onSpectrumHighlightChanged}
+        @spectrum-decibel-range-changed=${this.onDecibelRangeChanged}
       ></rr-spectrum>
 
       <rr-main-controls
@@ -133,6 +136,7 @@ export class RadioReceiverMain extends LitElement {
       ></rr-main-controls>`;
   }
 
+  private configProvider: ConfigProvider;
   private spectrumBuffer: Float32Buffer;
   private spectrum: Spectrum;
   private demodulator: Demodulator;
@@ -143,6 +147,8 @@ export class RadioReceiverMain extends LitElement {
   );
 
   @state() private bandwidth: number = RtlSampleRate;
+  @state() private minDecibels: number = -90;
+  @state() private maxDecibels: number = -20;
   @state() private playing: boolean = false;
   @state() private scale: number = 1000;
   @state() private frequency: Frequency = {
@@ -159,6 +165,7 @@ export class RadioReceiverMain extends LitElement {
 
   constructor() {
     super();
+    this.configProvider = loadConfig();
     this.spectrumBuffer = new Float32Buffer(2, 2048);
     this.spectrum = new Spectrum();
     this.demodulator = new Demodulator();
@@ -168,6 +175,8 @@ export class RadioReceiverMain extends LitElement {
       this.spectrum.andThen(this.demodulator).andThen(this.sampleCounter)
     );
 
+    this.applyConfig();
+
     this.radio.enableDirectSampling(true);
     this.radio.setFrequency(this.frequency.center);
     this.radio.setGain(this.gain);
@@ -175,12 +184,30 @@ export class RadioReceiverMain extends LitElement {
     this.demodulator.setVolume(1);
     this.demodulator.setStereo(true);
     this.demodulator.setSquelch(0);
-    this.demodulator.setMode({ scheme: "WBFM" });
+    this.demodulator.setMode(this.mode);
 
     this.radio.addEventListener("radio", (e) => this.onRadioEvent(e));
     this.sampleCounter.addEventListener("sample-click", (e) =>
       this.onSampleClickEvent(e)
     );
+  }
+
+  private applyConfig() {
+    let cfg = this.configProvider.get();
+    for (let modeName in this.availableModes) {
+      let mode = {
+        ...this.availableModes.get(modeName),
+        ...cfg.modes[modeName],
+      };
+      this.availableModes.set(modeName, mode);
+      if (modeName == cfg.mode) this.setMode(mode);
+    }
+    this.setCenterFrequency(cfg.centerFrequency);
+    this.setTunedFrequency(cfg.tunedFrequency);
+    this.scale = cfg.frequencyScale;
+    this.setGain(cfg.gain);
+    this.minDecibels = cfg.minDecibels;
+    this.maxDecibels = cfg.maxDecibels;
   }
 
   private isFrequencyValid(freq: Frequency): boolean {
@@ -214,6 +241,10 @@ export class RadioReceiverMain extends LitElement {
   private onCenterFrequencyChange(e: Event) {
     let input = e.target as RrMainControls;
     let value = input.centerFrequency;
+    this.setCenterFrequency(value);
+  }
+
+  private setCenterFrequency(value: number) {
     let newFreq = {
       ...this.frequency,
       center: value,
@@ -230,6 +261,10 @@ export class RadioReceiverMain extends LitElement {
     }
     this.radio.setFrequency(newFreq.center);
     this.frequency = newFreq;
+    this.configProvider.update((cfg) => {
+      cfg.centerFrequency = newFreq.center;
+      cfg.tunedFrequency = newFreq.center + newFreq.offset;
+    });
   }
 
   private onTunedFrequencyChange(e: Event) {
@@ -260,6 +295,10 @@ export class RadioReceiverMain extends LitElement {
       this.demodulator.setFrequencyOffset(newFreq.offset);
     }
     this.frequency = newFreq;
+    this.configProvider.update((cfg) => {
+      cfg.centerFrequency = newFreq.center;
+      cfg.tunedFrequency = newFreq.center + newFreq.offset;
+    });
   }
 
   private onSchemeChange(e: Event) {
@@ -304,6 +343,11 @@ export class RadioReceiverMain extends LitElement {
     this.demodulator.setMode(mode);
     this.mode = mode;
     this.updateFrequencyBands();
+
+    this.configProvider.update((cfg) => {
+      cfg.mode = mode.scheme;
+      cfg.modes[mode.scheme] = mode;
+    });
   }
 
   private updateFrequencyBands() {
@@ -348,12 +392,29 @@ export class RadioReceiverMain extends LitElement {
   private onGainChange(e: Event) {
     let target = e.target as RrMainControls;
     let gain = target.gain;
+    this.setGain(gain);
+  }
+
+  private setGain(gain: number | null) {
     this.radio.setGain(gain);
     this.gain = gain;
+    this.configProvider.update((cfg) => (cfg.gain = gain));
   }
 
   private onSpectrumTap(e: SpectrumTapEvent) {
     this.setFrequencyFraction(e.detail.fraction);
+  }
+
+  private onDecibelRangeChanged(e: SpectrumDecibelRangeChangedEvent) {
+    let { min, max } = e.detail;
+    if (min !== undefined) {
+      this.minDecibels = min;
+      this.configProvider.update((cfg) => (cfg.minDecibels = min));
+    }
+    if (max !== undefined) {
+      this.maxDecibels = max;
+      this.configProvider.update((cfg) => (cfg.maxDecibels = max));
+    }
   }
 
   private onSpectrumHighlightChanged(e: SpectrumHighlightChangedEvent) {
