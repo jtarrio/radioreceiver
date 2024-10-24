@@ -9,7 +9,7 @@ function icon(title: string, content: SVGTemplateResult): HTMLTemplateResult {
 
 export const Stop = icon(
   "Stop playing",
-  svg`<g><path d="M3,2v10h10V3z"></path></g>`
+  svg`<g><path d="M3,3v10h10V3z"></path></g>`
 );
 
 export const Play = icon(
