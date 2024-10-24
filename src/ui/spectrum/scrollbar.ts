@@ -3,6 +3,7 @@ import { customElement, property, query } from "lit/decorators.js";
 import { DefaultZoom, normalize, type Zoom } from "./zoom";
 import { SpectrumZoomEvent } from "./events";
 import { DragController, DragHandler } from "../controls/drag-controller";
+import * as Icons from "../icons";
 
 @customElement("rr-scrollbar")
 export class RrScrollbar extends LitElement {
@@ -58,10 +59,7 @@ export class RrScrollbar extends LitElement {
 
   render() {
     return html`<button @click=${this.onClickButtonLeft}>
-        <svg version="1.1" width="16" height="16">
-          <title>Scroll left</title>
-          <g><path d="m11,2v2l-4,4 4,4v2H9L3,8 9,2Z"></path></g>
-        </svg>
+        ${Icons.ScrollLeft}
       </button>
       <div id="scroll">
         <div
@@ -80,12 +78,7 @@ export class RrScrollbar extends LitElement {
           @click=${this.onClickAreaRight}
         ></div>
       </div>
-      <button @click=${this.onClickButtonRight}>
-        <svg version="1.1" width="16" height="16">
-          <title>Scroll right</title>
-          <g><path d="m5,2v2l4,4 -4,4v2h2L13,8 7,2Z"></path></g>
-        </svg>
-      </button>`;
+      <button @click=${this.onClickButtonRight}>${Icons.ScrollRight}</button>`;
   }
 
   @query("#scroll") scrollBox?: HTMLElement;

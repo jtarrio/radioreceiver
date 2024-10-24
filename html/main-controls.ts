@@ -1,6 +1,7 @@
 import { css, html, LitElement } from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { RrFrequencyInput } from "../src/ui/controls/frequency-input";
+import * as Icons from "../src/ui/icons";
 import "../src/ui/controls/frequency-input";
 import "../src/ui/controls/window";
 
@@ -51,16 +52,10 @@ export class RrMainControls extends LitElement {
     return html`<rr-window label="Controls" id="controls">
       ${this.playing
         ? html`<button slot="label-left" id="stop" @click=${this.onStop}>
-            <svg version="1.1" width="16" height="16">
-              <title>Stop playing</title>
-              <g><path d="M2,2v12h12V2z"></path></g>
-            </svg>
+            ${Icons.Stop}
           </button>`
         : html`<button slot="label-left" id="start" @click=${this.onStart}>
-            <svg version="1.1" width="16" height="16">
-              <title>Start playing</title>
-              <g><path d="M3,2v12l10,-6z"></path></g>
-            </svg>
+            ${Icons.Play}
           </button>`}
       <div>
         <label for="centerFrequency">Center frequency: </label
