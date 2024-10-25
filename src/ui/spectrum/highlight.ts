@@ -66,6 +66,14 @@ export class RrHighlight extends LitElement {
             rgba(255, 255, 255, 1)
           );
         }
+
+        .touchArea {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: -10px;
+          right: -10px;
+        }
       `,
     ];
   }
@@ -85,7 +93,9 @@ export class RrHighlight extends LitElement {
             class="handle"
             style="left:calc(${100 * c}% - 2px)"
             @pointerdown=${this.onPointPointerDown}
-          ></div>`
+          >
+            <div class="touchArea"></div>
+          </div>`
         : nothing}`;
   }
 
@@ -106,14 +116,18 @@ export class RrHighlight extends LitElement {
             class="handle"
             style="left:calc(${100 * l}% - 2px)"
             @pointerdown=${this.onLeftPointerDown}
-          ></div>`
+          >
+            <div class="touchArea"></div>
+          </div>`
         : nothing}${this.draggableRight && r == re
         ? html`<div
             id="rightBandHandle"
             class="handle"
             style="left:calc(${100 * r}% - 2px)"
             @pointerdown=${this.onRightPointerDown}
-          ></div>`
+          >
+            <div class="touchArea"></div>
+          </div>`
         : nothing}`;
   }
 

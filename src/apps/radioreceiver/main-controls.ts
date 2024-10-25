@@ -20,6 +20,12 @@ export class RrMainControls extends LitElement {
           left: 1em;
         }
 
+        @media (max-width: 794px) {
+          rr-window {
+            bottom: calc(1em + 48px);
+          }
+        }
+
         button:has(svg) {
           padding-inline: 0;
           width: 24px;

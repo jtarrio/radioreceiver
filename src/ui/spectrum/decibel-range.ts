@@ -32,7 +32,13 @@ export class RrDecibelRange extends LitElement {
         #palette {
           flex: 1;
           height: 24px;
-          width: ${1.25 * (TopDecibels - BottomDecibels)}px;
+          min-width: ${1.25 * (TopDecibels - BottomDecibels)}px;
+        }
+
+        @media (max-width: 375px) {
+          #palette {
+            min-width: ${TopDecibels - BottomDecibels}px;
+          }
         }
 
         #min,
@@ -69,6 +75,14 @@ export class RrDecibelRange extends LitElement {
         #maxThumb {
           border-radius: 0 4px 4px 0;
         }
+
+        .touchArea {
+          position: absolute;
+          top: -5px;
+          bottom: -5px;
+          left: -15px;
+          right: -15px;
+        }
       `,
     ];
   }
@@ -91,8 +105,12 @@ export class RrDecibelRange extends LitElement {
         @blur=${this.onMaxBlur}
         @change=${this.onMaxChange}
       />
-      <div id="minThumb" @pointerdown=${this.onMinPointerDown}></div>
-      <div id="maxThumb" @pointerdown=${this.onMaxPointerDown}></div>`;
+      <div id="minThumb" @pointerdown=${this.onMinPointerDown}>
+        <div class="touchArea"></div>
+      </div>
+      <div id="maxThumb" @pointerdown=${this.onMaxPointerDown}>
+        <div class="touchArea"></div>
+      </div>`;
   }
 
   @query("#min") private minBox?: HTMLElement;
@@ -112,6 +130,8 @@ export class RrDecibelRange extends LitElement {
     this.maxDragController = new DragController(
       new DecibelDragHandler("max", this, this.paletteBox!)
     );
+    const resizeObserver = new ResizeObserver(() => this.repaintPalette());
+    resizeObserver.observe(document.body);
     this.repaintPalette();
   }
 

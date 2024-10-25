@@ -63,6 +63,40 @@ export class RrSpectrum extends LitElement {
           --left-caption-margin: 32px;
         }
 
+        #view {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          position: relative;
+        }
+
+        #controls {
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+        }
+
+        #controls rr-decibel-range {
+          flex: 1;
+          max-width: 100%;
+        }
+
+        #zoomControls {
+          display: flex;
+          flex-direction: row;
+          flex: 10;
+        }
+
+        #zoomControls rr-scrollbar {
+          min-width: 300px;
+        }
+
+        @media (max-width: 415px) {
+          #zoomControls rr-scrollbar {
+          min-width: 260px;
+        }
+        }
+
         .box {
           position: relative;
           width: 100%;
@@ -86,8 +120,12 @@ export class RrSpectrum extends LitElement {
           flex: 2;
         }
 
-        #bottomBox {
-          height: 24px;
+        #highlight {
+          position: absolute;
+          left: var(--left-caption-margin);
+          top: var(--top-caption-margin);
+          right: 0;
+          bottom: 0;
         }
 
         #scopeBox > * {
@@ -114,61 +152,58 @@ export class RrSpectrum extends LitElement {
           margin-left: 0;
           width: var(--left-caption-margin);
         }
-
-        #highlight {
-          position: absolute;
-          left: var(--left-caption-margin);
-          top: var(--top-caption-margin);
-          right: 0;
-          bottom: 24px;
-        }
-
-        #bottomControls {
-          display: flex;
-          flex-direction: row;
-        }
       `,
     ];
   }
 
   render() {
-    return html`<div id="scopeBox" class="box">
-        <rr-scope
-          id="scope"
-          .minDecibels=${this.minDecibels}
-          .maxDecibels=${this.maxDecibels}
-          .zoom=${this.zoom}
-        ></rr-scope
-        ><rr-overlay
-          id="scopeOverlay"
-          .lines=${this.lines}
-          .zoom=${this.zoom}
-        ></rr-overlay
-        ><rr-captions
-          id="scopeFrequencies"
-          .lines=${this.lines}
-          .horizontal=${true}
-          .scale=${this.frequencyScale}
-          .zoom=${this.zoom}
-        ></rr-captions
-        ><rr-captions id="scopeDecibels" .lines=${this.lines}></rr-captions>
-      </div>
-      <div id="waterfallBox" class="box">
-        <rr-waterfall
-          id="waterfall"
-          .minDecibels=${this.minDecibels}
-          .maxDecibels=${this.maxDecibels}
-          .zoom=${this.zoom}
-          .bandwidth=${this.bandwidth}
-        ></rr-waterfall>
-      </div>
-      <div id="bottomBox" class="box">
-        <div id="bottomControls">
-          <rr-decibel-range
+    return html`<div id="view">
+        <div id="scopeBox" class="box">
+          <rr-scope
+            id="scope"
             .minDecibels=${this.minDecibels}
             .maxDecibels=${this.maxDecibels}
-            @spectrum-decibel-range-changed=${this.onDecibelRangeChanged}
-          ></rr-decibel-range>
+            .zoom=${this.zoom}
+          ></rr-scope
+          ><rr-overlay
+            id="scopeOverlay"
+            .lines=${this.lines}
+            .zoom=${this.zoom}
+          ></rr-overlay
+          ><rr-captions
+            id="scopeFrequencies"
+            .lines=${this.lines}
+            .horizontal=${true}
+            .scale=${this.frequencyScale}
+            .zoom=${this.zoom}
+          ></rr-captions
+          ><rr-captions id="scopeDecibels" .lines=${this.lines}></rr-captions>
+        </div>
+        <div id="waterfallBox" class="box">
+          <rr-waterfall
+            id="waterfall"
+            .minDecibels=${this.minDecibels}
+            .maxDecibels=${this.maxDecibels}
+            .zoom=${this.zoom}
+            .bandwidth=${this.bandwidth}
+          ></rr-waterfall>
+        </div>
+        <rr-highlight
+          id="highlight"
+          .selection=${this.highlight}
+          .draggableLeft=${this.highlightDraggableLeft}
+          .draggableRight=${this.highlightDraggableRight}
+          .draggablePoint=${this.highlightDraggablePoint}
+          .zoom=${this.zoom}
+        ></rr-highlight>
+      </div>
+      <div id="controls">
+        <rr-decibel-range
+          .minDecibels=${this.minDecibels}
+          .maxDecibels=${this.maxDecibels}
+          @spectrum-decibel-range-changed=${this.onDecibelRangeChanged}
+        ></rr-decibel-range>
+        <div id="zoomControls">
           <rr-zoombar
             .zoom=${this.zoom}
             @spectrum-zoom=${this.onZoom}
@@ -178,15 +213,7 @@ export class RrSpectrum extends LitElement {
             @spectrum-zoom=${this.onZoom}
           ></rr-scrollbar>
         </div>
-      </div>
-      <rr-highlight
-        id="highlight"
-        .selection=${this.highlight}
-        .draggableLeft=${this.highlightDraggableLeft}
-        .draggableRight=${this.highlightDraggableRight}
-        .draggablePoint=${this.highlightDraggablePoint}
-        .zoom=${this.zoom}
-      ></rr-highlight>`;
+      </div>`;
   }
 
   @query("#scope") scope?: RrScope;
