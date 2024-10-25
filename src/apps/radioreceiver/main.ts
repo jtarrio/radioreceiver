@@ -68,6 +68,7 @@ export class RadioReceiverMain extends LitElement {
           display: flex;
           flex-direction: column;
           box-sizing: border-box;
+          touch-action: none;
         }
 
         #spectrum {
