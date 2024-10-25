@@ -6,7 +6,16 @@ import {
   DefaultMinDecibels,
 } from "./common";
 import { DefaultCubeHelix, type Palette } from "./palette";
-import { getCropWindow, CropWindow, type Zoom, DefaultZoom } from "./zoom";
+import { SpectrumTapEvent } from "./events";
+import {
+  getCropWindow,
+  getSampleWindow,
+  getUnzoomedFraction,
+  CropWindow,
+  SampleWindow,
+  type Zoom,
+  DefaultZoom,
+} from "./zoom";
 
 const defaultWidth = DefaultFftSize;
 
@@ -41,6 +50,7 @@ export class RrWaterfall extends LitElement {
   constructor() {
     super();
     this.waterfall = new ImageData(defaultWidth, screen.height);
+    this.addEventListener("click", (e) => this.onClick(e));
   }
 
   private waterfall: ImageData;
@@ -162,5 +172,11 @@ export class RrWaterfall extends LitElement {
     if (!ctx) return;
     ctx.canvas.height = ctx.canvas.offsetHeight;
     ctx.putImageData(this.waterfall, 0, 0);
+  }
+
+  private onClick(e: MouseEvent) {
+    let fraction = getUnzoomedFraction(e.offsetX / this.offsetWidth, this.zoom);
+    this.dispatchEvent(new SpectrumTapEvent({ fraction }));
+    e.preventDefault();
   }
 }

@@ -5,7 +5,14 @@ import {
   DefaultMaxDecibels,
   DefaultMinDecibels,
 } from "./common";
-import { DefaultZoom, getSampleWindow, SampleWindow, type Zoom } from "./zoom";
+import { SpectrumTapEvent } from "./events";
+import {
+  DefaultZoom,
+  getSampleWindow,
+  getUnzoomedFraction,
+  SampleWindow,
+  type Zoom,
+} from "./zoom";
 
 const defaultWidth = DefaultFftSize;
 
@@ -37,6 +44,11 @@ export class RrScope extends LitElement {
     this.width,
     this.zoom
   );
+
+  constructor() {
+    super();
+    this.addEventListener("click", (e) => this.onClick(e));
+  }
 
   render() {
     return html`<canvas id="scope"></canvas>`;
@@ -105,6 +117,12 @@ export class RrScope extends LitElement {
       ctx.lineTo(x, (this.spectrum[(i + firstPoint) % l] - max) * mul);
     }
     ctx.stroke();
+  }
+
+  private onClick(e: MouseEvent) {
+    let fraction = getUnzoomedFraction(e.offsetX / this.offsetWidth, this.zoom);
+    this.dispatchEvent(new SpectrumTapEvent({ fraction }));
+    e.preventDefault();
   }
 
   private getContext(): CanvasRenderingContext2D | undefined {

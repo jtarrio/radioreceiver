@@ -19,7 +19,6 @@ import {
 } from "./zoom";
 import "./captions";
 import "./decibel-range";
-import "./event-source";
 import "./highlight";
 import "./overlay";
 import "./scope";
@@ -100,6 +99,12 @@ export class RrSpectrum extends LitElement {
           margin-left: var(--left-caption-margin);
         }
 
+        #scopeOverlay,
+        #scopeFrequencies,
+        #scopeDecibels {
+          pointer-events: none;
+        }
+
         #scopeFrequencies {
           margin-top: 0;
           height: var(--top-caption-margin);
@@ -110,7 +115,6 @@ export class RrSpectrum extends LitElement {
           width: var(--left-caption-margin);
         }
 
-        #eventSource,
         #highlight {
           position: absolute;
           left: var(--left-caption-margin);
@@ -175,7 +179,6 @@ export class RrSpectrum extends LitElement {
           ></rr-scrollbar>
         </div>
       </div>
-      <rr-event-source id="eventSource" .zoom=${this.zoom}></rr-event-source>
       <rr-highlight
         id="highlight"
         .selection=${this.highlight}
