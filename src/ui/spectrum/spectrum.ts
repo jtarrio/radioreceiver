@@ -7,8 +7,8 @@ import {
   type GridSelection,
 } from "./common";
 import { SpectrumDecibelRangeChangedEvent, SpectrumZoomEvent } from "./events";
+import { RrGrid } from "./grid";
 import { Direction, getGridLines, Orientation } from "./grid-lines";
-import { RrOverlay } from "./overlay";
 import { RrScope } from "./scope";
 import { RrWaterfall } from "./waterfall";
 import {
@@ -19,8 +19,8 @@ import {
 } from "./zoom";
 import "./captions";
 import "./decibel-range";
+import "./grid";
 import "./highlight";
-import "./overlay";
 import "./scope";
 import "./scrollbar";
 import "./waterfall";
@@ -60,7 +60,7 @@ export class RrSpectrum extends LitElement {
           position: relative;
 
           --top-caption-margin: 16px;
-          --left-caption-margin: 32px;
+          --left-caption-margin: 24px;
         }
 
         #view {
@@ -93,8 +93,8 @@ export class RrSpectrum extends LitElement {
 
         @media (max-width: 415px) {
           #zoomControls rr-scrollbar {
-          min-width: 260px;
-        }
+            min-width: 260px;
+          }
         }
 
         .box {
@@ -137,12 +137,6 @@ export class RrSpectrum extends LitElement {
           margin-left: var(--left-caption-margin);
         }
 
-        #scopeOverlay,
-        #scopeFrequencies,
-        #scopeDecibels {
-          pointer-events: none;
-        }
-
         #scopeFrequencies {
           margin-top: 0;
           height: var(--top-caption-margin);
@@ -159,17 +153,7 @@ export class RrSpectrum extends LitElement {
   render() {
     return html`<div id="view">
         <div id="scopeBox" class="box">
-          <rr-scope
-            id="scope"
-            .minDecibels=${this.minDecibels}
-            .maxDecibels=${this.maxDecibels}
-            .zoom=${this.zoom}
-          ></rr-scope
-          ><rr-overlay
-            id="scopeOverlay"
-            .lines=${this.lines}
-            .zoom=${this.zoom}
-          ></rr-overlay
+          <rr-grid id="grid" .lines=${this.lines} .zoom=${this.zoom}></rr-grid
           ><rr-captions
             id="scopeFrequencies"
             .lines=${this.lines}
@@ -177,7 +161,13 @@ export class RrSpectrum extends LitElement {
             .scale=${this.frequencyScale}
             .zoom=${this.zoom}
           ></rr-captions
-          ><rr-captions id="scopeDecibels" .lines=${this.lines}></rr-captions>
+          ><rr-captions id="scopeDecibels" .lines=${this.lines}></rr-captions
+          ><rr-scope
+            id="scope"
+            .minDecibels=${this.minDecibels}
+            .maxDecibels=${this.maxDecibels}
+            .zoom=${this.zoom}
+          ></rr-scope>
         </div>
         <div id="waterfallBox" class="box">
           <rr-waterfall
@@ -217,14 +207,14 @@ export class RrSpectrum extends LitElement {
   }
 
   @query("#scope") scope?: RrScope;
-  @query("#scopeOverlay") scopeOverlay?: RrOverlay;
+  @query("#grid") grid?: RrGrid;
   @query("#waterfall") waterfall?: RrWaterfall;
   @state() private lines: Array<GridLine> = [];
 
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     const resizeObserver = new ResizeObserver(() => this.computeLines());
-    resizeObserver.observe(this.scopeOverlay!);
+    resizeObserver.observe(this.grid!);
   }
 
   protected updated(changed: PropertyValues): void {
@@ -260,7 +250,7 @@ export class RrSpectrum extends LitElement {
           this.maxDecibels,
           20,
           25,
-          this.scopeOverlay!.offsetHeight,
+          this.grid!.offsetHeight,
           Direction.Descending,
           Orientation.Horizontal,
           [1, 2, 3, 5, 6, 10]
@@ -279,7 +269,7 @@ export class RrSpectrum extends LitElement {
           rangeWindow.left + rangeWindow.range,
           50,
           80,
-          this.scopeOverlay!.offsetWidth,
+          this.grid!.offsetWidth,
           Direction.Ascending,
           Orientation.Vertical
         )

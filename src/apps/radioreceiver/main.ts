@@ -64,7 +64,7 @@ export class RadioReceiverMain extends LitElement {
       css`
         :host {
           font-family: Arial, Helvetica, sans-serif;
-          height: calc(100dvh - 1em);
+          height: 100%;
           display: flex;
           flex-direction: column;
           box-sizing: border-box;

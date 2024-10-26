@@ -2,8 +2,8 @@ import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { GridLine } from "./common";
 
-@customElement("rr-overlay")
-export class RrOverlay extends LitElement {
+@customElement("rr-grid")
+export class RrGrid extends LitElement {
   @property({ attribute: false })
   lines: Array<GridLine> = [];
 
@@ -11,7 +11,7 @@ export class RrOverlay extends LitElement {
     return [
       css`
         #grid {
-          color: var(--rr-overlay-color, rgba(255, 255, 255, 0.5));
+          color: var(--rr-grid-color, rgba(255, 255, 255, 0.5));
           width: 100%;
           height: 100%;
         }
