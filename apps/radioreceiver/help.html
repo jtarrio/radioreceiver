@@ -1,0 +1,237 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        max-width: 90ex;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      h1.title {
+        font-size: xxx-large;
+      }
+
+      .what {
+        font-style: italic;
+      }
+    </style>
+    <script src="help.js"></script>
+  </head>
+
+  <body>
+    <h1 class="title">Radio Receiver</h1>
+    <p class="what">
+      An application to listen to radio transmissions from your browser using a
+      cheap RTL-SDR stick.
+    </p>
+
+    <div id="toc"></div>
+
+    <h1 name="what_is_this">What is this</h1>
+    <p>
+      Radio Receiver is an HTML5 webpage that uses an RTL-SDR USB stick to
+      digitize radio signals. Then, it demodulates those signals on your
+      computer and plays the resulting audio through your computer's speakers or
+      headphones.
+    </p>
+
+    <p>
+      Most RTL-SDR sticks let you receive signals in any frequency between 30
+      and 1700 MHz. This includes interesting radio bands like FM radio, marine
+      radio, air band (airplanes and airports), weather radio, amateur radio,
+      police and other emergency services, etc.
+    </p>
+
+    <p>
+      You can also listen to frequencies below 30 MHz using an upconverter or
+      some sticks' "direct sampling mode". These frequencies include AM radio,
+      shortwave radio, HF amateur radio, and numbers stations, among others.
+    </p>
+
+    <p>
+      Radio Receiver can demodulate stereo FM, AM, narrowband FM, USB, and LSB.
+      It has adjustable bandwidth filters so you can also listen to Morse code
+      transmissions or challenging, distant stations.
+    </p>
+
+    <p>
+      Radio Receiver was written by
+      <a href="https://jacobo.tarrio.org">Jacobo Tarrío</a>, and its source is
+      <a href="https://github.com/jtarrio/radioreceiver">available on GitHub</a
+      >.
+    </p>
+
+    <h1 name="compatibility">Compatible hardware and software</h1>
+    <noscript>
+      <p>
+        Radio Receiver needs to run in a browser that supports the HTML5 USB
+        API. Generally, this means a Chromium based-browser (Chrome, Edge,
+        Opera) on a computer or on an Android device.
+      </p>
+    </noscript>
+    <script>
+      if (navigator.usb) {
+        document.write(
+          "<p>Your browser supports the HTML5 USB API, " +
+            "which Radio Receiver needs to work.</p>"
+        );
+      } else {
+        document.write(
+          "<p>Your browser does <i>not</i> support the HTML5 USB API, " +
+            "which Radio Receiver needs to work. To use Radio Receiver, " +
+            "you should try a Chromium-based browser, such as " +
+            "Chrome, Edge, or Opera, on a computer or an Android device.</p>"
+        );
+      }
+    </script>
+
+    <p>
+      Radio Receiver was written to work with an RTL-2832U-based receiver with a
+      R820T tuner chip (or compatible). This hardware configuration is a little
+      dated, but we are planning to add support for newer sticks very soon.
+    </p>
+
+    <h1 name="how_to_use">How to use Radio Receiver</h1>
+
+    <h2 name="how_sdr_works">How SDR works</h2>
+
+    <p>
+      Traditionally, radios were built entirely out of hardware such as
+      oscillators, filters, or mixers. All these components were designed to
+      tune into a particular frequency band and demodulate a particular type of
+      signal, and modifying a radio to receive a different signal could be hard
+      or even impossible.
+    </p>
+
+    <p>
+      The modern approach to radio is &ldquo;Software-Defined Radio&rdquo;
+      (SDR), in which the hardware doesn't do everything anymore; instead, it
+      now does the minimum and leaves most of the processing to a computer
+      running specialized software. SDR systems are flexible (changing the
+      signals they can receive is as simple as changing their software) and
+      cheap, because the same hardware designs can be used for many different
+      types of radio signals.
+    </p>
+
+    <p>
+      Your RTL-SDR stick is a European Digital TV receiver. It contains a
+      microprocessor that runs a program that demodulates radio signals,
+      extracts a video stream, and sends it to your computer. However, it is
+      possible to configure the stick so that, instead of decoding the signals,
+      it will send them to your computer. Radio Receiver will then receive those
+      signals and demodulate them in a JavaScript program on your browser.
+    </p>
+
+    <h2 name="tuning">Tuning, bandwidth, and sample rate</h2>
+
+    <p>
+      When you tune your RTL-SDR stick into a frequency, you don't only receive
+      signals in that exact frequency. Instead, you receive signals in a
+      &ldquo;band&rdquo; of frequencies centered on the one you tuned into. The
+      difference between the lowest and highest frequencies in the band is the
+      &ldquo;bandwidth&rdquo;.
+    </p>
+
+    <p>
+      As the RTL-SDR stick digitizes the signals in that frequency band, it will
+      send &ldquo;samples&rdquo; to the computer. The number of samples it sends
+      per second is the &ldquo;sample rate&rdquo;, which is mathematically tied
+      to the bandwidth: 1 million samples per second give you 1 MHz of
+      bandwidth, 2 MHz require 2 million samples per second, etc.
+    </p>
+
+    <p>
+      Higher sample rates give you larger bandwidths and more signals you can
+      &ldquo;see&rdquo; at once; on the other hand, they require more processing
+      power on your computer. With RTL-SDR sticks, the sample rate is
+      adjustable, but Radio Receiver currently sets it to about 1 million
+      samples per second, for 1 MHz of bandwidth.
+    </p>
+
+    <h2 name="interface">The user interface</h2>
+
+    <p>
+      You can see the Radio Receiver interface in the figure below. There are
+      three parts to it, from top to bottom: the spectrum scope, the waterfall,
+      and the bottom bar.
+    </p>
+
+    <rr-demo-spectrum></rr-demo-spectrum>
+
+    <h3>The spectrum scope</h3>
+
+    <p>
+      The spectrum scope represents the frequency band that Radio Receiver is
+      tuned into. The left side shows the lower frequencies and the right side
+      shows higher frequencies. The line on the top shows which frequency
+      corresponds to each part of the scope; in this example, they go from 93.4
+      MHz on the left to 94.4 MHz on the right, with 93.9 in the center.
+    </p>
+
+    <p>
+      The yellow line &ldquo;dancing&rdquo; in the scope shows the power of the
+      radio signals that were received on each frequency: the higher it gets,
+      the more power. By watching this line, you can see the radio signals that
+      are present in the frequency band. In this example, you can see three
+      powerful signals on 93.5, 93.9, and 94.3 MHz, and a weak signal on 94.1
+      MHz.
+    </p>
+
+    <p>
+      On the left, a decibels scale helps you gauge the relative power of the
+      signals and the noise.
+    </p>
+
+    <h3>The waterfall</h3>
+
+    <p>
+      The spectrum scope shows you the signals that are being received
+      <i>right now</i>, but the waterfall lets you see what signals were
+      received in the past.
+    </p>
+
+    <p>
+      The waterfall scrolls down slowly, showing more recent signals on the top
+      and less recent ones on the bottom. On each line, the intensity and color
+      of each pixel corresponds to the power received for its frequency.
+    </p>
+
+    <p>
+      You can use the waterfall to see if there are regular transmissions on
+      other neighboring frequencies, and their characteristics. With enough
+      practice, you can even tell what kind of transmission it is, and you could
+      even make a good guess at what they are saying!
+    </p>
+
+    <h3>The bottom bar</h3>
+
+    <p>
+      The bottom bar has two parts. The first one lets you adjust the decibel
+      ranges for the spectrum scope and the waterfall. You can edit the values
+      directly, or you can drag the two sliders to the right and left, closer
+      together or farther apart.
+    </p>
+
+    <p>
+      As you drag the sliders, you will see changes in the dB scale on the left
+      of the spectrum scope, and you will also see that the colors in the
+      waterfall will become different to represent the new range.
+    </p>
+
+    <p>
+      The second part of the bottom bar lets you zoom in to see a particular
+      part of the frequency band in more detail. You can click the magnifier
+      with a &ldquo;plus&rdquo; sign to zoom in, or with the &ldquo;minus&rdquo;
+      sign to zoom out, or you can type your zoom level directly in between
+      them.
+    </p>
+
+    <p>
+      When you are zoomed in, you can scroll left and right using the scrollbar
+      that appears on the right.
+    </p>
+
+  </body>
+</html>

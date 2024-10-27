@@ -64,6 +64,9 @@ export class RrMainControls extends LitElement {
         : html`<button slot="label-left" id="start" @click=${this.onStart}>
             ${Icons.Play}
           </button>`}
+      <a slot="label-right" href="help.html" target="_blank"
+        ><button id="help">${Icons.Help}</button></a
+      >
       <div>
         <label for="centerFrequency">Center frequency: </label
         ><rr-frequency-input
