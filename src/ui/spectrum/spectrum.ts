@@ -1,25 +1,15 @@
-import { css, html, LitElement, PropertyValues } from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { css, html, LitElement } from "lit";
+import { customElement, property, query } from "lit/decorators.js";
 import {
   DefaultMaxDecibels,
   DefaultMinDecibels,
-  GridLine,
   type GridSelection,
 } from "./common";
 import { SpectrumDecibelRangeChangedEvent, SpectrumZoomEvent } from "./events";
-import { RrGrid } from "./grid";
-import { Direction, getGridLines, Orientation } from "./grid-lines";
 import { RrScope } from "./scope";
 import { RrWaterfall } from "./waterfall";
-import {
-  DefaultZoom,
-  getRangeWindow,
-  getZoomedFraction,
-  type Zoom,
-} from "./zoom";
-import "./captions";
+import { DefaultZoom, type Zoom } from "./zoom";
 import "./decibel-range";
-import "./grid";
 import "./highlight";
 import "./scope";
 import "./scrollbar";
@@ -120,31 +110,16 @@ export class RrSpectrum extends LitElement {
           flex: 2;
         }
 
+        #waterfallBox > * {
+          margin-left: var(--left-caption-margin);
+        }
+
         #highlight {
           position: absolute;
           left: var(--left-caption-margin);
           top: var(--top-caption-margin);
           right: 0;
           bottom: 0;
-        }
-
-        #scopeBox > * {
-          margin-top: var(--top-caption-margin);
-          margin-left: var(--left-caption-margin);
-        }
-
-        #waterfallBox > * {
-          margin-left: var(--left-caption-margin);
-        }
-
-        #scopeFrequencies {
-          margin-top: 0;
-          height: var(--top-caption-margin);
-        }
-
-        #scopeDecibels {
-          margin-left: 0;
-          width: var(--left-caption-margin);
         }
       `,
     ];
@@ -153,19 +128,13 @@ export class RrSpectrum extends LitElement {
   render() {
     return html`<div id="view">
         <div id="scopeBox" class="box">
-          <rr-grid id="grid" .lines=${this.lines} .zoom=${this.zoom}></rr-grid
-          ><rr-captions
-            id="scopeFrequencies"
-            .lines=${this.lines}
-            .horizontal=${true}
-            .scale=${this.frequencyScale}
-            .zoom=${this.zoom}
-          ></rr-captions
-          ><rr-captions id="scopeDecibels" .lines=${this.lines}></rr-captions
-          ><rr-scope
+          <rr-scope
             id="scope"
             .minDecibels=${this.minDecibels}
             .maxDecibels=${this.maxDecibels}
+            .centerFrequency=${this.centerFrequency}
+            .bandwidth=${this.bandwidth}
+            .frequencyScale=${this.frequencyScale}
             .zoom=${this.zoom}
           ></rr-scope>
         </div>
@@ -174,8 +143,8 @@ export class RrSpectrum extends LitElement {
             id="waterfall"
             .minDecibels=${this.minDecibels}
             .maxDecibels=${this.maxDecibels}
-            .zoom=${this.zoom}
             .bandwidth=${this.bandwidth}
+            .zoom=${this.zoom}
           ></rr-waterfall>
         </div>
         <rr-highlight
@@ -207,21 +176,7 @@ export class RrSpectrum extends LitElement {
   }
 
   @query("#scope") scope?: RrScope;
-  @query("#grid") grid?: RrGrid;
   @query("#waterfall") waterfall?: RrWaterfall;
-  @state() private lines: Array<GridLine> = [];
-
-  protected firstUpdated(changed: PropertyValues): void {
-    super.firstUpdated(changed);
-    const resizeObserver = new ResizeObserver(() => this.computeLines());
-    resizeObserver.observe(this.grid!);
-  }
-
-  protected updated(changed: PropertyValues): void {
-    super.updated(changed);
-    changed.delete("lines");
-    if (changed.size != 0) this.computeLines();
-  }
 
   addFloatSpectrum(frequency: number | undefined, spectrum: Float32Array) {
     this.scope?.addFloatSpectrum(spectrum);
@@ -239,51 +194,5 @@ export class RrSpectrum extends LitElement {
     if (e.detail.max !== undefined) {
       this.maxDecibels = e.detail.max;
     }
-  }
-
-  private computeLines() {
-    let lines = [];
-    if (this.minDecibels !== undefined && this.maxDecibels !== undefined) {
-      lines.push(
-        ...getGridLines(
-          this.minDecibels,
-          this.maxDecibels,
-          20,
-          25,
-          this.grid!.offsetHeight,
-          Direction.Descending,
-          Orientation.Horizontal,
-          [1, 2, 3, 5, 6, 10]
-        )
-      );
-    }
-    if (this.bandwidth !== undefined) {
-      const rangeWindow = getRangeWindow(
-        this.centerFrequency - this.bandwidth / 2,
-        this.bandwidth,
-        this.zoom
-      );
-      lines.push(
-        ...getGridLines(
-          rangeWindow.left,
-          rangeWindow.left + rangeWindow.range,
-          50,
-          80,
-          this.grid!.offsetWidth,
-          Direction.Ascending,
-          Orientation.Vertical
-        )
-      );
-    } else {
-      const position = getZoomedFraction(0.5, this.zoom);
-      if (position >= 0 && position <= 1) {
-        lines.push({
-          value: this.centerFrequency,
-          position,
-          horizontal: false,
-        });
-      }
-    }
-    this.lines = lines;
   }
 }
