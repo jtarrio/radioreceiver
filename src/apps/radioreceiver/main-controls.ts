@@ -1,4 +1,4 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input";
 import * as Icons from "../../ui/icons";
@@ -7,6 +7,11 @@ import "../../ui/controls/window";
 
 @customElement("rr-main-controls")
 export class RrMainControls extends LitElement {
+  @property({ attribute: false })
+  inline: boolean = false;
+  @property({ attribute: false })
+  showHelp: boolean = true;
+
   static get styles() {
     return [
       css`
@@ -18,6 +23,11 @@ export class RrMainControls extends LitElement {
           position: absolute;
           bottom: calc(1em + 24px);
           left: 1em;
+        }
+
+        rr-window.inline {
+          position: initial;
+          display: inline-block;
         }
 
         @media (max-width: 794px) {
@@ -56,7 +66,12 @@ export class RrMainControls extends LitElement {
   }
 
   render() {
-    return html`<rr-window label="Controls" id="controls">
+    return html`<rr-window
+      label="Controls"
+      id="controls"
+      class=${this.inline ? "inline" : ""}
+      .fixed=${this.inline}
+    >
       ${this.playing
         ? html`<button slot="label-left" id="stop" @click=${this.onStop}>
             ${Icons.Stop}
@@ -64,9 +79,11 @@ export class RrMainControls extends LitElement {
         : html`<button slot="label-left" id="start" @click=${this.onStart}>
             ${Icons.Play}
           </button>`}
-      <a slot="label-right" href="help.html" target="_blank"
-        ><button id="help">${Icons.Help}</button></a
-      >
+      ${this.showHelp
+        ? html`<a slot="label-right" href="help.html" target="_blank"
+            ><button id="help">${Icons.Help}</button></a
+          >`
+        : nothing}
       <div>
         <label for="centerFrequency">Center frequency: </label
         ><rr-frequency-input

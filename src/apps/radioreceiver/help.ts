@@ -1,21 +1,61 @@
 import { css, html, LitElement } from "lit";
-import { customElement, query } from "lit/decorators.js";
+import { customElement, query, state } from "lit/decorators.js";
+import { type GridSelection } from "../../ui/spectrum/common";
+import { RrScope } from "../../ui/spectrum/scope";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
+import { RrWaterfall } from "../../ui/spectrum/waterfall";
+import "../../ui/spectrum/scope";
 import "../../ui/spectrum/spectrum";
+import "../../ui/spectrum/waterfall";
 import "../radioreceiver/main-controls";
+import { SpectrumHighlightChangedEvent } from "../../ui/spectrum/events";
+
+abstract class DemoSpectrumWidget extends LitElement {
+  private observer?: IntersectionObserver;
+  private player?: number;
+
+  protected abstract addSpectrum(spectrum: Float32Array): void;
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.observer?.disconnect();
+    this.observer = new IntersectionObserver((e) => this.onVisible(e), {
+      threshold: [0.05, 0.1],
+    });
+    this.observer.observe(this);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.observer?.disconnect();
+    this.observer = undefined;
+  }
+
+  onVisible(e: IntersectionObserverEntry[]) {
+    if (e[0].intersectionRatio > 0.09) {
+      if (this.player === undefined)
+        this.player = player.subscribe((s) => this.addSpectrum(s));
+    } else if (e[0].intersectionRatio <= 0.05) {
+      if (this.player !== undefined) {
+        player.unsubscribe(this.player);
+        this.player = undefined;
+      }
+    }
+  }
+}
 
 @customElement("rr-demo-spectrum")
-export class RrDemoSpectrum extends LitElement {
+export class RrDemoSpectrum extends DemoSpectrumWidget {
   static get styles() {
     return [
       css`
         #container {
           position: relative;
           width: 133%;
-          aspect-ratio: 16/6;
+          aspect-ratio: 2/1;
           transform: scale(0.75);
           transform-origin: left top;
-          margin-bottom: -12.375%;
+          margin-bottom: -16.5%;
         }
 
         rr-spectrum {
@@ -37,90 +77,200 @@ export class RrDemoSpectrum extends LitElement {
   }
 
   @query("#spectrum") spectrumView?: RrSpectrum;
-  private observer?: IntersectionObserver;
-  private player?: Player;
 
-  constructor() {
-    super();
-    this.player = new Player(
-      (f) =>
-        this.spectrumView?.addFloatSpectrum(
-          this.spectrumView?.centerFrequency,
-          f
-        ),
-      getDemoGenerators()
-    );
-  }
-
-  connectedCallback(): void {
-    super.connectedCallback();
-    this.observer?.disconnect();
-    this.observer = new IntersectionObserver((e) => this.onVisible(e), {
-      threshold: [0.05, 0.1],
-    });
-    this.observer.observe(this);
-  }
-
-  disconnectedCallback(): void {
-    super.disconnectedCallback();
-    this.observer?.disconnect();
-    this.observer = undefined;
-  }
-
-  onVisible(e: IntersectionObserverEntry[]) {
-    if (e[0].intersectionRatio > 0.09) {
-      this.player?.play();
-    } else if (e[0].intersectionRatio <= 0.05) {
-      this.player?.stop();
-    }
+  protected addSpectrum(spectrum: Float32Array) {
+    this.spectrumView?.addFloatSpectrum(93900000, spectrum);
   }
 }
 
-class Player {
-  constructor(
-    private addSpectrum: (_: Float32Array) => void,
-    private generators: SpectrumGenerator[]
-  ) {}
+@customElement("rr-demo-scope")
+export class RrDemoScope extends DemoSpectrumWidget {
+  static get styles() {
+    return [
+      css`
+        #container {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 5/1;
+        }
 
-  private playing: boolean = false;
-  private spectrum: Float32Array = new Float32Array(2048);
-
-  play() {
-    if (this.playing) return;
-    this.playing = true;
-    requestAnimationFrame((t) => this.frame(t, 0));
+        rr-scope {
+          height: 100%;
+        }
+      `,
+    ];
   }
 
-  stop() {
-    this.playing = false;
+  render() {
+    return html`<div id="container">
+      <rr-scope
+        id="scope"
+        .centerFrequency=${93900000}
+        .bandwidth=${1000000}
+        .frequencyScale=${1000000}
+      ></rr-scope>
+    </div>`;
   }
 
-  frame(t: number, lastFrame: number) {
-    if (!this.playing) return;
-    const perSecond = 20;
-    const currentFrame = Math.floor((perSecond * t) / 1000);
-    if (currentFrame > lastFrame) {
-      this.spectrum.fill(-105);
-      addNoise(this.spectrum, 8, 1);
-      addNoise(this.spectrum, 6, 2);
-      addNoise(this.spectrum, 4, 4);
-      addNoise(this.spectrum, 2, 8);
-      addNoise(this.spectrum, 1, 16);
-      for (let gen of this.generators) {
-        gen.add(this.spectrum);
-      }
-      this.addSpectrum(this.spectrum);
-    }
-    requestAnimationFrame((t) => this.frame(t, currentFrame));
+  @query("#scope") scopeView?: RrScope;
+
+  protected addSpectrum(spectrum: Float32Array) {
+    this.scopeView?.addFloatSpectrum(spectrum);
   }
 }
 
-function addNoise(spectrum: Float32Array, mag: number, coarseness: number) {
-  for (let i = 0; i < spectrum.length; i += coarseness) {
-    let v = mag * Math.random();
-    for (let j = 0; j < coarseness; ++j) {
-      spectrum[i + j] += v;
-    }
+@customElement("rr-demo-waterfall")
+export class RrDemoWaterfall extends DemoSpectrumWidget {
+  static get styles() {
+    return [
+      css`
+        #container {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 5/1;
+          background-color: black;
+        }
+
+        rr-waterfall {
+          height: 100%;
+        }
+      `,
+    ];
+  }
+
+  render() {
+    return html`<div id="container">
+      <rr-waterfall id="waterfall"></rr-waterfall>
+    </div>`;
+  }
+
+  @query("#waterfall") waterfallView?: RrWaterfall;
+
+  protected addSpectrum(spectrum: Float32Array) {
+    this.waterfallView?.addFloatSpectrum(93900000, spectrum);
+  }
+}
+
+@customElement("rr-demo-bottombar")
+export class RrDemoBottombar extends LitElement {
+  static get styles() {
+    return [
+      css`
+        #controls {
+          position: relative;
+          width: 100%;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+        }
+
+        #controls rr-decibel-range {
+          flex: 1;
+          max-width: 100%;
+        }
+
+        #zoomControls {
+          display: flex;
+          flex-direction: row;
+          flex: 10;
+        }
+
+        #zoomControls rr-scrollbar {
+          min-width: 250px;
+        }
+      `,
+    ];
+  }
+
+  render() {
+    return html` <div id="controls">
+      <rr-decibel-range></rr-decibel-range>
+      <div id="zoomControls">
+        <rr-zoombar></rr-zoombar>
+        <rr-scrollbar></rr-scrollbar>
+      </div>
+    </div>`;
+  }
+}
+
+@customElement("rr-demo-controls")
+export class RrDemoControls extends LitElement {
+  static get styles() {
+    return [
+      css`
+        :host {
+          display: block;
+        }
+
+        #container {
+          position: relative;
+        }
+
+        rr-main-controls {
+          height: 100%;
+        }
+      `,
+    ];
+  }
+
+  render() {
+    return html`<div id="container">
+      <rr-main-controls
+        id="controls"
+        .inline=${true}
+        .showHelp=${false}
+        .centerFrequency=${93900000}
+        .bandwidth=${150000}
+        .frequencyScale=${1000000}
+      ></rr-main-controls>
+    </div>`;
+  }
+}
+
+@customElement("rr-demo-highlight")
+export class RrDemoHighlight extends DemoSpectrumWidget {
+  static get styles() {
+    return [
+      css`
+        #container {
+          position: relative;
+          width: 133%;
+          aspect-ratio: 2/1;
+          transform: scale(0.75);
+          transform-origin: left top;
+          margin-bottom: -16.5%;
+        }
+
+        rr-spectrum {
+          height: 100%;
+        }
+      `,
+    ];
+  }
+
+  render() {
+    return html`<div id="container">
+      <rr-spectrum
+        id="spectrum"
+        .centerFrequency=${93900000}
+        .bandwidth=${1000000}
+        .frequencyScale=${1000000}
+        .highlight=${this.highlight}
+        .highlightDraggableLeft=${true}
+        .highlightDraggablePoint=${true}
+        .highlightDraggableRight=${true}
+      ></rr-spectrum>
+    </div>`;
+  }
+
+  @state() highlight: GridSelection = {
+    point: 0.5,
+    band: { left: 0.5 - 0.035, right: 0.5 + 0.035 },
+  };
+  @query("#spectrum") spectrumView?: RrSpectrum;
+
+  protected addSpectrum(spectrum: Float32Array) {
+    this.spectrumView?.addFloatSpectrum(93900000, spectrum);
   }
 }
 
@@ -154,6 +304,71 @@ class SpectrumGenerator {
   }
 }
 ``;
+
+function addNoise(spectrum: Float32Array, mag: number, coarseness: number) {
+  for (let i = 0; i < spectrum.length; i += coarseness) {
+    let v = mag * Math.random();
+    for (let j = 0; j < coarseness; ++j) {
+      spectrum[i + j] += v;
+    }
+  }
+}
+
+class Player {
+  constructor(private generators: SpectrumGenerator[]) {}
+
+  private spectrumAdders: (((_: Float32Array) => void) | null)[] = [];
+  private playing: boolean = false;
+  private spectrum: Float32Array = new Float32Array(2048);
+
+  subscribe(addSpectrum: (_: Float32Array) => void): number {
+    let newLen = this.spectrumAdders.push(addSpectrum);
+    this.play();
+    return newLen - 1;
+  }
+
+  unsubscribe(idx: number) {
+    if (idx >= this.spectrumAdders.length) return;
+    this.spectrumAdders[idx] = null;
+    while (
+      this.spectrumAdders.length > 0 &&
+      this.spectrumAdders[this.spectrumAdders.length - 1] == null
+    )
+      this.spectrumAdders.pop();
+  }
+
+  play() {
+    if (this.playing) return;
+    this.playing = true;
+    requestAnimationFrame((t) => this.frame(t, 0));
+  }
+
+  stop() {
+    this.playing = false;
+  }
+
+  frame(t: number, lastFrame: number) {
+    if (this.spectrumAdders.length == 0) this.playing = false;
+    if (!this.playing) return;
+    const perSecond = 20;
+    const currentFrame = Math.floor((perSecond * t) / 1000);
+    if (currentFrame > lastFrame) {
+      this.spectrum.fill(-105);
+      addNoise(this.spectrum, 8, 1);
+      addNoise(this.spectrum, 6, 2);
+      addNoise(this.spectrum, 4, 4);
+      addNoise(this.spectrum, 2, 8);
+      addNoise(this.spectrum, 1, 16);
+      for (let gen of this.generators) {
+        gen.add(this.spectrum);
+      }
+      for (let addSpectrum of this.spectrumAdders) {
+        if (addSpectrum != null) addSpectrum(this.spectrum);
+      }
+    }
+    requestAnimationFrame((t) => this.frame(t, currentFrame));
+  }
+}
 
 function getDemoGenerators(): SpectrumGenerator[] {
   return [
@@ -202,31 +417,4 @@ function getDemoGenerators(): SpectrumGenerator[] {
   ];
 }
 
-@customElement("rr-demo-controls")
-export class RrDemoControls extends LitElement {
-    static get styles() {
-        return [
-          css`
-            #container {
-              position: relative;
-            }
-    
-            rr-main-controls {
-              height: 100%;
-            }
-          `,
-        ];
-      }
-    
-      render() {
-        return html`<div id="container">
-          <rr-main-controls
-            id="controls"
-            .fixed=${true}
-            .centerFrequency=${93900000}
-            .bandwidth=${1000000}
-            .frequencyScale=${1000000}
-          ></rr-main-controls>
-        </div>`;
-      }
-}
+const player = new Player(getDemoGenerators());

@@ -6,6 +6,8 @@ import { DragController, DragHandler } from "./drag-controller";
 export class RrWindow extends LitElement {
   @property({ type: String, reflect: true })
   label: string = "";
+  @property({ type: Boolean, reflect: true })
+  fixed: boolean = false;
 
   static get styles() {
     return [
@@ -113,10 +115,10 @@ export class RrWindow extends LitElement {
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.dragController = new DragController(new WindowDragHandler(this), true);
-    fixElement(this);
   }
 
   private onPointerDown(e: PointerEvent) {
+    if (this.fixed) return;
     this.dragController?.startDragging(e);
   }
 
@@ -164,6 +166,7 @@ class WindowDragHandler implements DragHandler {
   private elemY: number;
 
   startDrag(): void {
+    fixElement(this.window);
     this.window.dragging = true;
     this.elemX = this.window.offsetLeft;
     this.elemY = this.window.offsetTop;
