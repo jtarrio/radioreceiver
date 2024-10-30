@@ -4,15 +4,13 @@ import {
   DefaultFftSize,
   DefaultMaxDecibels,
   DefaultMinDecibels,
-} from "./common";
+} from "./constants";
 import { DefaultCubeHelix, type Palette } from "./palette";
 import { SpectrumTapEvent } from "./events";
 import {
   getCropWindow,
-  getSampleWindow,
   getUnzoomedFraction,
   CropWindow,
-  SampleWindow,
   type Zoom,
   DefaultZoom,
 } from "./zoom";

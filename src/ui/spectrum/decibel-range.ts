@@ -5,17 +5,20 @@ import {
   DefaultMaxDecibels,
   DefaultMinDecibels,
   TopDecibels,
-} from "./common";
+} from "./constants";
 import { DefaultCubeHelix, type PaletteEntry, type Palette } from "./palette";
 import { SpectrumDecibelRangeChangedEvent } from "./events";
 import { DragController, DragHandler } from "../controls/drag-controller";
 
 @customElement("rr-decibel-range")
 export class RrDecibelRange extends LitElement {
+  /** Lower value of the range. */
   @property({ type: Number, reflect: true, attribute: "min-decibels" })
   minDecibels: number = DefaultMinDecibels;
+  /** Higher value of the range. */
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = DefaultMaxDecibels;
+  /** Palette used in the waterfall. */
   @property({ attribute: false })
   palette: Palette = DefaultCubeHelix;
 

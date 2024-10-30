@@ -1,12 +1,9 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import {
-  DefaultMaxDecibels,
-  DefaultMinDecibels,
-  type GridSelection,
-} from "./common";
+import { DefaultMaxDecibels, DefaultMinDecibels } from "./constants";
 import { SpectrumDecibelRangeChangedEvent, SpectrumZoomEvent } from "./events";
 import { RrScope } from "./scope";
+import { type GridSelection } from "./types";
 import { RrWaterfall } from "./waterfall";
 import { DefaultZoom, type Zoom } from "./zoom";
 import "./decibel-range";

@@ -1,7 +1,7 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { type GridSelection } from "./common";
 import { SpectrumHighlightChangedEvent } from "./events";
+import { type GridSelection } from "./types";
 import { DefaultZoom, getZoomedFraction, type Zoom } from "./zoom";
 import { DragController, DragHandler } from "../controls/drag-controller";
 

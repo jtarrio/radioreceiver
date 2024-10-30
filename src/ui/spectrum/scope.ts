@@ -1,6 +1,6 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { DefaultMinDecibels, DefaultMaxDecibels } from "./common";
+import { DefaultMinDecibels, DefaultMaxDecibels } from "./constants";
 import { RrScopeLine } from "./scope-line";
 import { type Zoom, DefaultZoom } from "./zoom";
 import "./scope-background";

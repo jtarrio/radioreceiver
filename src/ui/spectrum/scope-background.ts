@@ -1,6 +1,6 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { DefaultMinDecibels, DefaultMaxDecibels, GridLine } from "./common";
+import { DefaultMinDecibels, DefaultMaxDecibels } from "./constants";
 import {
   type Zoom,
   DefaultZoom,
@@ -241,6 +241,16 @@ function getGridLines(
   }
   return lines;
 }
+
+/** Definition of a grid line. */
+type GridLine = {
+  /** Position of the line, as a fraction of the height or width from the top-left corner. */
+  position: number;
+  /** This line's value. */
+  value: number;
+  /** Whether this line is horizontal. */
+  horizontal: boolean;
+};
 
 function getBestDivision(
   minSep: number,

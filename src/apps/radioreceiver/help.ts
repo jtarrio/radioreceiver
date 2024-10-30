@@ -1,14 +1,13 @@
 import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
-import { type GridSelection } from "../../ui/spectrum/common";
 import { RrScope } from "../../ui/spectrum/scope";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
+import { type GridSelection } from "../../ui/spectrum/types";
 import { RrWaterfall } from "../../ui/spectrum/waterfall";
 import "../../ui/spectrum/scope";
 import "../../ui/spectrum/spectrum";
 import "../../ui/spectrum/waterfall";
 import "../radioreceiver/main-controls";
-import { SpectrumHighlightChangedEvent } from "../../ui/spectrum/events";
 
 abstract class DemoSpectrumWidget extends LitElement {
   private observer?: IntersectionObserver;

@@ -4,7 +4,7 @@ import {
   DefaultFftSize,
   DefaultMinDecibels,
   DefaultMaxDecibels,
-} from "./common";
+} from "./constants";
 import { SpectrumTapEvent } from "./events";
 import {
   type Zoom,
