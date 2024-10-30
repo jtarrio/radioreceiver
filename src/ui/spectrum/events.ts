@@ -1,18 +1,27 @@
 import { Zoom } from "./zoom";
 
-export type SpectrumEventType = {
+export type SpectrumTarget = "scope" | "waterfall";
+
+export type SpectrumTapEventType = {
   fraction: number;
+  target: SpectrumTarget;
 };
 
-export class SpectrumEvent extends CustomEvent<SpectrumEventType> {
-  constructor(type: string, e: SpectrumEventType) {
-    super(type, { detail: e, bubbles: true, composed: true });
+export class SpectrumTapEvent extends CustomEvent<SpectrumTapEventType> {
+  constructor(e: SpectrumTapEventType) {
+    super("spectrum-tap", { detail: e, bubbles: true, composed: true });
   }
 }
 
-export class SpectrumTapEvent extends SpectrumEvent {
-  constructor(e: SpectrumEventType) {
-    super("spectrum-tap", e);
+export type SpectrumDragEventType = {
+  fraction: number;
+  target: SpectrumTarget;
+  operation?: "start" | "finish" | "cancel";
+};
+
+export class SpectrumDragEvent extends CustomEvent<SpectrumDragEventType> {
+  constructor(e: SpectrumDragEventType) {
+    super("spectrum-drag", { detail: e, bubbles: true, composed: true });
   }
 }
 
@@ -56,6 +65,7 @@ export class SpectrumDecibelRangeChangedEvent extends CustomEvent<SpectrumDecibe
 declare global {
   interface HTMLElementEventMap {
     "spectrum-tap": SpectrumTapEvent;
+    "spectrum-drag": SpectrumDragEvent;
     "spectrum-highlight-changed": SpectrumHighlightChangedEventType;
     "spectrum-zoom": SpectrumZoomEvent;
     "spectrum-decibel-range-changed": SpectrumDecibelRangeChangedEvent;

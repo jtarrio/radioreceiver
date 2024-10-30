@@ -8,13 +8,15 @@ export interface DragHandler {
   finishDrag(): void;
   /** Called when the dragging operation is canceled. */
   cancelDrag(): void;
+  /** Called when the dragging operation turns into a click. */
+  onClick(e: PointerEvent): void;
 }
 
 /** Implements dragging for arbitrary HTML elements. */
 export class DragController {
   constructor(
     private handler: DragHandler,
-    private dragOnPointerDown?: boolean
+    private minPixelDelta: number = 4
   ) {
     this.onPointerMove = (e) => this.drag(e);
     this.onPointerUp = (e) => this.finish(e);
@@ -34,25 +36,23 @@ export class DragController {
     }
     this.dragData = new DragData(
       e,
+      this.minPixelDelta,
       this.onPointerMove,
       this.onPointerUp,
       this.onPointerCancel
     );
     this.dragData.capture();
-    if (this.dragOnPointerDown) {
-      this.dragData.hasMoved();
-      this.handler.startDrag();
-      this.handler.drag(0, 0);
-    }
+    this.drag(e);
     e.preventDefault();
   }
 
   private drag(e: PointerEvent) {
     if (this.dragData === undefined) return;
-    if (!this.dragData.hasMoved()) this.handler.startDrag();
-    let { x, y } = this.dragData.delta(e);
-    this.handler.drag(x, y);
     e.preventDefault();
+    let { start, moved, x, y } = this.dragData.delta(e);
+    if (!moved) return;
+    if (start) this.handler.startDrag();
+    this.handler.drag(x, y);
   }
 
   private finish(e: PointerEvent) {
@@ -60,6 +60,8 @@ export class DragController {
     if (this.dragData.hasMoved()) {
       this.handler.finishDrag();
       e.preventDefault();
+    } else {
+      this.handler.onClick(e);
     }
     this.release();
   }
@@ -80,6 +82,7 @@ export class DragController {
 class DragData {
   constructor(
     firstEvent: PointerEvent,
+    private minPixelDelta: number,
     private move: (e: PointerEvent) => void,
     private up: (e: PointerEvent) => void,
     private cancel: (e: PointerEvent) => void
@@ -112,12 +115,33 @@ class DragData {
   }
 
   hasMoved(): boolean {
-    let m = this.moved;
-    this.moved = true;
-    return m;
+    return this.moved;
   }
 
-  delta(e: PointerEvent): { x: number; y: number } {
-    return { x: e.clientX - this.startX, y: e.clientY - this.startY };
+  delta(e: PointerEvent): {
+    start: boolean;
+    moved: boolean;
+    x: number;
+    y: number;
+  } {
+    let start = false;
+    if (!this.moved && this.minPixelDelta == 0) {
+      start = true;
+      this.moved = true;
+    }
+    let ret = {
+      start,
+      moved: this.moved,
+      x: e.clientX - this.startX,
+      y: e.clientY - this.startY,
+    };
+    if (ret.moved) return ret;
+    let offset = Math.max(Math.abs(ret.x), Math.abs(ret.y));
+    if (offset >= this.minPixelDelta) {
+      this.moved = true;
+      ret.moved = true;
+      ret.start = true;
+    }
+    return ret;
   }
 }

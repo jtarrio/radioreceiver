@@ -6,7 +6,7 @@ import {
   DefaultMinDecibels,
 } from "./constants";
 import { DefaultCubeHelix, type Palette } from "./palette";
-import { SpectrumTapEvent } from "./events";
+import { SpectrumDragEvent, SpectrumTapEvent } from "./events";
 import {
   getCropWindow,
   getUnzoomedFraction,
@@ -14,6 +14,7 @@ import {
   type Zoom,
   DefaultZoom,
 } from "./zoom";
+import { DragController, DragHandler } from "../controls/drag-controller";
 
 const defaultWidth = DefaultFftSize;
 
@@ -29,6 +30,8 @@ export class RrWaterfall extends LitElement {
   zoom: Zoom = DefaultZoom;
   @property({ type: Number, reflect: true })
   bandwidth?: number;
+  @property({ type: Boolean, reflect: true })
+  draggable: boolean = false;
 
   static get styles() {
     return [
@@ -48,7 +51,7 @@ export class RrWaterfall extends LitElement {
   constructor() {
     super();
     this.waterfall = new ImageData(defaultWidth, screen.height);
-    this.addEventListener("click", (e) => this.onClick(e));
+    this.addEventListener("pointerdown", (e) => this.onPointerDown(e));
   }
 
   private waterfall: ImageData;
@@ -58,6 +61,12 @@ export class RrWaterfall extends LitElement {
   private cropWindow: CropWindow = getCropWindow(defaultWidth, this.zoom);
   private frequency: number = 0;
   private scrollError: number = 0;
+  private dragController?: DragController;
+
+  protected firstUpdated(changed: PropertyValues): void {
+    super.firstUpdated(changed);
+    this.dragController = new DragController(new WaterfallDragHandler(this));
+  }
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
@@ -172,9 +181,62 @@ export class RrWaterfall extends LitElement {
     ctx.putImageData(this.waterfall, 0, 0);
   }
 
-  private onClick(e: MouseEvent) {
-    let fraction = getUnzoomedFraction(e.offsetX / this.offsetWidth, this.zoom);
-    this.dispatchEvent(new SpectrumTapEvent({ fraction }));
+  private onPointerDown(e: PointerEvent) {
+    this.dragController?.startDragging(e);
+  }
+}
+
+class WaterfallDragHandler implements DragHandler {
+  constructor(private waterfall: RrWaterfall) {}
+
+  private fraction: number = 0;
+
+  startDrag(): void {
+    this.fraction = 0;
+    this.waterfall.dispatchEvent(
+      new SpectrumDragEvent({
+        fraction: 0,
+        target: "waterfall",
+        operation: "start",
+      })
+    );
+  }
+
+  drag(deltaX: number, _: number): void {
+    this.fraction = deltaX / this.waterfall.clientWidth;
+    this.waterfall.dispatchEvent(
+      new SpectrumDragEvent({ fraction: this.fraction, target: "waterfall" })
+    );
+  }
+
+  finishDrag(): void {
+    this.waterfall.dispatchEvent(
+      new SpectrumDragEvent({
+        fraction: this.fraction,
+        target: "waterfall",
+        operation: "finish",
+      })
+    );
+  }
+
+  cancelDrag(): void {
+    this.waterfall.dispatchEvent(
+      new SpectrumDragEvent({
+        fraction: 0,
+        target: "waterfall",
+        operation: "cancel",
+      })
+    );
+  }
+
+  onClick(e: PointerEvent): void {
+    let fraction = getUnzoomedFraction(
+      e.offsetX / this.waterfall.offsetWidth,
+      this.waterfall.zoom
+    );
+    this.waterfall.dispatchEvent(
+      new SpectrumTapEvent({ fraction, target: "waterfall" })
+    );
     e.preventDefault();
   }
 }

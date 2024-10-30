@@ -114,7 +114,7 @@ export class RrWindow extends LitElement {
 
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
-    this.dragController = new DragController(new WindowDragHandler(this), true);
+    this.dragController = new DragController(new WindowDragHandler(this), 0);
   }
 
   private onPointerDown(e: PointerEvent) {
@@ -188,4 +188,6 @@ class WindowDragHandler implements DragHandler {
     this.window.dragging = false;
     moveElement(this.window, this.elemX, this.elemY);
   }
+
+  onClick(): void {}
 }

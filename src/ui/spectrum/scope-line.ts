@@ -118,7 +118,7 @@ export class RrScopeLine extends LitElement {
 
   private onClick(e: MouseEvent) {
     let fraction = getUnzoomedFraction(e.offsetX / this.offsetWidth, this.zoom);
-    this.dispatchEvent(new SpectrumTapEvent({ fraction }));
+    this.dispatchEvent(new SpectrumTapEvent({ fraction, target: "scope" }));
     e.preventDefault();
   }
 

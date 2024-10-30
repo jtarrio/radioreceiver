@@ -21,6 +21,7 @@ import { RTL2832U_Provider } from "../../rtlsdr/rtl2832u";
 import { RtlDeviceProvider } from "../../rtlsdr/rtldevice";
 import {
   SpectrumDecibelRangeChangedEvent,
+  SpectrumDragEvent,
   SpectrumHighlightChangedEvent,
   SpectrumTapEvent,
 } from "../../ui/spectrum/events";
@@ -108,6 +109,7 @@ export class RadioReceiverMain extends LitElement {
         .highlightDraggableRight=${this.mode.scheme != "WBFM" &&
         this.mode.scheme != "LSB"}
         @spectrum-tap=${this.onSpectrumTap}
+        @spectrum-drag=${this.onSpectrumDrag}
         @spectrum-highlight-changed=${this.onSpectrumHighlightChanged}
         @spectrum-decibel-range-changed=${this.onDecibelRangeChanged}
       ></rr-spectrum>
@@ -148,6 +150,7 @@ export class RadioReceiverMain extends LitElement {
   private availableModes = new Map(
     DefaultModes.map((s) => [s.scheme as string, { ...s } as Mode])
   );
+  private centerFrequencyScroller?: CenterFrequencyScroller;
 
   @state() private bandwidth: number = RtlSampleRate;
   @state() private minDecibels: number = -90;
@@ -258,18 +261,7 @@ export class RadioReceiverMain extends LitElement {
     if (!this.isFrequencyValid(newFreq)) {
       newFreq = { ...newFreq, offset: 0 };
     }
-    if (newFreq.offset != this.frequency.offset) {
-      this.demodulator.expectFrequencyAndSetOffset(
-        newFreq.center,
-        newFreq.offset
-      );
-    }
-    this.radio.setFrequency(newFreq.center);
-    this.frequency = newFreq;
-    this.configProvider.update((cfg) => {
-      cfg.centerFrequency = newFreq.center;
-      cfg.tunedFrequency = newFreq.center + newFreq.offset;
-    });
+    this.setFrequency(newFreq);
   }
 
   private onTunedFrequencyChange(e: Event) {
@@ -297,13 +289,19 @@ export class RadioReceiverMain extends LitElement {
         offset: 0,
       };
     }
+    this.setFrequency(newFreq);
+  }
+
+  private setFrequency(newFreq: Frequency) {
     if (newFreq.center != this.frequency.center) {
-      this.demodulator.expectFrequencyAndSetOffset(
-        newFreq.center,
-        newFreq.offset
-      );
+      if (newFreq.offset != this.frequency.offset) {
+        this.demodulator.expectFrequencyAndSetOffset(
+          newFreq.center,
+          newFreq.offset
+        );
+      }
       this.radio.setFrequency(newFreq.center);
-    } else {
+    } else if (newFreq.offset != this.frequency.offset) {
       this.demodulator.setFrequencyOffset(newFreq.offset);
     }
     this.frequency = newFreq;
@@ -414,7 +412,27 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onSpectrumTap(e: SpectrumTapEvent) {
-    this.setFrequencyFraction(e.detail.fraction);
+    this.setTunedFrequencyFraction(e.detail.fraction);
+  }
+
+  private onSpectrumDrag(e: SpectrumDragEvent) {
+    if (e.detail.operation == "start") {
+      this.centerFrequencyScroller?.cancel();
+      this.centerFrequencyScroller = new CenterFrequencyScroller(
+        this.bandwidth,
+        this.scale,
+        this.frequency,
+        (f: Frequency) => this.setFrequency(f)
+      );
+    } else if (e.detail.operation == "cancel") {
+      this.centerFrequencyScroller?.cancel();
+      this.centerFrequencyScroller = undefined;
+    } else if (e.detail.operation == "finish") {
+      this.centerFrequencyScroller?.finish();
+      this.centerFrequencyScroller = undefined;
+    } else {
+      this.centerFrequencyScroller?.drag(e);
+    }
   }
 
   private onDecibelRangeChanged(e: SpectrumDecibelRangeChangedEvent) {
@@ -431,7 +449,7 @@ export class RadioReceiverMain extends LitElement {
 
   private onSpectrumHighlightChanged(e: SpectrumHighlightChangedEvent) {
     if (e.detail.fraction !== undefined) {
-      this.setFrequencyFraction(e.detail.fraction);
+      this.setTunedFrequencyFraction(e.detail.fraction);
     } else if (e.detail.startFraction !== undefined) {
       this.setSidebandFraction("left", e.detail.startFraction);
     } else if (e.detail.endFraction !== undefined) {
@@ -439,7 +457,7 @@ export class RadioReceiverMain extends LitElement {
     }
   }
 
-  private setFrequencyFraction(fraction: number) {
+  private setTunedFrequencyFraction(fraction: number) {
     const min =
       this.frequency.center - this.bandwidth / 2 + this.frequency.rightBand;
     const max =
@@ -515,5 +533,67 @@ export class RadioReceiverMain extends LitElement {
       default:
       // do nothing
     }
+  }
+}
+
+/**
+ * Computes the frequency the user is scrolling to, and schedules
+ * regular updates to the center frequency because the RTL-SDR
+ * stick takes a long time to change frequency.
+ */
+class CenterFrequencyScroller {
+  constructor(
+    private bandwidth: number,
+    private scale: number,
+    frequency: Frequency,
+    private setFrequency: (newFreq: Frequency) => void
+  ) {
+    this.original = { ...frequency };
+  }
+
+  private original: Frequency;
+  private timeout?: number;
+  private newFreq?: Frequency;
+
+  drag(e: SpectrumDragEvent) {
+    let fraction = e.detail.fraction;
+    let delta = -fraction * this.bandwidth;
+    let newCenter = this.original.center + delta;
+    newCenter = this.scale * Math.round(newCenter / this.scale);
+    let newFreq = {
+      ...this.original,
+      center: newCenter,
+      offset: this.original.center + this.original.offset - newCenter,
+    };
+    if (newFreq.offset - newFreq.leftBand <= -this.bandwidth / 2) {
+      newFreq.offset = newFreq.leftBand - this.bandwidth / 2;
+    }
+    if (this.bandwidth / 2 <= newFreq.offset + newFreq.rightBand) {
+      newFreq.offset = this.bandwidth / 2 - newFreq.rightBand;
+    }
+    this.scheduleFrequencyChange(newFreq);
+  }
+
+  cancel() {
+    this.newFreq = this.original;
+    this.changeFrequency();
+  }
+
+  finish() {
+    this.changeFrequency();
+  }
+
+  private scheduleFrequencyChange(newFreq: Frequency) {
+    this.newFreq = newFreq;
+    if (this.timeout != undefined) return;
+    this.timeout = window.setTimeout(() => this.changeFrequency(), 50);
+  }
+
+  private changeFrequency() {
+    if (this.newFreq === undefined) return;
+    this.setFrequency(this.newFreq);
+    this.newFreq = undefined;
+    clearTimeout(this.timeout);
+    this.timeout = undefined;
   }
 }

@@ -87,7 +87,8 @@ export class RrScrollbar extends LitElement {
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.dragController = new DragController(
-      new ScrollbarDragHandler(this, this.scrollBox!)
+      new ScrollbarDragHandler(this, this.scrollBox!),
+      0
     );
   }
 
@@ -142,6 +143,8 @@ class ScrollbarDragHandler implements DragHandler {
   cancelDrag(): void {
     this.moveZoom(0);
   }
+
+  onClick(): void {}
 
   moveZoom(fraction: number) {
     let newZoom = { ...this.startZoom };

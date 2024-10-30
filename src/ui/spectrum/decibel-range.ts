@@ -128,10 +128,12 @@ export class RrDecibelRange extends LitElement {
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.minDragController = new DragController(
-      new DecibelDragHandler("min", this, this.paletteBox!)
+      new DecibelDragHandler("min", this, this.paletteBox!),
+      0
     );
     this.maxDragController = new DragController(
-      new DecibelDragHandler("max", this, this.paletteBox!)
+      new DecibelDragHandler("max", this, this.paletteBox!),
+      0
     );
     const resizeObserver = new ResizeObserver(() => this.repaintPalette());
     resizeObserver.observe(document.body);
@@ -279,6 +281,8 @@ class DecibelDragHandler implements DragHandler {
   cancelDrag(): void {
     this.changeDb(this.startDb);
   }
+
+  onClick(): void {}
 
   changeDb(db: number) {
     if (this.type == "min") {

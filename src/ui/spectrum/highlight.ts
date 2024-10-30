@@ -138,13 +138,16 @@ export class RrHighlight extends LitElement {
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.pointDragController = new DragController(
-      new HighlightDragHandler("point", this)
+      new HighlightDragHandler("point", this),
+      0
     );
     this.leftDragController = new DragController(
-      new HighlightDragHandler("start", this)
+      new HighlightDragHandler("start", this),
+      0
     );
     this.rightDragController = new DragController(
-      new HighlightDragHandler("end", this)
+      new HighlightDragHandler("end", this),
+      0
     );
   }
 
@@ -195,6 +198,8 @@ class HighlightDragHandler implements DragHandler {
       this.highlight.dispatchEvent(this.getEvent(fraction));
     }
   }
+
+  onClick(): void {}
 
   private getFraction(): number | undefined {
     return this.type == "point"
