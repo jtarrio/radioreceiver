@@ -35,6 +35,8 @@ export class RrSpectrum extends LitElement {
   highlightDraggableLeft: boolean = false;
   @property({ attribute: false })
   highlightDraggableRight: boolean = false;
+  @property({ attribute: false })
+  waterfallDraggable: boolean = false;
 
   static get styles() {
     return [
@@ -142,6 +144,7 @@ export class RrSpectrum extends LitElement {
             .maxDecibels=${this.maxDecibels}
             .bandwidth=${this.bandwidth}
             .zoom=${this.zoom}
+            .draggable=${this.waterfallDraggable}
           ></rr-waterfall>
         </div>
         <rr-highlight

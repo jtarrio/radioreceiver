@@ -108,6 +108,7 @@ export class RadioReceiverMain extends LitElement {
         this.mode.scheme != "USB"}
         .highlightDraggableRight=${this.mode.scheme != "WBFM" &&
         this.mode.scheme != "LSB"}
+        .waterfallDraggable=${true}
         @spectrum-tap=${this.onSpectrumTap}
         @spectrum-drag=${this.onSpectrumDrag}
         @spectrum-highlight-changed=${this.onSpectrumHighlightChanged}

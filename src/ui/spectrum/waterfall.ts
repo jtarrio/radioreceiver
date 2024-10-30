@@ -1,5 +1,5 @@
 import { css, html, LitElement, PropertyValues } from "lit";
-import { customElement, property, query } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 import {
   DefaultFftSize,
   DefaultMaxDecibels,
@@ -182,7 +182,7 @@ export class RrWaterfall extends LitElement {
   }
 
   private onPointerDown(e: PointerEvent) {
-    this.dragController?.startDragging(e);
+    if (this.draggable) this.dragController?.startDragging(e);
   }
 }
 
