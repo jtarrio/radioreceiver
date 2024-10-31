@@ -81,8 +81,9 @@
     </p>
     <p>
       Radio Receiver was written to work with an RTL-2832U-based receiver with a
-      R820T tuner chip (or compatible). This hardware configuration is a little
-      dated, but we are planning to add support for newer sticks very soon.
+      R820 or R828 tuner chip (or compatible). In particular, the RTL-SDR Blog
+      V3 and V4 sticks are supported, but old R820 or R860-based sticks should
+      work too.
     </p>
     <p>
       You may need to configure your computer to use an RTL-SDR stick if you use
@@ -229,10 +230,11 @@
       signals directly.
     </p>
     <p>
-      Radio Receiver supports sticks that have direct sampling mode. It doesn't
-      have explicit support for upconverters, but you can use one by tuning into
-      the modified frequency; so if your upconverter raises frequencies by 100
-      MHz and you want to receive an AM station on 830 kHz, you would tune into
+      Radio Receiver supports sticks that have direct sampling mode and the
+      RTL-SDR Blog V4 with its internal upconverter. It doesn't have explicit
+      support for external upconverters, but you can use one by tuning into the
+      modified frequency; so if your upconverter raises frequencies by 100 MHz
+      and you want to receive an AM station on 830 kHz, you would tune into
       100830 kHz.
     </p>
 
