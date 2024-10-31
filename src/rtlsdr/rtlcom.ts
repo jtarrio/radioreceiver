@@ -36,6 +36,14 @@ export class RtlCom {
     await this.device.releaseInterface(0);
   }
 
+  /** Returns branding information. */
+  getBranding(): { manufacturer?: string; model?: string } {
+    return {
+      manufacturer: this.device.manufacturerName,
+      model: this.device.productName,
+    };
+  }
+
   /**
    * Writes to a USB control register.
    * @param address The register's address.
@@ -50,10 +58,18 @@ export class RtlCom {
    * Writes to a 8051 system register.
    * @param address The register's address.
    * @param value The value to write.
-   * @param length The number of bytes this value uses.
    */
   async setSysReg(address: number, value: number) {
     await this._setReg(0x200, address, value, 1);
+  }
+
+  /**
+   * Reads from a 8051 system register.
+   * @param address The register's address.
+   * @returns The value that was read.
+   */
+  async getSysReg(address: number): Promise<number> {
+    return this._getReg(0x200, address, 1);
   }
 
   /**
@@ -113,6 +129,19 @@ export class RtlCom {
   ): Promise<ArrayBuffer> {
     await this._setRegBuffer(0x600, addr, new Uint8Array([reg]).buffer);
     return this._getRegBuffer(0x600, addr, len);
+  }
+
+  async setGpioOutput(gpio: number) {
+    let r = await this.getSysReg(0x3004);
+    await this.setSysReg(0x3004, r & ~gpio);
+    r = await this.getSysReg(0x3003);
+    await this.setSysReg(0x3003, r | gpio);
+  }
+
+  async setGpioBit(gpio: number, val: number) {
+    let r = await this.getSysReg(0x3001);
+    r = val ? (r | gpio) : (r & ~gpio);
+    await this.setSysReg(0x3001, r);
   }
 
   /**

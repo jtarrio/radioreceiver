@@ -24,6 +24,8 @@ export interface Tuner {
   setXtalFrequency(xtalFreq: number): void;
   /** Returns the intermediate frequency this tuner uses. */
   getIntermediateFrequency(): number;
+  /** Returns the minimum frequency this tuner can set. */
+  getMinimumFrequency(): number;
   /** Closes the tuner. */
   close(): Promise<void>;
   /** Reopens the tuner. */

@@ -15,6 +15,7 @@
 
 import { RadioError, RadioErrorType } from "../errors";
 import { R820T } from "./r820t";
+import { R828D } from "./r828d";
 import { RtlCom } from "./rtlcom";
 import { RtlDevice, RtlDeviceProvider, SampleBlock } from "./rtldevice";
 import { Tuner } from "./tuner";
@@ -167,25 +168,15 @@ export class RTL2832U implements RtlDevice {
 
   /** Finds the tuner that's connected to this demodulator and returns the appropriate instance. */
   private static async _findTuner(com: RtlCom): Promise<Tuner> {
-    await com.openI2C();
-    let found = await R820T.check(com);
-    await com.closeI2C();
-    if (!found) {
+    let tuner = await R820T.maybeInit(com);
+    if (tuner === null) tuner = await R828D.maybeInit(com);
+    if (tuner === null) {
       await com.releaseInterface();
       throw new RadioError(
-        "Sorry, your USB dongle has an unsupported tuner chip. Only the R820T chip is supported.",
+        "Sorry, your USB dongle has an unsupported tuner chip.",
         RadioErrorType.UnsupportedDevice
       );
     }
-    // [0] disable zero-IF input [1] enable DC estimation [3] enable IQ compensation [4] enable IQ estimation
-    await com.setDemodReg(1, 0xb1, 0b00011010, 1);
-    // [6] enable ADC_Q [7] disable ADC_I
-    await com.setDemodReg(0, 0x08, 0b01001101, 1);
-    // [0] inverted spectrum
-    await com.setDemodReg(1, 0x15, 0b00000001, 1);
-    await com.openI2C();
-    let tuner = await R820T.init(com, RTL2832U.XTAL_FREQ);
-    await com.closeI2C();
     return tuner;
   }
 
@@ -274,7 +265,7 @@ export class RTL2832U implements RtlDevice {
    * @returns a promise that resolves to the actual tuned frequency.
    */
   async setCenterFrequency(freq: number): Promise<number> {
-    await this._maybeSetDirectSampling(freq < 28800000);
+    await this._maybeSetDirectSampling(freq);
     let actualFreq;
     if (this.directSampling) {
       actualFreq = this._setIfFrequency(freq);
@@ -303,7 +294,8 @@ export class RTL2832U implements RtlDevice {
     return this.directSamplingEnabled;
   }
 
-  private async _maybeSetDirectSampling(enable: boolean) {
+  private async _maybeSetDirectSampling(frequency: number) {
+    let enable = frequency < this.tuner.getMinimumFrequency();
     enable = enable && this.directSamplingEnabled;
     if (this.directSampling == enable) return;
     this.directSampling = enable;
