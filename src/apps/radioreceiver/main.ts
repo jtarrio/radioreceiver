@@ -202,7 +202,7 @@ export class RadioReceiverMain extends LitElement {
 
   private applyConfig() {
     let cfg = this.configProvider.get();
-    for (let modeName in this.availableModes) {
+    for (let modeName of this.availableModes.keys()) {
       let mode = {
         ...this.availableModes.get(modeName),
         ...cfg.modes[modeName],
