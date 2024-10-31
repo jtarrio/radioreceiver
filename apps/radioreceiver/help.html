@@ -30,7 +30,7 @@
 
     <div id="toc"></div>
 
-    <h1 name="what_is_this">What is Radio Receiver</h1>
+    <h1 id="what_is_this">What is Radio Receiver</h1>
     <p>
       Radio Receiver is an HTML5 webpage that uses an RTL-SDR USB stick to
       receive and digitize radio signals. Then, it demodulates those signals on
@@ -61,7 +61,7 @@
       >.
     </p>
 
-    <h1 name="compatibility">Compatible hardware and software</h1>
+    <h1 id="compatibility">Compatible hardware and software</h1>
     <p>
       Radio Receiver needs to run in a browser that supports the HTML5 USB API.
       Generally, this means a Chromium based-browser (Chrome, Edge, Opera) on a
@@ -98,9 +98,9 @@
       </li>
     </ul>
 
-    <h1 name="what_to_know">Some things you need to know</h1>
+    <h1 id="what_to_know">Some things you need to know</h1>
 
-    <h2 name="how_sdr_works">How SDR works</h2>
+    <h2 id="how_sdr_works">How SDR works</h2>
     <p>
       Traditionally, radios were built entirely out of hardware components such
       as oscillators, inductors, capacitors, transistors, etc., that were
@@ -125,7 +125,7 @@
       then receive those signals and demodulate them in your browser.
     </p>
 
-    <h2 name="frequency">Frequency, bandwidth, and sample rate</h2>
+    <h2 id="frequency">Frequency, bandwidth, and sample rate</h2>
     <p>
       Your RTL-SDR stick works by tuning into a radio frequency, receiving radio
       signals around that frequency, digitizing them, and sending them to your
@@ -158,7 +158,7 @@
       less computing power, you will receive a smaller bandwidth.
     </p>
 
-    <h2 name="modulation">Modulation</h2>
+    <h2 id="modulation">Modulation</h2>
     <p>
       Signals need to be “modulated” to be transmitted through the radio. This
       modulation is a scheme to modify the radio waves according to the content
@@ -173,7 +173,7 @@
       LSB (used in amateur radio.)
     </p>
 
-    <h2 name="decibels">Decibels</h2>
+    <h2 id="decibels">Decibels</h2>
     <p>
       The power of a radio signal is indicated in decibels (dB). Decibels are
       not units of measure like meters, pounds, liters, or acres: there is no
@@ -204,7 +204,7 @@
       2), and one billionth is -90 dB (divide by 10 nine times.)
     </p>
 
-    <h2 name="upconverters">Upconverters and direct sampling</h2>
+    <h2 id="upconverters">Upconverters and direct sampling</h2>
     <p>
       RTL-SDR sticks are designed to receive signals between 30 and 1700 MHz.
       However, there are many interesting signals below 30 MHz (AM radio,
@@ -230,9 +230,9 @@
       100830 kHz.
     </p>
 
-    <h1 name="how_to_use">How to use Radio Receiver</h1>
+    <h1 id="how_to_use">How to use Radio Receiver</h1>
 
-    <h2 name="main_display">The main display</h2>
+    <h2 id="main_display">The main display</h2>
     <p>
       The main Radio Receiver display appears below, showing a few simulated
       radio signals to better illustrate how it works.
@@ -245,7 +245,7 @@
       scope, the waterfall, and the bottom bar.
     </p>
 
-    <h3 name="spectrum_scope">The spectrum scope</h3>
+    <h3 id="spectrum_scope">The spectrum scope</h3>
     <p>
       The spectrum scope represents the frequency band that Radio Receiver is
       tuned into. The lowest frequency is in the left and the highest frequency
@@ -338,7 +338,7 @@
       freely.
     </p>
 
-    <h2 name="main_controls">The main controls</h2>
+    <h2 id="main_controls">The main controls</h2>
     <p>
       The main Radio Receiver controls are shown below. They let you tune into a
       different frequency, change the signal demodulation parameters, and adjust
@@ -435,7 +435,7 @@
       the demodulated audio sound worse.
     </p>
 
-    <h2 name="display_controls">The display controls</h2>
+    <h2 id="display_controls">The display controls</h2>
     <p>
       There is a second set of controls available on the spectrum display, which
       you can manipulate by clicking and dragging with the mouse or touch

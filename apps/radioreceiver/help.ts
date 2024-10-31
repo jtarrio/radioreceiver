@@ -16,10 +16,10 @@ function buildToc() {
         toc = toc.parentElement!;
       }
       let newToc = document.createElement("LI");
-      if (elem.hasAttribute("name")) {
+      if (elem.id) {
         let a = document.createElement("A") as HTMLAnchorElement;
         a.textContent = elem.textContent;
-        a.href = "#" + elem.getAttribute("name");
+        a.href = "#" + elem.id;
         newToc.append(a);
       } else {
         newToc.textContent = elem.textContent;
