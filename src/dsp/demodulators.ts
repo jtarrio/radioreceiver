@@ -43,8 +43,6 @@ export class SSBDemodulator {
     let coefsSide = makeLowPassKernel(outRate, filterFreq, kernelLen);
     this.filterSide = new FIRFilter(coefsSide);
     this.hilbertMul = upper ? -1 : 1;
-    this.sigRatio = inRate / outRate;
-    this.relSignalPower = 0;
   }
 
   private downsamplerI: Downsampler;
@@ -53,8 +51,6 @@ export class SSBDemodulator {
   private filterHilbert: FIRFilter;
   private filterSide: FIRFilter;
   private hilbertMul: number;
-  private sigRatio: number;
-  private relSignalPower: number;
 
   /**
    * Demodulates the given I/Q samples.
@@ -69,9 +65,6 @@ export class SSBDemodulator {
     const I = this.downsamplerI.downsample(samplesI);
     const Q = this.downsamplerQ.downsample(samplesQ);
 
-    const sigRatio = this.sigRatio;
-    let specSqrSum = 0;
-    let sigSqrSum = 0;
     this.filterDelay.loadSamples(I);
     this.filterHilbert.loadSamples(Q);
     for (let i = 0; i < I.length; ++i) {
@@ -81,22 +74,9 @@ export class SSBDemodulator {
     }
     this.filterSide.loadSamples(I);
     for (let i = 0; i < I.length; ++i) {
-      const sig = this.filterSide.get(i);
-      const power = sig * sig;
-      sigSqrSum += power;
-      I[i] = sig;
-      const origIndex = Math.floor(i * sigRatio);
-      const origI = samplesI[origIndex];
-      const origQ = samplesQ[origIndex];
-      specSqrSum += origI * origI + origQ * origQ;
+      I[i] = this.filterSide.get(i);
     }
-
-    this.relSignalPower = sigSqrSum / specSqrSum;
     return I;
-  }
-
-  getRelSignalPower() {
-    return this.relSignalPower;
   }
 }
 
@@ -120,8 +100,6 @@ export class AMDemodulator {
     this.dcBlockerI = new DcBlocker(outRate, true);
     this.dcBlockerQ = new DcBlocker(outRate, true);
     this.dcBlockerA = new DcBlocker(outRate);
-    this.sigRatio = inRate / outRate;
-    this.relSignalPower = 0;
   }
 
   private downsamplerI: Downsampler;
@@ -129,8 +107,6 @@ export class AMDemodulator {
   private dcBlockerI: DcBlocker;
   private dcBlockerQ: DcBlocker;
   private dcBlockerA: DcBlocker;
-  private sigRatio: number;
-  private relSignalPower: number;
 
   /**
    * Demodulates the given I/Q samples.
@@ -147,10 +123,6 @@ export class AMDemodulator {
     this.dcBlockerI.inPlace(I);
     this.dcBlockerQ.inPlace(Q);
 
-    const sigRatio = this.sigRatio;
-    let specSqrSum = 0;
-    let sigSqrSum = 0;
-    let sigSum = 0;
     for (let i = 0; i < I.length; ++i) {
       const vI = I[i];
       const vQ = Q[i];
@@ -158,21 +130,9 @@ export class AMDemodulator {
       const power = vI * vI + vQ * vQ;
       const amplitude = Math.sqrt(power);
       I[i] = amplitude;
-
-      const origIndex = Math.floor(i * sigRatio);
-      const origI = samplesI[origIndex];
-      const origQ = samplesQ[origIndex];
-      specSqrSum += origI * origI + origQ * origQ;
-      sigSqrSum += power;
-      sigSum += amplitude;
     }
-    this.relSignalPower = sigSqrSum / specSqrSum;
     this.dcBlockerA.inPlace(I);
     return I;
-  }
-
-  getRelSignalPower() {
-    return this.relSignalPower;
   }
 }
 
@@ -198,7 +158,6 @@ export class FMDemodulator {
     this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
     this.lI = 0;
     this.lQ = 0;
-    this.relSignalPower = 0;
   }
 
   private amplConv: number;
@@ -206,7 +165,6 @@ export class FMDemodulator {
   private downsamplerQ: Downsampler;
   private lI: number;
   private lQ: number;
-  private relSignalPower: number;
 
   /**
    * Demodulates the given I/Q samples.
@@ -222,8 +180,6 @@ export class FMDemodulator {
     const Q = this.downsamplerQ.downsample(samplesQ);
 
     const amplConv = this.amplConv;
-    let prev = 0;
-    let difSqrSum = 0;
     let lI = this.lI;
     let lQ = this.lQ;
     for (let i = 0; i < I.length; ++i) {
@@ -261,20 +217,12 @@ export class FMDemodulator {
               (0.98419158358617365 +
                 div * (0.093485702629671305 + div * 0.19556307900617517))) *
           amplConv;
-      const dif = prev - value;
-      difSqrSum += dif * dif;
-      prev = value;
       I[i] = value;
     }
 
     this.lI = lI;
     this.lQ = lQ;
-    this.relSignalPower = 1 - Math.sqrt(difSqrSum / I.length);
     return I;
-  }
-
-  getRelSignalPower() {
-    return this.relSignalPower;
   }
 }
 

@@ -14,7 +14,12 @@
 
 /** Interface for classes that demodulate IQ radio streams. */
 export interface ModulationScheme {
-  demodulate(I: Float32Array, Q: Float32Array, freqOffset: number, inStereo?: boolean): Demodulated;
+  demodulate(
+    I: Float32Array,
+    Q: Float32Array,
+    freqOffset: number,
+    inStereo?: boolean
+  ): Demodulated;
 }
 
 /** Demodulator output. */
@@ -25,8 +30,6 @@ export type Demodulated = {
   right: Float32Array;
   /** The signal is in stereo. */
   stereo: boolean;
-  /** Intelligibility level, 0 to 1. */
-  signalLevel: number;
 };
 
 /** Modulation parameters. */

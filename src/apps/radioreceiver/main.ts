@@ -191,7 +191,6 @@ export class RadioReceiverMain extends LitElement {
 
     this.demodulator.setVolume(1);
     this.demodulator.setStereo(true);
-    this.demodulator.setSquelch(0);
     this.demodulator.setMode(this.mode);
 
     this.radio.addEventListener("radio", (e) => this.onRadioEvent(e));

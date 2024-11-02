@@ -60,7 +60,6 @@ export class SchemeAM implements ModulationScheme {
       left: audio,
       right: new Float32Array(audio),
       stereo: false,
-      signalLevel: Math.pow(this.demodulator.getRelSignalPower(), 0.17),
     };
   }
 }

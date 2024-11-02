@@ -22,8 +22,6 @@
  * Whenever a parameter is changed, the demodulator emits a
  * 'demodulator' event containing the new value. This makes it easy
  * to observe the demodulator's state.
- *
- * The demodulator also emits periodic 'signalLevel' events.
  */
 
 import { ModulationScheme, Mode } from "./scheme";
@@ -53,7 +51,6 @@ export class Demodulator implements SampleReceiver {
     this.player = new Player();
     this.frequencyOffset = 0;
     this.stereo = false;
-    this.squelch = 0;
   }
 
   /** The modulation parameters as a Mode object. */
@@ -66,8 +63,6 @@ export class Demodulator implements SampleReceiver {
   private frequencyOffset: number;
   /** Whether to demodulate in stereo, when available. */
   private stereo: boolean;
-  /** Squelch level, 0 to 1. */
-  private squelch: number;
   /** A frequency change we are expecting. */
   private expectingFrequency?: Frequency;
 
@@ -117,19 +112,6 @@ export class Demodulator implements SampleReceiver {
     return this.stereo;
   }
 
-  /**
-   * Sets the squelch level, from 0 to 1.
-   * The squelch level is the minimum intelligibility level for the signal.
-   */
-  setSquelch(squelch: number) {
-    this.squelch = squelch;
-  }
-
-  /** Returns the current squelch level. */
-  getSquelch(): number {
-    return this.squelch;
-  }
-
   /** Returns an appropriate instance of ModulationScheme for the requested mode. */
   private getScheme(mode: Mode): ModulationScheme {
     switch (mode.scheme) {
@@ -171,13 +153,13 @@ export class Demodulator implements SampleReceiver {
       this.expectingFrequency = undefined;
     }
 
-    let { left, right, signalLevel } = this.scheme.demodulate(
+    let { left, right } = this.scheme.demodulate(
       I,
       Q,
       this.frequencyOffset,
       this.stereo
     );
-    this.player.play(left, right, signalLevel, this.squelch);
+    this.player.play(left, right);
   }
 
   andThen(next: SampleReceiver): SampleReceiver {

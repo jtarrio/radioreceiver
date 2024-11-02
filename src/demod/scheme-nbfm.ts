@@ -65,7 +65,6 @@ export class SchemeNBFM implements ModulationScheme {
       left: audio,
       right: new Float32Array(audio),
       stereo: false,
-      signalLevel: this.demodulator.getRelSignalPower(),
     };
   }
 }

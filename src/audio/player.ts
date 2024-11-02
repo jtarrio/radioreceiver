@@ -16,18 +16,15 @@
 export class Player {
   private static OUT_RATE = 48000;
   private static TIME_BUFFER = 0.05;
-  private static SQUELCH_TAIL = 0.3;
 
   constructor() {
     this.lastPlayedAt = -1;
-    this.squelchTime = -2;
     this.ac = undefined;
     this.gainNode = undefined;
     this.gain = 0;
   }
 
   private lastPlayedAt: number;
-  private squelchTime: number | null;
   private ac: AudioContext | undefined;
   private gainNode: GainNode | undefined;
   private gain: number;
@@ -36,14 +33,10 @@ export class Player {
    * Queues the given samples for playing at the appropriate time.
    * @param leftSamples The samples for the left speaker.
    * @param rightSamples The samples for the right speaker.
-   * @param level The radio signal's level.
-   * @param squelch The current squelch level.
    */
   play(
     leftSamples: Float32Array,
     rightSamples: Float32Array,
-    level: number,
-    squelch: number
   ) {
     if (this.ac === undefined || this.gainNode === undefined) {
       this.ac = new AudioContext();
@@ -52,18 +45,8 @@ export class Player {
       this.gainNode.connect(this.ac.destination);
     }
     const buffer = this.ac.createBuffer(2, leftSamples.length, Player.OUT_RATE);
-    if (level >= squelch) {
-      this.squelchTime = null;
-    } else if (this.squelchTime === null) {
-      this.squelchTime = this.lastPlayedAt;
-    }
-    if (
-      this.squelchTime === null ||
-      this.lastPlayedAt - this.squelchTime < Player.SQUELCH_TAIL
-    ) {
-      buffer.getChannelData(0).set(leftSamples);
-      buffer.getChannelData(1).set(rightSamples);
-    }
+    buffer.getChannelData(0).set(leftSamples);
+    buffer.getChannelData(1).set(rightSamples);
     let source = this.ac.createBufferSource();
     source.buffer = buffer;
     source.connect(this.gainNode);

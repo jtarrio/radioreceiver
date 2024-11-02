@@ -87,7 +87,6 @@ export class SchemeWBFM implements ModulationScheme {
       left: leftAudio,
       right: rightAudio,
       stereo: stereoOut,
-      signalLevel: this.demodulator.getRelSignalPower(),
     };
   }
 }
