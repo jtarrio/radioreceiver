@@ -38,13 +38,15 @@ export class SchemeNBFM implements ModulationScheme {
       filterF,
       Math.floor((50 * 7) / multiple)
     );
-    const kernel = makeLowPassKernel(interRate, 8000, 41);
+    if (interRate != outRate) {
+    const kernel = makeLowPassKernel(interRate, outRate / 2, 41);
     this.downSampler = new Downsampler(interRate, outRate, kernel);
+    }
   }
 
   private shifter: FrequencyShifter;
   private demodulator: FMDemodulator;
-  private downSampler: Downsampler;
+  private downSampler?: Downsampler;
 
   /**
    * Demodulates the signal.
@@ -60,7 +62,7 @@ export class SchemeNBFM implements ModulationScheme {
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    const audio = this.downSampler.downsample(demodulated);
+    const audio = this.downSampler ? this.downSampler.downsample(demodulated) : demodulated;
     return {
       left: audio,
       right: new Float32Array(audio),

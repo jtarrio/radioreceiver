@@ -30,14 +30,16 @@ export class SchemeAM implements ModulationScheme {
     const filterF = bandwidth / 2;
     this.shifter = new FrequencyShifter(inRate);
     this.demodulator = new AMDemodulator(inRate, interRate, filterF, 351);
-    const kernel = makeLowPassKernel(interRate, 10000, 41);
-    this.downSampler = new Downsampler(interRate, outRate, kernel);
+    if (interRate != outRate) {
+      const kernel = makeLowPassKernel(interRate, outRate / 2, 41);
+      this.downSampler = new Downsampler(interRate, outRate, kernel);
+    }
     this.agc = new AGC(outRate, 1);
   }
 
   private shifter: FrequencyShifter;
   private demodulator: AMDemodulator;
-  private downSampler: Downsampler;
+  private downSampler?: Downsampler;
   private agc: AGC;
 
   /**
@@ -54,7 +56,7 @@ export class SchemeAM implements ModulationScheme {
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    let audio = this.downSampler.downsample(demodulated);
+    let audio = this.downSampler ? this.downSampler.downsample(demodulated) : demodulated;
     this.agc.inPlace(audio);
     return {
       left: audio,

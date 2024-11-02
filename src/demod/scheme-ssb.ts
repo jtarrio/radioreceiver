@@ -42,14 +42,16 @@ export class SchemeSSB implements ModulationScheme {
       upper,
       151
     );
-    const kernel = makeLowPassKernel(interRate, 10000, 41);
-    this.downSampler = new Downsampler(interRate, outRate, kernel);
+    if (interRate != outRate) {
+      const kernel = makeLowPassKernel(interRate, outRate / 2, 41);
+      this.downSampler = new Downsampler(interRate, outRate, kernel);
+    }
     this.agc = new AGC(outRate, 1);
   }
 
   private shifter: FrequencyShifter;
   private demodulator: SSBDemodulator;
-  private downSampler: Downsampler;
+  private downSampler?: Downsampler;
   private agc: AGC;
 
   /**
@@ -66,7 +68,7 @@ export class SchemeSSB implements ModulationScheme {
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    let audio = this.downSampler.downsample(demodulated);
+    let audio = this.downSampler ? this.downSampler.downsample(demodulated) : demodulated;
     this.agc.inPlace(audio);
     return {
       left: audio,
