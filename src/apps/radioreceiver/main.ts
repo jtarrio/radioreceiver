@@ -341,17 +341,18 @@ export class RadioReceiverMain extends LitElement {
       case "WBFM":
         break;
       case "NBFM":
-        mode.maxF = Math.max(250, Math.min(mode.maxF, 20000));
+        mode.maxF = Math.max(250, Math.min(mode.maxF, 30000));
         break;
       case "AM":
-        mode.bandwidth = Math.max(250, Math.min(mode.bandwidth, 20000));
+        mode.bandwidth = Math.max(250, Math.min(mode.bandwidth, 30000));
         break;
       default:
-        mode.bandwidth = Math.max(10, Math.min(mode.bandwidth, 10000));
+        mode.bandwidth = Math.max(10, Math.min(mode.bandwidth, 15000));
         break;
     }
     this.demodulator.setMode(mode);
     this.mode = mode;
+    this.availableModes.set(mode.scheme, mode);
     this.updateFrequencyBands();
 
     this.configProvider.update((cfg) => {
