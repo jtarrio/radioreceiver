@@ -26,6 +26,7 @@
 
 import { ModulationScheme, Mode } from "./scheme";
 import { SchemeAM } from "./scheme-am";
+import { SchemeCW } from "./scheme-cw";
 import { SchemeNBFM } from "./scheme-nbfm";
 import { SchemeSSB } from "./scheme-ssb";
 import { SchemeWBFM } from "./scheme-wbfm";
@@ -142,6 +143,12 @@ export class Demodulator implements SampleReceiver {
           Demodulator.OUT_RATE,
           mode.bandwidth,
           true
+        );
+      case "CW":
+        return new SchemeCW(
+          Demodulator.IN_RATE,
+          Demodulator.OUT_RATE,
+          mode.bandwidth
         );
     }
   }

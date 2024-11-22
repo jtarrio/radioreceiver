@@ -52,6 +52,7 @@ function blankConfig(): RawConfig {
         AM: { scheme: "AM", bandwidth: 15000 },
         LSB: { scheme: "LSB", bandwidth: 2800 },
         USB: { scheme: "USB", bandwidth: 2800 },
+        CW: { scheme: "CW", bandwidth: 50 },
       },
       mode: "WBFM",
       centerFrequency: 88500000,
@@ -93,4 +94,5 @@ type ConfigV1Mode =
   | { scheme: "NBFM"; maxF: number }
   | { scheme: "AM"; bandwidth: number }
   | { scheme: "USB"; bandwidth: number }
-  | { scheme: "LSB"; bandwidth: number };
+  | { scheme: "LSB"; bandwidth: number }
+  | { scheme: "CW"; bandwidth: number };

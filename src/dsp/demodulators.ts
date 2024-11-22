@@ -89,7 +89,7 @@ export class FMDemodulator {
    * @param maxDeviation The maximum deviation for the signal, as a fraction of the sample rate.
    */
   constructor(maxDeviation: number) {
-    this.mul = (2 * Math.PI) * maxDeviation;
+    this.mul = 2 * Math.PI * maxDeviation;
     this.lI = 0;
     this.lQ = 0;
   }

@@ -1,4 +1,4 @@
-// Copyright 2014 Google Inc. All rights reserved.
+// Copyright 2024 Jacobo Tarrio Barreiro. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,25 +13,22 @@
 // limitations under the License.
 
 import { makeLowPassKernel } from "../dsp/coefficients";
-import { AMDemodulator } from "../dsp/demodulators";
-import { FrequencyShifter, AGC, FIRFilter } from "../dsp/filters";
+import { AGC, FIRFilter, FrequencyShifter } from "../dsp/filters";
 import { ComplexDownsampler } from "../dsp/resamplers";
 import { Demodulated, ModulationScheme } from "./scheme";
 
-/** A demodulator for amplitude modulated signals. */
-export class SchemeAM implements ModulationScheme {
-  /**
-   * @param inRate The sample rate of the input samples.
-   * @param outRate The sample rate of the output audio.
-   * @param bandwidth The bandwidth of the input signal.
-   */
+/** Output frequency of the zero-beat CW signals. */
+const ToneFrequency = 600;
+
+/** A demodulator for continuous wave signals. */
+export class SchemeCW implements ModulationScheme {
   constructor(inRate: number, outRate: number, bandwidth: number) {
     this.shifter = new FrequencyShifter(inRate);
     this.downsampler = new ComplexDownsampler(inRate, outRate, 151);
-    const kernel = makeLowPassKernel(outRate, bandwidth / 2, 151);
+    const kernel = makeLowPassKernel(outRate, bandwidth / 2, 351);
     this.filterI = new FIRFilter(kernel);
     this.filterQ = new FIRFilter(kernel);
-    this.demodulator = new AMDemodulator(outRate);
+    this.toneShifter = new FrequencyShifter(outRate);
     this.agc = new AGC(outRate, 1);
   }
 
@@ -39,16 +36,10 @@ export class SchemeAM implements ModulationScheme {
   private downsampler: ComplexDownsampler;
   private filterI: FIRFilter;
   private filterQ: FIRFilter;
-  private demodulator: AMDemodulator;
+  private toneShifter: FrequencyShifter;
   private agc: AGC;
 
-  /**
-   * Demodulates the signal.
-   * @param samplesI The I components of the samples.
-   * @param samplesQ The Q components of the samples.
-   * @param freqOffset The offset of the signal in the samples.
-   * @returns The demodulated audio signal.
-   */
+  /** Demodulates the given I/Q samples into the real output. */
   demodulate(
     samplesI: Float32Array,
     samplesQ: Float32Array,
@@ -58,7 +49,7 @@ export class SchemeAM implements ModulationScheme {
     const [I, Q] = this.downsampler.downsample(samplesI, samplesQ);
     this.filterI.inPlace(I);
     this.filterQ.inPlace(Q);
-    this.demodulator.demodulate(I, Q, I);
+    this.toneShifter.inPlace(I, Q, ToneFrequency);
     this.agc.inPlace(I);
     return {
       left: I,

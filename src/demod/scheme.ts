@@ -43,4 +43,6 @@ export type Mode =
   /** Upper sideband modulation. */
   | { scheme: "USB"; bandwidth: number }
   /** Lower sideband modulation. */
-  | { scheme: "LSB"; bandwidth: number };
+  | { scheme: "LSB"; bandwidth: number }
+  /** Continuous wave. */
+  | { scheme: "CW"; bandwidth: number };

@@ -42,6 +42,7 @@ const DefaultModes: Array<Mode> = [
   { scheme: "AM", bandwidth: 15000 },
   { scheme: "LSB", bandwidth: 2800 },
   { scheme: "USB", bandwidth: 2800 },
+  { scheme: "CW", bandwidth: 50 },
 ];
 
 const FAKE_RTL = false;
@@ -346,6 +347,9 @@ export class RadioReceiverMain extends LitElement {
       case "AM":
         mode.bandwidth = Math.max(250, Math.min(mode.bandwidth, 30000));
         break;
+      case "CW":
+        mode.bandwidth = Math.max(5, Math.min(mode.bandwidth, 1000));
+        break;
       default:
         mode.bandwidth = Math.max(10, Math.min(mode.bandwidth, 15000));
         break;
@@ -371,6 +375,7 @@ export class RadioReceiverMain extends LitElement {
         newFreq.leftBand = newFreq.rightBand = this.mode.maxF;
         break;
       case "AM":
+      case "CW":
         newFreq.leftBand = newFreq.rightBand = this.mode.bandwidth / 2;
         break;
       case "USB":
@@ -497,6 +502,7 @@ export class RadioReceiverMain extends LitElement {
         newMode.maxF = size;
         break;
       case "AM":
+      case "CW":
         newMode.bandwidth = size * 2;
         break;
       default:
