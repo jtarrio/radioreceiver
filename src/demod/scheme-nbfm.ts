@@ -14,8 +14,8 @@
 
 import { makeLowPassKernel } from "../dsp/coefficients";
 import { FMDemodulator } from "../dsp/demodulators";
-import { FrequencyShifter } from "../dsp/filters";
-import { Downsampler } from "../dsp/resamplers";
+import { FIRFilter, FrequencyShifter } from "../dsp/filters";
+import { ComplexDownsampler } from "../dsp/resamplers";
 import { Demodulated, ModulationScheme } from "./scheme";
 
 /** A demodulator for narrowband FM signals. */
@@ -26,27 +26,19 @@ export class SchemeNBFM implements ModulationScheme {
    * @param maxF The frequency shift for maximum amplitude.
    */
   constructor(inRate: number, outRate: number, maxF: number) {
-    const multiple = 1 + Math.floor(((maxF - 1) * 7) / 75000);
-    const interRate = 48000 * multiple;
-    const filterF = maxF * 0.8;
-
     this.shifter = new FrequencyShifter(inRate);
-    this.demodulator = new FMDemodulator(
-      inRate,
-      interRate,
-      maxF,
-      filterF,
-      Math.floor((50 * 7) / multiple)
-    );
-    if (interRate != outRate) {
-    const kernel = makeLowPassKernel(interRate, outRate / 2, 41);
-    this.downSampler = new Downsampler(interRate, outRate, kernel);
-    }
+    this.downsampler = new ComplexDownsampler(inRate, outRate, 151);
+    const kernel = makeLowPassKernel(outRate, maxF, 151);
+    this.filterI = new FIRFilter(kernel);
+    this.filterQ = new FIRFilter(kernel);
+    this.demodulator = new FMDemodulator(maxF / outRate);
   }
 
   private shifter: FrequencyShifter;
+  private downsampler: ComplexDownsampler;
+  private filterI: FIRFilter;
+  private filterQ: FIRFilter;
   private demodulator: FMDemodulator;
-  private downSampler?: Downsampler;
 
   /**
    * Demodulates the signal.
@@ -61,11 +53,13 @@ export class SchemeNBFM implements ModulationScheme {
     freqOffset: number
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
-    const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    const audio = this.downSampler ? this.downSampler.downsample(demodulated) : demodulated;
+    const [I, Q] = this.downsampler.downsample(samplesI, samplesQ);
+    this.filterI.inPlace(I);
+    this.filterQ.inPlace(Q);
+    this.demodulator.demodulate(I, Q, I);
     return {
-      left: audio,
-      right: new Float32Array(audio),
+      left: I,
+      right: new Float32Array(I),
       stereo: false,
     };
   }

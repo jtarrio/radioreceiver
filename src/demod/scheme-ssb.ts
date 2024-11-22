@@ -13,9 +13,9 @@
 // limitations under the License.
 
 import { makeLowPassKernel } from "../dsp/coefficients";
-import { SSBDemodulator } from "../dsp/demodulators";
-import { FrequencyShifter, AGC } from "../dsp/filters";
-import { Downsampler } from "../dsp/resamplers";
+import { Sideband, SSBDemodulator } from "../dsp/demodulators";
+import { FrequencyShifter, AGC, FIRFilter } from "../dsp/filters";
+import { ComplexDownsampler } from "../dsp/resamplers";
 import { Demodulated, ModulationScheme } from "./scheme";
 
 /** A demodulator for single-sideband modulated signals. */
@@ -32,26 +32,19 @@ export class SchemeSSB implements ModulationScheme {
     bandwidth: number,
     upper: boolean
   ) {
-    const interRate = 48000;
-
     this.shifter = new FrequencyShifter(inRate);
+    this.downsampler = new ComplexDownsampler(inRate, outRate, 151);
+    this.filter = new FIRFilter(makeLowPassKernel(outRate, bandwidth, 151));
     this.demodulator = new SSBDemodulator(
-      inRate,
-      interRate,
-      bandwidth,
-      upper,
-      151
+      upper ? Sideband.Upper : Sideband.Lower
     );
-    if (interRate != outRate) {
-      const kernel = makeLowPassKernel(interRate, outRate / 2, 41);
-      this.downSampler = new Downsampler(interRate, outRate, kernel);
-    }
     this.agc = new AGC(outRate, 1);
   }
 
   private shifter: FrequencyShifter;
+  private downsampler: ComplexDownsampler;
+  private filter: FIRFilter;
   private demodulator: SSBDemodulator;
-  private downSampler?: Downsampler;
   private agc: AGC;
 
   /**
@@ -67,13 +60,10 @@ export class SchemeSSB implements ModulationScheme {
     freqOffset: number
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
-    const demodulated = this.demodulator.demodulateTuned(samplesI, samplesQ);
-    let audio = this.downSampler ? this.downSampler.downsample(demodulated) : demodulated;
-    this.agc.inPlace(audio);
-    return {
-      left: audio,
-      right: new Float32Array(audio),
-      stereo: false,
-    };
+    const [I, Q] = this.downsampler.downsample(samplesI, samplesQ);
+    this.demodulator.demodulate(I, Q, I);
+    this.filter.inPlace(I);
+    this.agc.inPlace(I);
+    return { left: I, right: new Float32Array(I), stereo: false };
   }
 }

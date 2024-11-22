@@ -13,173 +13,94 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { makeLowPassKernel, makeHilbertKernel } from "./coefficients";
-import { Downsampler } from "./resamplers";
+import { makeHilbertKernel } from "./coefficients";
 import { FIRFilter, DcBlocker } from "./filters";
 import { Float32Buffer } from "./buffers";
 
-/** A class to demodulate a single-sideband (SSB) signal. */
+/** The sideband to demodulate. */
+export enum Sideband {
+  Upper,
+  Lower,
+}
+
+/** A class to demodulate a USB or LSB signal. */
 export class SSBDemodulator {
   /**
-   * @param inRate The sample rate for the input signal.
-   * @param outRate The sample rate for the output audio.
-   * @param filterFreq The bandwidth of the sideband.
-   * @param upper Whether we are demodulating the upper sideband.
-   * @param kernelLen The length of the filter kernel.
+   * @param sideband The sideband to demodulate.
    */
-  constructor(
-    inRate: number,
-    outRate: number,
-    filterFreq: number,
-    upper: boolean,
-    kernelLen: number
-  ) {
-    let coefs = makeLowPassKernel(inRate, 10000, kernelLen);
-    this.downsamplerI = new Downsampler(inRate, outRate, coefs);
-    this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
-    let coefsHilbert = makeHilbertKernel(kernelLen);
-    this.filterDelay = new FIRFilter(coefsHilbert);
-    this.filterHilbert = new FIRFilter(coefsHilbert);
-    let coefsSide = makeLowPassKernel(outRate, filterFreq, kernelLen);
-    this.filterSide = new FIRFilter(coefsSide);
-    this.hilbertMul = upper ? -1 : 1;
+  constructor(sideband: Sideband) {
+    const kernelLen = 151;
+    let hilbert = makeHilbertKernel(kernelLen);
+    this.filterDelay = new FIRFilter(hilbert);
+    this.filterHilbert = new FIRFilter(hilbert);
+    this.hilbertMul = sideband == Sideband.Upper ? -1 : 1;
   }
 
-  private downsamplerI: Downsampler;
-  private downsamplerQ: Downsampler;
   private filterDelay: FIRFilter;
   private filterHilbert: FIRFilter;
-  private filterSide: FIRFilter;
   private hilbertMul: number;
 
-  /**
-   * Demodulates the given I/Q samples.
-   * @param samplesI The I component of the samples to demodulate.
-   * @param samplesQ The Q component of the samples to demodulate.
-   * @returns The demodulated audio signal.
-   */
-  demodulateTuned(
-    samplesI: Float32Array,
-    samplesQ: Float32Array
-  ): Float32Array {
-    const I = this.downsamplerI.downsample(samplesI);
-    const Q = this.downsamplerQ.downsample(samplesQ);
-
+  /** Demodulates the given I/Q samples into the real output. */
+  demodulate(I: Float32Array, Q: Float32Array, out: Float32Array) {
     this.filterDelay.loadSamples(I);
     this.filterHilbert.loadSamples(Q);
-    for (let i = 0; i < I.length; ++i) {
-      I[i] =
+    for (let i = 0; i < out.length; ++i) {
+      out[i] =
         this.filterDelay.getDelayed(i) +
         this.filterHilbert.get(i) * this.hilbertMul;
     }
-    this.filterSide.loadSamples(I);
-    for (let i = 0; i < I.length; ++i) {
-      I[i] = this.filterSide.get(i);
-    }
-    return I;
   }
 }
 
-/** A class to demodulate an amplitude-modulated (AM) signal. */
+/** A class to demodulate an AM signal. */
 export class AMDemodulator {
   /**
-   * @param inRate The sample rate for the input signal.
-   * @param outRate The sample rate for the output audio.
-   * @param filterFreq The frequency of the low-pass filter.
-   * @param kernelLen The length of the filter kernel.
+   * @param sampleRate The signal's sample rate.
    */
-  constructor(
-    inRate: number,
-    outRate: number,
-    filterFreq: number,
-    kernelLen: number
-  ) {
-    const coefs = makeLowPassKernel(inRate, filterFreq, kernelLen);
-    this.downsamplerI = new Downsampler(inRate, outRate, coefs);
-    this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
-    this.dcBlockerI = new DcBlocker(outRate, true);
-    this.dcBlockerQ = new DcBlocker(outRate, true);
-    this.dcBlockerA = new DcBlocker(outRate);
+  constructor(sampleRate: number) {
+    this.dcBlockerI = new DcBlocker(sampleRate, true);
+    this.dcBlockerQ = new DcBlocker(sampleRate, true);
+    this.dcBlockerA = new DcBlocker(sampleRate);
   }
 
-  private downsamplerI: Downsampler;
-  private downsamplerQ: Downsampler;
   private dcBlockerI: DcBlocker;
   private dcBlockerQ: DcBlocker;
   private dcBlockerA: DcBlocker;
 
-  /**
-   * Demodulates the given I/Q samples.
-   * @param samplesI The I component of the samples to demodulate.
-   * @param samplesQ The Q component of the samples to demodulate.
-   * @returns The demodulated audio signal.
-   */
-  demodulateTuned(
-    samplesI: Float32Array,
-    samplesQ: Float32Array
-  ): Float32Array {
-    const I = this.downsamplerI.downsample(samplesI);
-    const Q = this.downsamplerQ.downsample(samplesQ);
+  /** Demodulates the given I/Q samples into the real output. */
+  demodulate(I: Float32Array, Q: Float32Array, out: Float32Array) {
     this.dcBlockerI.inPlace(I);
     this.dcBlockerQ.inPlace(Q);
-
-    for (let i = 0; i < I.length; ++i) {
+    for (let i = 0; i < out.length; ++i) {
       const vI = I[i];
       const vQ = Q[i];
 
       const power = vI * vI + vQ * vQ;
       const amplitude = Math.sqrt(power);
-      I[i] = amplitude;
+      out[i] = amplitude;
     }
-    this.dcBlockerA.inPlace(I);
-    return I;
+    this.dcBlockerA.inPlace(out);
   }
 }
 
-/** A class to demodulate a frequency-modulated (FM) signal. */
+/** A class to demodulate an FM signal. */
 export class FMDemodulator {
   /**
-   * @param inRate The sample rate for the input signal.
-   * @param outRate The sample rate for the output audio.
-   * @param maxF The maximum frequency deviation.
-   * @param filterFreq The frequency of the low-pass filter.
-   * @param kernelLen The length of the filter kernel.
+   * @param maxDeviation The maximum deviation for the signal, as a fraction of the sample rate.
    */
-  constructor(
-    inRate: number,
-    outRate: number,
-    maxF: number,
-    filterFreq: number,
-    kernelLen: number
-  ) {
-    this.amplConv = outRate / (2 * Math.PI * maxF);
-    const coefs = makeLowPassKernel(inRate, filterFreq, kernelLen);
-    this.downsamplerI = new Downsampler(inRate, outRate, coefs);
-    this.downsamplerQ = new Downsampler(inRate, outRate, coefs);
+  constructor(maxDeviation: number) {
+    this.mul = (2 * Math.PI) * maxDeviation;
     this.lI = 0;
     this.lQ = 0;
   }
 
-  private amplConv: number;
-  private downsamplerI: Downsampler;
-  private downsamplerQ: Downsampler;
+  private mul: number;
   private lI: number;
   private lQ: number;
 
-  /**
-   * Demodulates the given I/Q samples.
-   * @param samplesI The I component of the samples to demodulate.
-   * @param samplesQ The Q component of the samples to demodulate.
-   * @returns The demodulated audio signal.
-   */
-  demodulateTuned(
-    samplesI: Float32Array,
-    samplesQ: Float32Array
-  ): Float32Array {
-    const I = this.downsamplerI.downsample(samplesI);
-    const Q = this.downsamplerQ.downsample(samplesQ);
-
-    const amplConv = this.amplConv;
+  /** Demodulates the given I/Q samples into the real output. */
+  demodulate(I: Float32Array, Q: Float32Array, out: Float32Array) {
+    const mul = this.mul;
     let lI = this.lI;
     let lQ = this.lQ;
     for (let i = 0; i < I.length; ++i) {
@@ -216,13 +137,11 @@ export class FMDemodulator {
             div /
               (0.98419158358617365 +
                 div * (0.093485702629671305 + div * 0.19556307900617517))) *
-          amplConv;
-      I[i] = value;
+          mul;
+      out[i] = value;
     }
-
     this.lI = lI;
     this.lQ = lQ;
-    return I;
   }
 }
 
