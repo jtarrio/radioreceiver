@@ -39,3 +39,45 @@ export function CubeHelix(
 
 /** Default variant of the CubeHelix palette used in this program. */
 export const DefaultCubeHelix = CubeHelix(2, 1, 3, 1);
+
+/**
+ * Turbo colormap.
+ * https://research.google/blog/turbo-an-improved-rainbow-colormap-for-visualization/
+ */
+function GenerateTurbo() {
+  type v6 = [number, number, number, number, number, number];
+  const redV6: v6 = [
+    0.13572138, 4.6153926, -42.66032258, 132.13108234, -152.94239396,
+    59.28637943,
+  ];
+  const greenV6: v6 = [
+    0.09140261, 2.19418839, 4.84296658, -14.18503333, 4.27729857, 2.82956604,
+  ];
+  const blueV6: v6 = [
+    0.1066733, 12.64194608, -60.58204836, 110.36276771, -89.90310912,
+    27.34824973,
+  ];
+
+  let mul6 = (a: v6, b: v6): number =>
+    a[0] * b[0] +
+    a[1] * b[1] +
+    a[2] * b[2] +
+    a[3] * b[3] +
+    a[4] * b[4] +
+    a[5] * b[5];
+
+  let palette = new Array(256);
+  const colors = palette.length;
+  for (let i = 0; i < colors; ++i) {
+    const x = i / 255;
+    const v: v6 = [1, x, x * x, x * x * x, x * x * x * x, x * x * x * x * x];
+    palette[i] = [
+      Math.floor(Math.max(0, Math.min(255, 255 * mul6(v, redV6)))),
+      Math.floor(Math.max(0, Math.min(255, 255 * mul6(v, greenV6)))),
+      Math.floor(Math.max(0, Math.min(255, 255 * mul6(v, blueV6)))),
+    ];
+  }
+  return palette;
+}
+
+export const Turbo = GenerateTurbo();
