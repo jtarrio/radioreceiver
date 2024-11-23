@@ -165,6 +165,7 @@ export class RrSpectrum extends LitElement {
         <div id="zoomControls">
           <rr-zoombar
             .zoom=${this.zoom}
+            .highlight=${this.highlight}
             @spectrum-zoom=${this.onZoom}
           ></rr-zoombar>
           <rr-scrollbar

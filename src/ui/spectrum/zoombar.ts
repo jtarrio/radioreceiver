@@ -1,13 +1,16 @@
-import { css, html, LitElement, svg, TemplateResult } from "lit";
+import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { DefaultZoom, normalize, type Zoom } from "./zoom";
 import { SpectrumZoomEvent } from "./events";
+import { type GridSelection } from "./types";
 import * as Icons from "../icons";
 
 @customElement("rr-zoombar")
 export class RrZoombar extends LitElement {
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
+  @property({ attribute: false })
+  highlight?: GridSelection;
 
   static get styles() {
     return [
@@ -82,6 +85,14 @@ export class RrZoombar extends LitElement {
 
   private setZoom(multiplier: number) {
     let zoom = { ...this.zoom };
+    if (this.highlight?.point !== undefined) {
+      // If the highlight appears within the visible area, endeavor to keep it in the same relative screen position.
+      const position =
+        zoom.multiplier * (this.highlight.point - zoom.center) + 0.5;
+      if (position > 0 && position < 1) {
+        zoom.center = this.highlight.point + (0.5 - position) / multiplier;
+      }
+    }
     zoom.multiplier = multiplier;
     normalize(zoom);
     this.zoom = zoom;
