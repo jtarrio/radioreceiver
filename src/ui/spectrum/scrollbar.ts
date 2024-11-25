@@ -1,9 +1,10 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { DefaultZoom, normalize, type Zoom } from "./zoom";
 import { SpectrumZoomEvent } from "./events";
 import { DragController, DragHandler } from "../controls/drag-controller";
 import * as Icons from "../icons";
+import { WidthFraction } from "../coordinates/types";
+import { Zoom, DefaultZoom } from "../coordinates/zoom";
 
 @customElement("rr-scrollbar")
 export class RrScrollbar extends LitElement {
@@ -64,17 +65,13 @@ export class RrScrollbar extends LitElement {
       <div id="scroll">
         <div
           id="left"
-          style="width: ${this.zoom
-            ? 100 * (this.zoom.center - 1 / (2 * this.zoom.multiplier))
-            : 0}%"
+          style="width: ${this.zoom ? 100 * this.zoom.leftFraction : 0}%"
           @click=${this.onClickAreaLeft}
         ></div>
         <div id="thumb" @pointerdown=${this.onPointerDown}></div>
         <div
           id="right"
-          style="width: ${this.zoom
-            ? 100 * (1 - this.zoom.center - 1 / (2 * this.zoom.multiplier))
-            : 0}%"
+          style="width: ${this.zoom ? 100 * (1 - this.zoom.rightFraction) : 0}%"
           @click=${this.onClickAreaRight}
         ></div>
       </div>
@@ -109,9 +106,7 @@ export class RrScrollbar extends LitElement {
   }
 
   private moveZoom(fractionOfSpan: number) {
-    let zoom = { ...this.zoom };
-    zoom.center += fractionOfSpan / zoom.multiplier;
-    normalize(zoom);
+    let zoom = this.zoom.withMovedCenter(fractionOfSpan / this.zoom.level);
     this.zoom = zoom;
     this.dispatchEvent(new SpectrumZoomEvent(zoom));
   }
@@ -127,13 +122,13 @@ class ScrollbarDragHandler implements DragHandler {
     private box: HTMLElement
   ) {}
 
-  private startZoom: Zoom = { ...DefaultZoom };
+  private startZoom: Zoom = DefaultZoom;
 
   startDrag(): void {
-    this.startZoom = { ...this.scrollbar.zoom };
+    this.startZoom = this.scrollbar.zoom;
   }
 
-  drag(deltaX: number, deltaY: number): void {
+  drag(deltaX: number, _: number): void {
     let fraction = deltaX / this.box.offsetWidth;
     this.moveZoom(fraction);
   }
@@ -146,10 +141,8 @@ class ScrollbarDragHandler implements DragHandler {
 
   onClick(): void {}
 
-  moveZoom(fraction: number) {
-    let newZoom = { ...this.startZoom };
-    newZoom.center += fraction;
-    normalize(newZoom);
+  moveZoom(fraction: WidthFraction) {
+    let newZoom = this.startZoom.withMovedCenter(fraction);
     this.scrollbar.zoom = newZoom;
     this.scrollbar.dispatchEvent(new SpectrumZoomEvent(this.scrollbar.zoom));
   }

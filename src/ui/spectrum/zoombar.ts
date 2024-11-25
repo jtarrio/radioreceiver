@@ -1,9 +1,9 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { DefaultZoom, normalize, type Zoom } from "./zoom";
 import { SpectrumZoomEvent } from "./events";
 import { type GridSelection } from "./types";
 import * as Icons from "../icons";
+import { Zoom, DefaultZoom } from "../coordinates/zoom";
 
 @customElement("rr-zoombar")
 export class RrZoombar extends LitElement {
@@ -45,7 +45,7 @@ export class RrZoombar extends LitElement {
       <input
         id="zoomInput"
         type="text"
-        .value=${getDisplayZoomValue(this.zoom.multiplier)}
+        .value=${getDisplayZoomValue(this.zoom.level)}
         @focus=${this.onZoomFocus}
         @blur=${this.onZoomBlur}
         @change=${this.onZoomChange}
@@ -55,12 +55,12 @@ export class RrZoombar extends LitElement {
 
   private onZoomFocus(e: Event) {
     let target = e.target as HTMLInputElement;
-    target.value = getInputZoomValue(this.zoom.multiplier);
+    target.value = getInputZoomValue(this.zoom.level);
   }
 
   private onZoomBlur(e: Event) {
     let target = e.target as HTMLInputElement;
-    target.value = getDisplayZoomValue(this.zoom.multiplier);
+    target.value = getDisplayZoomValue(this.zoom.level);
   }
 
   private onZoomChange(e: Event) {
@@ -69,32 +69,29 @@ export class RrZoombar extends LitElement {
     if (value.endsWith("x")) value = value.substring(0, value.length - 1);
     let input = Number(value);
     if (isNaN(input)) {
-      target.value = getDisplayZoomValue(this.zoom.multiplier);
+      target.value = getDisplayZoomValue(this.zoom.level);
     } else {
       this.setZoom(input);
     }
   }
 
   private onClickMinus() {
-    this.setZoom(this.zoom.multiplier / Math.sqrt(2));
+    this.setZoom(this.zoom.level / Math.sqrt(2));
   }
 
   private onClickPlus() {
-    this.setZoom(this.zoom.multiplier * Math.sqrt(2));
+    this.setZoom(this.zoom.level * Math.sqrt(2));
   }
 
-  private setZoom(multiplier: number) {
-    let zoom = { ...this.zoom };
+  private setZoom(level: number) {
+    level = Math.round(1000 * level) / 1000;
+    let zoom = this.zoom;
     if (this.highlight?.point !== undefined) {
       // If the highlight appears within the visible area, endeavor to keep it in the same relative screen position.
-      const position =
-        zoom.multiplier * (this.highlight.point - zoom.center) + 0.5;
-      if (position > 0 && position < 1) {
-        zoom.center = this.highlight.point + (0.5 - position) / multiplier;
-      }
+      zoom = zoom.withLevelInContext(level, this.highlight.point);
+    } else {
+      zoom = zoom.withLevel(level);
     }
-    zoom.multiplier = multiplier;
-    normalize(zoom);
     this.zoom = zoom;
     this.dispatchEvent(new SpectrumZoomEvent(zoom));
   }

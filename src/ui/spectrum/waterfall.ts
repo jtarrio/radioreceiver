@@ -7,14 +7,9 @@ import {
 } from "./constants";
 import { DefaultCubeHelix, type Palette } from "./palette";
 import { SpectrumDragEvent, SpectrumTapEvent } from "./events";
-import {
-  getCropWindow,
-  getUnzoomedFraction,
-  CropWindow,
-  type Zoom,
-  DefaultZoom,
-} from "./zoom";
+import { getCropWindow, CropWindow } from "./zoom";
 import { DragController, DragHandler } from "../controls/drag-controller";
+import { Zoom, DefaultZoom } from "../coordinates/zoom";
 
 const defaultWidth = DefaultFftSize;
 
@@ -230,9 +225,8 @@ class WaterfallDragHandler implements DragHandler {
   }
 
   onClick(e: PointerEvent): void {
-    let fraction = getUnzoomedFraction(
-      e.offsetX / this.waterfall.offsetWidth,
-      this.waterfall.zoom
+    let fraction = this.waterfall.zoom.unzoomed(
+      e.offsetX / this.waterfall.offsetWidth
     );
     this.waterfall.dispatchEvent(
       new SpectrumTapEvent({ fraction, target: "waterfall" })

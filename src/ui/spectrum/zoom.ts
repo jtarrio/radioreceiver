@@ -1,15 +1,4 @@
-/** Maximum allowed zoom level. */
-const MaximumZoom = 16;
-
-/** Magnification for the spectrum display. */
-export type Zoom = {
-  /** The center of zoom, as a fraction of the bandwidth. */
-  center: number;
-  /** The zoom multiplier; minimum 1. */
-  multiplier: number;
-};
-
-export const DefaultZoom = { center: 0.5, multiplier: 1 };
+import { Zoom } from "../coordinates/zoom";
 
 /** Data to display a zoomed window as a magnified crop. */
 export type CropWindow = {
@@ -39,52 +28,14 @@ export type SampleWindow = {
   distance: number;
 };
 
-/** Ensures that the zoom center is within the limits and the magnification level is appropriate. */
-export function normalize(zoom: Zoom) {
-  if (zoom.multiplier < 1) zoom.multiplier = 1;
-  if (zoom.multiplier > MaximumZoom) zoom.multiplier = MaximumZoom;
-  const span = 1 / zoom.multiplier;
-  const left = zoom.center - span / 2;
-  const right = zoom.center + span / 2;
-  if (left < 0) zoom.center = span / 2;
-  if (right > 1) zoom.center = 1 - span / 2;
-}
-
-/** Given a fraction of the whole bandwidth, returns a fraction of the zoomed display. */
-export function getZoomedFraction(
-  fraction: number,
-  zoom: Zoom
-): number {
-  normalize(zoom);
-  return zoom.multiplier * (fraction - zoom.center) + 0.5;
-}
-
-/** Given a fraction of the zoomed display, returns a fraction of the whole bandwidth. */
-export function getUnzoomedFraction(
-  fraction: number,
-  zoom: Zoom
-): number {
-  normalize(zoom);
-  return zoom.center + (fraction - 0.5) / zoom.multiplier;
-}
-
 /** Returns a CropWindow for the given width and zoom. */
-export function getCropWindow(
-  width: number,
-  zoom: Zoom
-): CropWindow {
-  const f = getUnzoomedFraction(0, zoom);
-  return { width: width / zoom.multiplier, offset: f * width };
+export function getCropWindow(width: number, zoom: Zoom): CropWindow {
+  return { width: width / zoom.level, offset: zoom.leftFraction * width };
 }
 
 /** Returns a RangeWindow for the given left value, range, and zoom. */
-export function getRangeWindow(
-  left: number,
-  range: number,
-  zoom: Zoom
-) {
-  const f = getUnzoomedFraction(0, zoom);
-  return { left: left + f * range, range: range / zoom.multiplier };
+export function getRangeWindow(left: number, range: number, zoom: Zoom) {
+  return { left: left + zoom.leftFraction * range, range: range / zoom.level };
 }
 
 /** Returns a SampleWindow for the given number of points, width, and zoom. */
@@ -93,11 +44,11 @@ export function getSampleWindow(
   width: number,
   zoom: Zoom
 ): SampleWindow {
-  const l = getUnzoomedFraction(0, zoom);
-  const r = getUnzoomedFraction(1, zoom);
+  const l = zoom.leftFraction;
+  const r = zoom.rightFraction;
   const firstPoint = Math.floor(numPoints * l);
   const lastPoint = Math.floor(numPoints * r);
-  const distance = (zoom.multiplier * (width - 1)) / (numPoints - 1);
-  const offset = zoom.multiplier * (l - firstPoint / numPoints);
+  const distance = (zoom.level * (width - 1)) / (numPoints - 1);
+  const offset = zoom.level * (l - firstPoint / numPoints);
   return { firstPoint, lastPoint, distance, offset };
 }

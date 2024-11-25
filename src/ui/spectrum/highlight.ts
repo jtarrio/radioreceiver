@@ -2,8 +2,8 @@ import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { SpectrumHighlightChangedEvent } from "./events";
 import { type GridSelection } from "./types";
-import { DefaultZoom, getZoomedFraction, type Zoom } from "./zoom";
 import { DragController, DragHandler } from "../controls/drag-controller";
+import { DefaultZoom, Zoom } from "../coordinates/zoom";
 
 @customElement("rr-highlight")
 export class RrHighlight extends LitElement {
@@ -84,7 +84,7 @@ export class RrHighlight extends LitElement {
 
   private renderPoint() {
     if (this.selection?.point === undefined) return nothing;
-    let c = getZoomedFraction(this.selection.point, this.zoom);
+    let c = this.zoom.zoomed(this.selection.point);
     if (c < 0 || c > 1) return nothing;
     return html`<div id="point" style="left:calc(${100 * c}% - 1px)"></div>
       ${this.draggablePoint
@@ -101,8 +101,8 @@ export class RrHighlight extends LitElement {
 
   private renderBand() {
     if (this.selection?.band === undefined) return nothing;
-    let l = getZoomedFraction(this.selection.band.left, this.zoom);
-    let r = getZoomedFraction(this.selection.band.right, this.zoom);
+    let l = this.zoom.zoomed(this.selection.band.left);
+    let r = this.zoom.zoomed(this.selection.band.right);
     if (l > 1 || r < 0) return nothing;
     let le = Math.max(0, l);
     let re = Math.min(r, 1);
@@ -180,7 +180,7 @@ class HighlightDragHandler implements DragHandler {
 
   drag(deltaX: number, _: number): void {
     const zoom =
-      this.highlight.zoom === undefined ? 1 : this.highlight.zoom.multiplier;
+      this.highlight.zoom === undefined ? 1 : this.highlight.zoom.level;
     let fraction = this.getFraction();
     if (fraction !== undefined) {
       fraction += deltaX / (this.highlight.offsetWidth * zoom);

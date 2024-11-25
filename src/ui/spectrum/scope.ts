@@ -2,7 +2,7 @@ import { css, html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { DefaultMinDecibels, DefaultMaxDecibels } from "./constants";
 import { RrScopeLine } from "./scope-line";
-import { type Zoom, DefaultZoom } from "./zoom";
+import { Zoom, DefaultZoom } from "../coordinates/zoom";
 import "./scope-background";
 import "./scope-line";
 

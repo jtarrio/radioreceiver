@@ -1,12 +1,8 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { DefaultMinDecibels, DefaultMaxDecibels } from "./constants";
-import {
-  type Zoom,
-  DefaultZoom,
-  getRangeWindow,
-  getZoomedFraction,
-} from "./zoom";
+import { getRangeWindow } from "./zoom";
+import { Zoom, DefaultZoom } from "../coordinates/zoom";
 
 @customElement("rr-scope-background")
 export class RrScopeBackground extends LitElement {
@@ -184,7 +180,7 @@ export class RrScopeBackground extends LitElement {
         )
       );
     } else {
-      const position = getZoomedFraction(0.5, this.zoom);
+      const position = this.zoom.zoomed(0.5);
       if (position >= 0 && position <= 1) {
         lines.push({
           value: this.centerFrequency,

@@ -6,13 +6,8 @@ import {
   DefaultMaxDecibels,
 } from "./constants";
 import { SpectrumTapEvent } from "./events";
-import {
-  type Zoom,
-  DefaultZoom,
-  getSampleWindow,
-  getUnzoomedFraction,
-  SampleWindow,
-} from "./zoom";
+import { getSampleWindow, SampleWindow } from "./zoom";
+import { Zoom, DefaultZoom } from "../coordinates/zoom";
 
 @customElement("rr-scope-line")
 export class RrScopeLine extends LitElement {
@@ -117,7 +112,7 @@ export class RrScopeLine extends LitElement {
   }
 
   private onClick(e: MouseEvent) {
-    let fraction = getUnzoomedFraction(e.offsetX / this.offsetWidth, this.zoom);
+    let fraction = this.zoom.unzoomed(e.offsetX / this.offsetWidth);
     this.dispatchEvent(new SpectrumTapEvent({ fraction, target: "scope" }));
     e.preventDefault();
   }

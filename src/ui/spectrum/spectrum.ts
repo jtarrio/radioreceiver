@@ -5,7 +5,7 @@ import { SpectrumDecibelRangeChangedEvent, SpectrumZoomEvent } from "./events";
 import { RrScope } from "./scope";
 import { type GridSelection } from "./types";
 import { RrWaterfall } from "./waterfall";
-import { DefaultZoom, type Zoom } from "./zoom";
+import { Zoom, DefaultZoom } from "../coordinates/zoom";
 import "./decibel-range";
 import "./highlight";
 import "./scope";
