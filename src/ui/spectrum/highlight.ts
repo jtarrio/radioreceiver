@@ -1,8 +1,10 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { DefaultFftSize } from "./constants";
 import { SpectrumHighlightChangedEvent } from "./events";
 import { type GridSelection } from "./types";
 import { DragController, DragHandler } from "../controls/drag-controller";
+import { Mapping } from "../coordinates/mapping";
 import { DefaultZoom, Zoom } from "../coordinates/zoom";
 
 @customElement("rr-highlight")
@@ -13,6 +15,8 @@ export class RrHighlight extends LitElement {
   draggableLeft: boolean = false;
   @property({ type: Boolean, reflect: true, attribute: "draggable-right" })
   draggableRight: boolean = false;
+  @property({ type: Number, reflect: true })
+  fftSize: number = DefaultFftSize;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
   @property({ attribute: false })
@@ -84,7 +88,12 @@ export class RrHighlight extends LitElement {
 
   private renderPoint() {
     if (this.selection?.point === undefined) return nothing;
-    let c = this.zoom.zoomed(this.selection.point);
+    const mapping = new Mapping(
+      this.zoom,
+      this.offsetWidth,
+      this.fftSize
+    );
+    let c = mapping.zoomed(this.selection.point);
     if (c < 0 || c > 1) return nothing;
     return html`<div id="point" style="left:calc(${100 * c}% - 1px)"></div>
       ${this.draggablePoint
@@ -101,8 +110,13 @@ export class RrHighlight extends LitElement {
 
   private renderBand() {
     if (this.selection?.band === undefined) return nothing;
-    let l = this.zoom.zoomed(this.selection.band.left);
-    let r = this.zoom.zoomed(this.selection.band.right);
+    const mapping = new Mapping(
+      this.zoom,
+      this.offsetWidth,
+      this.fftSize
+    );
+    let l = mapping.zoomed(this.selection.band.left);
+    let r = mapping.zoomed(this.selection.band.right);
     if (l > 1 || r < 0) return nothing;
     let le = Math.max(0, l);
     let re = Math.min(r, 1);

@@ -2,8 +2,8 @@ import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { SpectrumZoomEvent } from "./events";
 import { type GridSelection } from "./types";
-import * as Icons from "../icons";
 import { Zoom, DefaultZoom } from "../coordinates/zoom";
+import * as Icons from "../icons";
 
 @customElement("rr-zoombar")
 export class RrZoombar extends LitElement {
@@ -84,7 +84,9 @@ export class RrZoombar extends LitElement {
   }
 
   private setZoom(level: number) {
-    level = Math.round(1000 * level) / 1000;
+    if (Math.abs(level - Math.round(level)) < 0.01) {
+      level = Math.round(level);
+    }
     let zoom = this.zoom;
     if (this.highlight?.point !== undefined) {
       // If the highlight appears within the visible area, endeavor to keep it in the same relative screen position.

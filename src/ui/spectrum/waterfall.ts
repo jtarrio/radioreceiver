@@ -1,5 +1,5 @@
 import { css, html, LitElement, PropertyValues } from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { customElement, property, query } from "lit/decorators.js";
 import {
   DefaultFftSize,
   DefaultMaxDecibels,
@@ -7,11 +7,9 @@ import {
 } from "./constants";
 import { DefaultCubeHelix, type Palette } from "./palette";
 import { SpectrumDragEvent, SpectrumTapEvent } from "./events";
-import { getCropWindow, CropWindow } from "./zoom";
 import { DragController, DragHandler } from "../controls/drag-controller";
+import { Mapping } from "../coordinates/mapping";
 import { Zoom, DefaultZoom } from "../coordinates/zoom";
-
-const defaultWidth = DefaultFftSize;
 
 @customElement("rr-waterfall")
 export class RrWaterfall extends LitElement {
@@ -21,6 +19,8 @@ export class RrWaterfall extends LitElement {
   maxDecibels: number = DefaultMaxDecibels;
   @property({ attribute: false })
   palette: Palette = DefaultCubeHelix;
+  @property({ type: Number, reflect: true })
+  fftSize: number = DefaultFftSize;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
   @property({ type: Number, reflect: true })
@@ -45,15 +45,13 @@ export class RrWaterfall extends LitElement {
 
   constructor() {
     super();
-    this.waterfall = new ImageData(defaultWidth, screen.height);
+    this.waterfall = new ImageData(this.fftSize, screen.height);
     this.addEventListener("pointerdown", (e) => this.onPointerDown(e));
   }
 
   private waterfall: ImageData;
   @query("#waterfall") canvas?: HTMLCanvasElement;
   private context?: CanvasRenderingContext2D | null;
-  private width: number = defaultWidth;
-  private cropWindow: CropWindow = getCropWindow(defaultWidth, this.zoom);
   private frequency: number = 0;
   private scrollError: number = 0;
   private dragController?: DragController;
@@ -66,14 +64,13 @@ export class RrWaterfall extends LitElement {
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
     if (!changed.has("zoom")) return;
-
-    this.recomputeCropWindow();
     this.redraw();
   }
 
   addFloatSpectrum(frequency: number | undefined, spectrum: Float32Array) {
-    if (this.waterfall.width != spectrum.length) {
-      this.waterfall = new ImageData(spectrum.length, screen.height);
+    if (this.fftSize != spectrum.length) {
+      this.fftSize = spectrum.length;
+      this.waterfall = new ImageData(this.fftSize, screen.height);
     } else if (this.frequency != frequency && frequency !== undefined) {
       if (this.bandwidth !== undefined) {
         let amount = frequency - this.frequency;
@@ -82,7 +79,7 @@ export class RrWaterfall extends LitElement {
       this.frequency = frequency;
     }
 
-    const lineSize = 4 * spectrum.length;
+    const lineSize = 4 * this.fftSize;
     this.waterfall.data.copyWithin(
       lineSize,
       0,
@@ -93,9 +90,9 @@ export class RrWaterfall extends LitElement {
     const max = this.maxDecibels;
     const range = max - min;
     const mul = 256 / range;
-    const l = spectrum.length;
-    const hl = spectrum.length / 2;
-    for (let i = 0; i < spectrum.length; ++i) {
+    const l = this.fftSize;
+    const hl = this.fftSize / 2;
+    for (let i = 0; i < this.fftSize; ++i) {
       const v = spectrum[(i + hl) % l];
       const e = Math.max(0, Math.min(255, Math.floor(mul * (v - min))));
       const c = this.palette[isNaN(e) ? 0 : e];
@@ -103,10 +100,6 @@ export class RrWaterfall extends LitElement {
       this.waterfall.data[i * 4 + 1] = c[1];
       this.waterfall.data[i * 4 + 2] = c[2];
       this.waterfall.data[i * 4 + 3] = 255;
-    }
-    if (this.width != spectrum.length) {
-      this.width = spectrum.length;
-      this.recomputeCropWindow();
     }
     this.redraw();
   }
@@ -119,8 +112,8 @@ export class RrWaterfall extends LitElement {
     }
 
     fraction += this.scrollError;
-    let pixels = Math.round(this.width * fraction);
-    this.scrollError = fraction - pixels / this.width;
+    let pixels = Math.round(this.fftSize * fraction);
+    this.scrollError = fraction - pixels / this.fftSize;
 
     if (pixels == 0) return;
 
@@ -129,8 +122,8 @@ export class RrWaterfall extends LitElement {
       for (let i = 0; i < screen.height; ++i) {
         this.waterfall.data.fill(
           0,
-          ((i + 1) * this.width - pixels) * 4,
-          (i + 1) * this.width * 4
+          ((i + 1) * this.fftSize - pixels) * 4,
+          (i + 1) * this.fftSize * 4
         );
       }
     } else {
@@ -138,8 +131,8 @@ export class RrWaterfall extends LitElement {
       for (let i = 0; i < screen.height; ++i) {
         this.waterfall.data.fill(
           0,
-          i * this.width * 4,
-          (i * this.width - pixels) * 4
+          i * this.fftSize * 4,
+          (i * this.fftSize - pixels) * 4
         );
       }
     }
@@ -148,14 +141,11 @@ export class RrWaterfall extends LitElement {
   private redraw() {
     let ctx = this.getContext();
     if (!ctx) return;
-    if (ctx.canvas.width != this.cropWindow.width) {
-      ctx.canvas.width = this.cropWindow.width;
+    const mapping = new Mapping(this.zoom, this.fftSize, this.fftSize);
+    if (ctx.canvas.width != mapping.visibleBins) {
+      ctx.canvas.width = mapping.visibleBins;
     }
-    ctx.putImageData(this.waterfall, -this.cropWindow.offset, 0);
-  }
-
-  private recomputeCropWindow() {
-    this.cropWindow = getCropWindow(this.width, this.zoom);
+    ctx.putImageData(this.waterfall, -mapping.leftBin, 0);
   }
 
   private getContext(): CanvasRenderingContext2D | undefined {
@@ -225,9 +215,12 @@ class WaterfallDragHandler implements DragHandler {
   }
 
   onClick(e: PointerEvent): void {
-    let fraction = this.waterfall.zoom.unzoomed(
-      e.offsetX / this.waterfall.offsetWidth
+    const mapping = new Mapping(
+      this.waterfall.zoom,
+      this.waterfall.offsetWidth,
+      this.waterfall.fftSize
     );
+    let fraction = mapping.unzoomed(e.offsetX / this.waterfall.offsetWidth);
     this.waterfall.dispatchEvent(
       new SpectrumTapEvent({ fraction, target: "waterfall" })
     );

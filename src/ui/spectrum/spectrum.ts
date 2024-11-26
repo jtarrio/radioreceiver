@@ -1,6 +1,10 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { DefaultMaxDecibels, DefaultMinDecibels } from "./constants";
+import {
+  DefaultFftSize,
+  DefaultMaxDecibels,
+  DefaultMinDecibels,
+} from "./constants";
 import { SpectrumDecibelRangeChangedEvent, SpectrumZoomEvent } from "./events";
 import { RrScope } from "./scope";
 import { type GridSelection } from "./types";
@@ -25,6 +29,8 @@ export class RrSpectrum extends LitElement {
   minDecibels: number = DefaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = DefaultMaxDecibels;
+  @property({ type: Number, reflect: true })
+  fftSize: number = DefaultFftSize;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
   @property({ attribute: false })
@@ -134,6 +140,7 @@ export class RrSpectrum extends LitElement {
             .centerFrequency=${this.centerFrequency}
             .bandwidth=${this.bandwidth}
             .frequencyScale=${this.frequencyScale}
+            .fftSize=${this.fftSize}
             .zoom=${this.zoom}
           ></rr-scope>
         </div>
@@ -143,6 +150,7 @@ export class RrSpectrum extends LitElement {
             .minDecibels=${this.minDecibels}
             .maxDecibels=${this.maxDecibels}
             .bandwidth=${this.bandwidth}
+            .fftSize=${this.fftSize}
             .zoom=${this.zoom}
             .draggable=${this.waterfallDraggable}
           ></rr-waterfall>
@@ -153,6 +161,7 @@ export class RrSpectrum extends LitElement {
           .draggableLeft=${this.highlightDraggableLeft}
           .draggableRight=${this.highlightDraggableRight}
           .draggablePoint=${this.highlightDraggablePoint}
+          .fftSize=${this.fftSize}
           .zoom=${this.zoom}
         ></rr-highlight>
       </div>

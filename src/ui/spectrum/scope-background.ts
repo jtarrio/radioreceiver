@@ -1,7 +1,11 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { DefaultMinDecibels, DefaultMaxDecibels } from "./constants";
-import { getRangeWindow } from "./zoom";
+import {
+  DefaultMinDecibels,
+  DefaultMaxDecibels,
+  DefaultFftSize,
+} from "./constants";
+import { Mapping } from "../coordinates/mapping";
 import { Zoom, DefaultZoom } from "../coordinates/zoom";
 
 @customElement("rr-scope-background")
@@ -16,6 +20,8 @@ export class RrScopeBackground extends LitElement {
   minDecibels: number = DefaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = DefaultMaxDecibels;
+  @property({ type: Number, reflect: true })
+  fftSize: number = DefaultFftSize;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
 
@@ -163,15 +169,17 @@ export class RrScopeBackground extends LitElement {
       );
     }
     if (this.bandwidth !== undefined) {
-      const rangeWindow = getRangeWindow(
-        this.centerFrequency - this.bandwidth / 2,
-        this.bandwidth,
-        this.zoom
+      const mapping = new Mapping(
+        this.zoom,
+        1,
+        this.fftSize,
+        this.centerFrequency,
+        this.bandwidth
       );
       lines.push(
         ...getGridLines(
-          rangeWindow.left,
-          rangeWindow.left + rangeWindow.range,
+          mapping.leftFrequency,
+          mapping.rightFrequency,
           50,
           80,
           width,

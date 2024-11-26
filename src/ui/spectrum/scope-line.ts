@@ -6,7 +6,7 @@ import {
   DefaultMaxDecibels,
 } from "./constants";
 import { SpectrumTapEvent } from "./events";
-import { getSampleWindow, SampleWindow } from "./zoom";
+import { Mapping } from "../coordinates/mapping";
 import { Zoom, DefaultZoom } from "../coordinates/zoom";
 
 @customElement("rr-scope-line")
@@ -15,6 +15,8 @@ export class RrScopeLine extends LitElement {
   minDecibels: number = DefaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = DefaultMaxDecibels;
+  @property({ type: Number, reflect: true })
+  fftSize: number = DefaultFftSize;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
 
@@ -34,13 +36,8 @@ export class RrScopeLine extends LitElement {
     return html`<canvas id="scope"></canvas>`;
   }
 
-  private spectrum: Float32Array = new Float32Array(DefaultFftSize);
-  private width: number = DefaultFftSize;
-  private sampleWindow: SampleWindow = getSampleWindow(
-    this.spectrum.length,
-    this.width,
-    this.zoom
-  );
+  private spectrum: Float32Array = new Float32Array(this.fftSize);
+  private width: number = this.fftSize;
   @query("#scope") canvas?: HTMLCanvasElement;
   private context?: CanvasRenderingContext2D | null;
 
@@ -50,13 +47,8 @@ export class RrScopeLine extends LitElement {
   }
 
   addFloatSpectrum(spectrum: Float32Array) {
-    if (this.spectrum.length != spectrum.length) {
-      this.spectrum = new Float32Array(spectrum.length);
-      this.sampleWindow = getSampleWindow(
-        this.spectrum.length,
-        this.width,
-        this.zoom
-      );
+    if (this.fftSize != spectrum.length) {
+      this.spectrum = new Float32Array(this.fftSize);
     }
     this.spectrum.set(spectrum);
     this.redraw();
@@ -65,19 +57,12 @@ export class RrScopeLine extends LitElement {
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
     if (!changed.has("zoom")) return;
-    this.sampleWindow = getSampleWindow(
-      this.spectrum.length,
-      this.width,
-      this.zoom
-    );
     this.redraw();
   }
 
   private redraw() {
     let ctx = this.getContext();
     if (!ctx) return;
-
-    const l = this.spectrum.length;
 
     const width = ctx.canvas.offsetWidth;
     const height = ctx.canvas.offsetHeight;
@@ -86,33 +71,31 @@ export class RrScopeLine extends LitElement {
 
     if (this.width != width) {
       this.width = width;
-      this.sampleWindow = getSampleWindow(l, this.width, this.zoom);
     }
 
     const min = this.minDecibels;
     const max = this.maxDecibels;
     const range = max - min;
     const mul = (1 - height) / range;
-    const hl = l / 2;
+
+    const mapping = new Mapping(this.zoom, this.width, this.fftSize);
+    const x = (bin: number) => mapping.binNumberToCenterCoord(bin);
+    const y = (bin: number) =>
+      (this.spectrum[mapping.screenBinToFftBin(bin)] - max) * mul;
+
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.beginPath();
     ctx.strokeStyle = getComputedStyle(this.canvas!).getPropertyValue("color");
-
-    const firstPoint = (hl + this.sampleWindow.firstPoint) % l;
-    const firstX = -this.sampleWindow.offset;
-    const numPoints =
-      1 + this.sampleWindow.lastPoint - this.sampleWindow.firstPoint;
-    const pointDistance = this.sampleWindow.distance;
-    ctx.moveTo(firstX, (this.spectrum[firstPoint] - max) * mul);
-    for (let i = 1; i < numPoints; ++i) {
-      const x = firstX + i * pointDistance;
-      ctx.lineTo(x, (this.spectrum[(i + firstPoint) % l] - max) * mul);
+    ctx.moveTo(x(mapping.leftBin - 1), y(mapping.leftBin - 1));
+    for (let i = 0; i < mapping.visibleBins + 1; ++i) {
+      ctx.lineTo(x(mapping.leftBin + i), y(mapping.leftBin + i));
     }
     ctx.stroke();
   }
 
   private onClick(e: MouseEvent) {
-    let fraction = this.zoom.unzoomed(e.offsetX / this.offsetWidth);
+    const mapping = new Mapping(this.zoom, this.width, this.fftSize);
+    let fraction = mapping.unzoomed(e.offsetX / this.offsetWidth);
     this.dispatchEvent(new SpectrumTapEvent({ fraction, target: "scope" }));
     e.preventDefault();
   }
@@ -120,7 +103,7 @@ export class RrScopeLine extends LitElement {
   private getContext(): CanvasRenderingContext2D | undefined {
     if (this.context) return this.context;
     if (!this.canvas) return;
-    this.canvas.width = DefaultFftSize;
+    this.canvas.width = this.fftSize;
     this.canvas.height = this.maxDecibels - this.minDecibels;
     this.context = this.canvas.getContext("2d")!;
     return this.context;

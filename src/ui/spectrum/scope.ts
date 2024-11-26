@@ -1,6 +1,6 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { DefaultMinDecibels, DefaultMaxDecibels } from "./constants";
+import { DefaultMinDecibels, DefaultMaxDecibels, DefaultFftSize } from "./constants";
 import { RrScopeLine } from "./scope-line";
 import { Zoom, DefaultZoom } from "../coordinates/zoom";
 import "./scope-background";
@@ -18,6 +18,8 @@ export class RrScope extends LitElement {
   minDecibels: number = DefaultMinDecibels;
   @property({ type: Number, reflect: true, attribute: "max-decibels" })
   maxDecibels: number = DefaultMaxDecibels;
+  @property({ type: Number, reflect: true })
+  fftSize: number = DefaultFftSize;
   @property({ attribute: false })
   zoom: Zoom = DefaultZoom;
 
@@ -69,12 +71,14 @@ export class RrScope extends LitElement {
         .frequencyScale=${this.frequencyScale}
         .minDecibels=${this.minDecibels}
         .maxDecibels=${this.maxDecibels}
+        .fftSize=${this.fftSize}
         .zoom=${this.zoom}
       ></rr-scope-background>
       <rr-scope-line
         id="line"
         .minDecibels=${this.minDecibels}
         .maxDecibels=${this.maxDecibels}
+        .fftSize=${this.fftSize}
         .zoom=${this.zoom}
       ></rr-scope-line>
     </div> `;
@@ -83,6 +87,9 @@ export class RrScope extends LitElement {
   @query("#line") line?: RrScopeLine;
 
   addFloatSpectrum(spectrum: Float32Array) {
+    if (spectrum.length != this.fftSize) {
+      this.fftSize = spectrum.length;
+    }
     this.line?.addFloatSpectrum(spectrum);
   }
 }
