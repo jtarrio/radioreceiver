@@ -35,6 +35,15 @@ export class FIRFilter implements Filter {
   private center: number;
   private curSamples: Float32Array;
 
+  setCoefficients(coefs: Float32Array) {
+    const oldSamples = this.curSamples;
+    this.coefs = coefs;
+    this.offset = this.coefs.length - 1;
+    this.center = Math.floor(this.coefs.length / 2);
+    this.curSamples = new Float32Array(this.offset);
+    this.loadSamples(oldSamples);
+  }
+
   clone(): FIRFilter {
     return new FIRFilter(this.coefs);
   }

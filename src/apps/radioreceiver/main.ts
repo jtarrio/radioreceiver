@@ -38,7 +38,7 @@ type Frequency = {
 };
 
 const DefaultModes: Array<Mode> = [
-  { scheme: "WBFM" },
+  { scheme: "WBFM", stereo: true },
   { scheme: "NBFM", maxF: 5000 },
   { scheme: "AM", bandwidth: 15000 },
   { scheme: "LSB", bandwidth: 2800 },
@@ -193,7 +193,6 @@ export class RadioReceiverMain extends LitElement {
     this.radio.setGain(this.gain);
 
     this.demodulator.setVolume(1);
-    this.demodulator.setStereo(true);
     this.demodulator.setMode(this.mode);
 
     this.radio.addEventListener("radio", (e) => this.onRadioEvent(e));

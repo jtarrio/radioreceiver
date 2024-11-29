@@ -42,10 +42,9 @@ type Frequency = {
 export class Demodulator implements SampleReceiver {
   constructor(private inRate: number) {
     this.player = new Player();
-    this.mode = { scheme: "WBFM" };
+    this.mode = { scheme: "WBFM", stereo: true };
     this.scheme = this.getScheme(this.mode);
     this.frequencyOffset = 0;
-    this.stereo = false;
   }
 
   /** The audio output device. */
@@ -56,14 +55,12 @@ export class Demodulator implements SampleReceiver {
   private scheme: ModulationScheme;
   /** The frequency offset to demodulate from. */
   private frequencyOffset: number;
-  /** Whether to demodulate in stereo, when available. */
-  private stereo: boolean;
   /** A frequency change we are expecting. */
   private expectingFrequency?: Frequency;
 
   /** Changes the modulation parameters. */
   setMode(mode: Mode) {
-    this.scheme = this.getScheme(mode);
+    this.scheme = this.getScheme(mode, this.scheme);
     this.mode = mode;
   }
 
@@ -97,49 +94,25 @@ export class Demodulator implements SampleReceiver {
     return this.player.getVolume();
   }
 
-  /** Sets whether to demodulate in stereo. */
-  setStereo(stereo: boolean) {
-    this.stereo = stereo;
-  }
-
-  /** Returns whether we are demodulating in stereo. */
-  getStereo(): boolean {
-    return this.stereo;
-  }
-
   /** Returns an appropriate instance of ModulationScheme for the requested mode. */
-  private getScheme(mode: Mode): ModulationScheme {
+  private getScheme(mode: Mode, scheme?: ModulationScheme): ModulationScheme {
+    if (mode.scheme == scheme?.getMode().scheme) {
+      scheme.setMode(mode);
+      return scheme;
+    }
+
     switch (mode.scheme) {
       case "AM":
-        return new SchemeAM(
-          this.inRate,
-          this.player.sampleRate,
-          mode.bandwidth
-        );
+        return new SchemeAM(this.inRate, this.player.sampleRate, mode);
       case "NBFM":
-        return new SchemeNBFM(this.inRate, this.player.sampleRate, mode.maxF);
+        return new SchemeNBFM(this.inRate, this.player.sampleRate, mode);
       case "WBFM":
-        return new SchemeWBFM(this.inRate, this.player.sampleRate);
+        return new SchemeWBFM(this.inRate, this.player.sampleRate, mode);
       case "LSB":
-        return new SchemeSSB(
-          this.inRate,
-          this.player.sampleRate,
-          mode.bandwidth,
-          false
-        );
       case "USB":
-        return new SchemeSSB(
-          this.inRate,
-          this.player.sampleRate,
-          mode.bandwidth,
-          true
-        );
+        return new SchemeSSB(this.inRate, this.player.sampleRate, mode);
       case "CW":
-        return new SchemeCW(
-          this.inRate,
-          this.player.sampleRate,
-          mode.bandwidth
-        );
+        return new SchemeCW(this.inRate, this.player.sampleRate, mode);
     }
   }
 
@@ -150,12 +123,7 @@ export class Demodulator implements SampleReceiver {
       this.expectingFrequency = undefined;
     }
 
-    let { left, right } = this.scheme.demodulate(
-      I,
-      Q,
-      this.frequencyOffset,
-      this.stereo
-    );
+    let { left, right } = this.scheme.demodulate(I, Q, this.frequencyOffset);
     this.player.play(left, right);
   }
 

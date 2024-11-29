@@ -16,15 +16,20 @@ import { makeLowPassKernel } from "../dsp/coefficients";
 import { FMDemodulator, StereoSeparator } from "../dsp/demodulators";
 import { FrequencyShifter, Deemphasizer, FIRFilter } from "../dsp/filters";
 import { ComplexDownsampler, RealDownsampler } from "../dsp/resamplers";
-import { Demodulated, ModulationScheme } from "./scheme";
+import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
 /** A demodulator for wideband FM signals. */
 export class SchemeWBFM implements ModulationScheme {
   /**
    * @param inRate The sample rate of the input samples.
    * @param outRate The sample rate of the output audio.
+   * @param stereo Whether to try to demodulate a stereo signal, if present.
    */
-  constructor(inRate: number, outRate: number) {
+  constructor(
+    inRate: number,
+    outRate: number,
+    private mode: Mode & { scheme: "WBFM" }
+  ) {
     const maxF = 75000;
     const interRate = Math.min(inRate, 336000);
     const pilotF = 19000;
@@ -55,6 +60,14 @@ export class SchemeWBFM implements ModulationScheme {
   private leftDeemph: Deemphasizer;
   private rightDeemph: Deemphasizer;
 
+  getMode(): Mode {
+    return this.mode;
+  }
+
+  setMode(mode: Mode & { scheme: "WBFM" }) {
+    this.mode = mode;
+  }
+
   /**
    * Demodulates the signal.
    * @param samplesI The I components of the samples.
@@ -66,8 +79,7 @@ export class SchemeWBFM implements ModulationScheme {
   demodulate(
     samplesI: Float32Array,
     samplesQ: Float32Array,
-    freqOffset: number,
-    inStereo: boolean
+    freqOffset: number
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     let [I, Q] = this.downsampler
@@ -80,7 +92,7 @@ export class SchemeWBFM implements ModulationScheme {
     const rightAudio = new Float32Array(leftAudio);
     let stereoOut = false;
 
-    if (inStereo) {
+    if (this.mode.stereo) {
       const stereo = this.stereoSeparator.separate(I);
       if (stereo.found) {
         stereoOut = true;

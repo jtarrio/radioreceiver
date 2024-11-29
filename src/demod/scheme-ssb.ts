@@ -16,7 +16,7 @@ import { makeLowPassKernel } from "../dsp/coefficients";
 import { Sideband, SSBDemodulator } from "../dsp/demodulators";
 import { FrequencyShifter, AGC, FIRFilter } from "../dsp/filters";
 import { ComplexDownsampler } from "../dsp/resamplers";
-import { Demodulated, ModulationScheme } from "./scheme";
+import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
 /** A demodulator for single-sideband modulated signals. */
 export class SchemeSSB implements ModulationScheme {
@@ -28,15 +28,15 @@ export class SchemeSSB implements ModulationScheme {
    */
   constructor(
     inRate: number,
-    outRate: number,
-    bandwidth: number,
-    upper: boolean
+    private outRate: number,
+    private mode: Mode & { scheme: "USB" | "LSB" }
   ) {
     this.shifter = new FrequencyShifter(inRate);
     this.downsampler = new ComplexDownsampler(inRate, outRate, 151);
-    this.filter = new FIRFilter(makeLowPassKernel(outRate, bandwidth, 151));
+    const kernel = makeLowPassKernel(this.outRate, mode.bandwidth / 2, 151);
+    this.filter = new FIRFilter(kernel);
     this.demodulator = new SSBDemodulator(
-      upper ? Sideband.Upper : Sideband.Lower
+      mode.scheme == "USB" ? Sideband.Upper : Sideband.Lower
     );
     this.agc = new AGC(outRate, 3);
   }
@@ -46,6 +46,16 @@ export class SchemeSSB implements ModulationScheme {
   private filter: FIRFilter;
   private demodulator: SSBDemodulator;
   private agc: AGC;
+
+  getMode(): Mode {
+    return this.mode;
+  }
+
+  setMode(mode: Mode & { scheme: "USB" | "LSB" }) {
+    this.mode = mode;
+    const kernel = makeLowPassKernel(this.outRate, mode.bandwidth / 2, 151);
+    this.filter.setCoefficients(kernel);
+  }
 
   /**
    * Demodulates the signal.

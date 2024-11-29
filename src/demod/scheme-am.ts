@@ -16,7 +16,7 @@ import { makeLowPassKernel } from "../dsp/coefficients";
 import { AMDemodulator } from "../dsp/demodulators";
 import { FrequencyShifter, AGC, FIRFilter } from "../dsp/filters";
 import { ComplexDownsampler } from "../dsp/resamplers";
-import { Demodulated, ModulationScheme } from "./scheme";
+import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
 /** A demodulator for amplitude modulated signals. */
 export class SchemeAM implements ModulationScheme {
@@ -25,10 +25,14 @@ export class SchemeAM implements ModulationScheme {
    * @param outRate The sample rate of the output audio.
    * @param bandwidth The bandwidth of the input signal.
    */
-  constructor(inRate: number, outRate: number, bandwidth: number) {
+  constructor(
+    inRate: number,
+    private outRate: number,
+    private mode: Mode & { scheme: "AM" }
+  ) {
     this.shifter = new FrequencyShifter(inRate);
     this.downsampler = new ComplexDownsampler(inRate, outRate, 151);
-    const kernel = makeLowPassKernel(outRate, bandwidth / 2, 151);
+    const kernel = makeLowPassKernel(outRate, this.mode.bandwidth / 2, 151);
     this.filterI = new FIRFilter(kernel);
     this.filterQ = new FIRFilter(kernel);
     this.demodulator = new AMDemodulator(outRate);
@@ -41,6 +45,17 @@ export class SchemeAM implements ModulationScheme {
   private filterQ: FIRFilter;
   private demodulator: AMDemodulator;
   private agc: AGC;
+
+  getMode(): Mode {
+    return this.mode;
+  }
+
+  setMode(mode: Mode & { scheme: "AM" }) {
+    this.mode = mode;
+    const kernel = makeLowPassKernel(this.outRate, mode.bandwidth / 2, 151);
+    this.filterI.setCoefficients(kernel);
+    this.filterQ.setCoefficients(kernel);
+  }
 
   /**
    * Demodulates the signal.

@@ -47,7 +47,7 @@ function blankConfig(): RawConfig {
   return {
     v1: {
       modes: {
-        WBFM: { scheme: "WBFM" },
+        WBFM: { scheme: "WBFM", stereo: true },
         NBFM: { scheme: "NBFM", maxF: 5000 },
         AM: { scheme: "AM", bandwidth: 15000 },
         LSB: { scheme: "LSB", bandwidth: 2800 },
@@ -90,7 +90,7 @@ type ConfigV1 = {
 
 /** This definition parallels the Mode from scheme.ts */
 type ConfigV1Mode =
-  | { scheme: "WBFM" }
+  | { scheme: "WBFM"; stereo: boolean }
   | { scheme: "NBFM"; maxF: number }
   | { scheme: "AM"; bandwidth: number }
   | { scheme: "USB"; bandwidth: number }

@@ -16,7 +16,7 @@ import { makeLowPassKernel } from "../dsp/coefficients";
 import { FMDemodulator } from "../dsp/demodulators";
 import { FIRFilter, FrequencyShifter } from "../dsp/filters";
 import { ComplexDownsampler } from "../dsp/resamplers";
-import { Demodulated, ModulationScheme } from "./scheme";
+import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
 /** A demodulator for narrowband FM signals. */
 export class SchemeNBFM implements ModulationScheme {
@@ -25,13 +25,17 @@ export class SchemeNBFM implements ModulationScheme {
    * @param outRate The sample rate of the output audio.
    * @param maxF The frequency shift for maximum amplitude.
    */
-  constructor(inRate: number, outRate: number, maxF: number) {
+  constructor(
+    inRate: number,
+    private outRate: number,
+    private mode: Mode & { scheme: "NBFM" }
+  ) {
     this.shifter = new FrequencyShifter(inRate);
     this.downsampler = new ComplexDownsampler(inRate, outRate, 151);
-    const kernel = makeLowPassKernel(outRate, maxF, 151);
+    const kernel = makeLowPassKernel(outRate, mode.maxF, 151);
     this.filterI = new FIRFilter(kernel);
     this.filterQ = new FIRFilter(kernel);
-    this.demodulator = new FMDemodulator(maxF / outRate);
+    this.demodulator = new FMDemodulator(mode.maxF / outRate);
   }
 
   private shifter: FrequencyShifter;
@@ -39,6 +43,18 @@ export class SchemeNBFM implements ModulationScheme {
   private filterI: FIRFilter;
   private filterQ: FIRFilter;
   private demodulator: FMDemodulator;
+
+  getMode(): Mode {
+    return this.mode;
+  }
+
+  setMode(mode: Mode & { scheme: "NBFM" }) {
+    this.mode = mode;
+    const kernel = makeLowPassKernel(this.outRate, mode.maxF, 151);
+    this.filterI.setCoefficients(kernel);
+    this.filterQ.setCoefficients(kernel);
+    this.demodulator.setMaxDeviation(mode.maxF / this.outRate);
+  }
 
   /**
    * Demodulates the signal.

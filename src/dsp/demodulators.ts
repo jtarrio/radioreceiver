@@ -98,6 +98,11 @@ export class FMDemodulator {
   private lI: number;
   private lQ: number;
 
+  /** Changes the maximum deviation. */
+  setMaxDeviation(maxDeviation: number) {
+    this.mul = 2 * Math.PI * maxDeviation;
+  }
+
   /** Demodulates the given I/Q samples into the real output. */
   demodulate(I: Float32Array, Q: Float32Array, out: Float32Array) {
     const mul = this.mul;

@@ -15,17 +15,21 @@
 import { makeLowPassKernel } from "../dsp/coefficients";
 import { AGC, FIRFilter, FrequencyShifter } from "../dsp/filters";
 import { ComplexDownsampler } from "../dsp/resamplers";
-import { Demodulated, ModulationScheme } from "./scheme";
+import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
 /** Output frequency of the zero-beat CW signals. */
 const ToneFrequency = 600;
 
 /** A demodulator for continuous wave signals. */
 export class SchemeCW implements ModulationScheme {
-  constructor(inRate: number, outRate: number, bandwidth: number) {
+  constructor(
+    inRate: number,
+    private outRate: number,
+    private mode: Mode & { scheme: "CW" }
+  ) {
     this.shifter = new FrequencyShifter(inRate);
     this.downsampler = new ComplexDownsampler(inRate, outRate, 151);
-    const kernel = makeLowPassKernel(outRate, bandwidth / 2, 351);
+    const kernel = makeLowPassKernel(outRate, mode.bandwidth / 2, 351);
     this.filterI = new FIRFilter(kernel);
     this.filterQ = new FIRFilter(kernel);
     this.toneShifter = new FrequencyShifter(outRate);
@@ -38,6 +42,17 @@ export class SchemeCW implements ModulationScheme {
   private filterQ: FIRFilter;
   private toneShifter: FrequencyShifter;
   private agc: AGC;
+
+  getMode(): Mode {
+    return this.mode;
+  }
+
+  setMode(mode: Mode & { scheme: "CW" }) {
+    this.mode = mode;
+    const kernel = makeLowPassKernel(this.outRate, mode.bandwidth / 2, 151);
+    this.filterI.setCoefficients(kernel);
+    this.filterQ.setCoefficients(kernel);
+  }
 
   /** Demodulates the given I/Q samples into the real output. */
   demodulate(
