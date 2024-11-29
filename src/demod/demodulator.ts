@@ -39,12 +39,14 @@ type Frequency = {
 };
 
 /** The demodulator class. */
-export class Demodulator implements SampleReceiver {
+export class Demodulator extends EventTarget implements SampleReceiver {
   constructor(private inRate: number) {
+    super();
     this.player = new Player();
     this.mode = { scheme: "WBFM", stereo: true };
     this.scheme = this.getScheme(this.mode);
     this.frequencyOffset = 0;
+    this.latestStereo = false;
   }
 
   /** The audio output device. */
@@ -55,6 +57,8 @@ export class Demodulator implements SampleReceiver {
   private scheme: ModulationScheme;
   /** The frequency offset to demodulate from. */
   private frequencyOffset: number;
+  /** Whether the latest samples were in stereo. */
+  private latestStereo: boolean;
   /** A frequency change we are expecting. */
   private expectingFrequency?: Frequency;
 
@@ -123,11 +127,47 @@ export class Demodulator implements SampleReceiver {
       this.expectingFrequency = undefined;
     }
 
-    let { left, right } = this.scheme.demodulate(I, Q, this.frequencyOffset);
+    let { left, right, stereo } = this.scheme.demodulate(
+      I,
+      Q,
+      this.frequencyOffset
+    );
     this.player.play(left, right);
+    if (stereo != this.latestStereo) {
+      this.dispatchEvent(new StereoStatusEvent(stereo));
+      this.latestStereo = stereo;
+    }
   }
 
   andThen(next: SampleReceiver): SampleReceiver {
     return concatenateReceivers(this, next);
+  }
+
+  addEventListener(
+    type: "stereo-status",
+    callback: (e: StereoStatusEvent) => void | null,
+    options?: boolean | AddEventListenerOptions | undefined
+  ): void;
+  addEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions | undefined
+  ): void;
+  addEventListener(
+    type: string,
+    callback: any,
+    options?: boolean | AddEventListenerOptions | undefined
+  ): void {
+    super.addEventListener(
+      type,
+      callback as EventListenerOrEventListenerObject | null,
+      options
+    );
+  }
+}
+
+export class StereoStatusEvent extends CustomEvent<boolean> {
+  constructor(stereo: boolean) {
+    super("stereo-status", { detail: stereo, bubbles: true, composed: true });
   }
 }

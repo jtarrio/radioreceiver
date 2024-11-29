@@ -53,6 +53,15 @@ export class RrMainControls extends LitElement {
           width: 9ex;
         }
 
+        #stereoIcon {
+          vertical-align: bottom;
+          fill: #bbb;
+        }
+
+        #stereoIcon.stereo {
+          fill: #060;
+        }
+
         label[for="centerFrequency"],
         label[for="tunedFrequency"],
         label[for="tuningStep"] {
@@ -132,7 +141,7 @@ export class RrMainControls extends LitElement {
               </option>`
           )}
         </select>
-        <label for="bandwidth">Bandwidth: </label
+        <label for="bandwidth" .hidden=${this.mode == "WBFM"}>Bandwidth: </label
         ><input
           type="number"
           id="bandwidth"
@@ -140,9 +149,23 @@ export class RrMainControls extends LitElement {
           max="20000"
           step="1"
           .value=${String(this.bandwidth)}
-          .disabled=${this.mode == "WBFM"}
+          .hidden=${this.mode == "WBFM"}
           @change=${this.onBandwidthChange}
         />
+        <label for="stereo" .hidden=${this.mode != "WBFM"}>Stereo: </label
+        ><input
+          type="checkbox"
+          id="stereo"
+          .checked=${this.stereo}
+          .hidden=${this.mode != "WBFM"}
+          @change=${this.onStereoChange}
+        />
+        <span
+          id="stereoIcon"
+          class=${this.stereoStatus ? "stereo" : "mono"}
+          .hidden=${this.mode != "WBFM" || !this.stereo}
+          >${Icons.Stereo}</span
+        >
       </div>
       <div>
         <label for="gain">Gain: </label
@@ -177,6 +200,8 @@ export class RrMainControls extends LitElement {
   @property({ attribute: false }) availableModes: string[] = ["WBFM"];
   @property({ attribute: false }) mode: string = "WBFM";
   @property({ attribute: false }) bandwidth: number = 150000;
+  @property({ attribute: false }) stereo: boolean = true;
+  @property({ attribute: false }) stereoStatus: boolean = false;
   @property({ attribute: false }) gain: number | null = null;
   @property({ attribute: false }) gainDisabled: boolean = false;
   @state() private savedGain: number = 0;
@@ -234,6 +259,13 @@ export class RrMainControls extends LitElement {
     }
     this.bandwidth = value;
     this.dispatchEvent(new BandwidthChangedEvent());
+  }
+
+  private onStereoChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let value = target.checked;
+    this.stereo = value;
+    this.dispatchEvent(new StereoChangedEvent());
   }
 
   private onGainInput(e: Event) {
@@ -308,6 +340,12 @@ class BandwidthChangedEvent extends Event {
   }
 }
 
+class StereoChangedEvent extends Event {
+  constructor() {
+    super("rr-stereo-changed", { bubbles: true, composed: true });
+  }
+}
+
 class GainChangedEvent extends Event {
   constructor() {
     super("rr-gain-changed", { bubbles: true, composed: true });
@@ -324,6 +362,7 @@ declare global {
     "rr-tuning-step-changed": TuningStepChangedEvent;
     "rr-mode-changed": ModeChangedEvent;
     "rr-bandwidth-changed": BandwidthChangedEvent;
+    "rr-stereo-changed": StereoChangedEvent;
     "rr-gain-changed": GainChangedEvent;
   }
 }

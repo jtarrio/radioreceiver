@@ -128,22 +128,21 @@ export class RrWindow extends LitElement {
 }
 
 function fixElement(element: HTMLElement) {
-  let rect = element.getBoundingClientRect();
-  element.style.width = rect.width + "px";
-  element.style.height = rect.height + "px";
+  const rect = element.getBoundingClientRect();
   element.style.left = rect.left + "px";
   element.style.top = rect.top + "px";
-  element.style.right = "";
-  element.style.bottom = "";
+  element.style.right = "auto";
+  element.style.bottom = "auto";
 }
 
 function moveElementWithinViewport(element: HTMLElement, x: number, y: number) {
-  let origX = element.offsetLeft;
-  let origY = element.offsetTop;
-  if (x >= visualViewport!.width - element.offsetWidth)
-    x = visualViewport!.width - element.offsetWidth;
-  if (y >= visualViewport!.height - element.offsetHeight)
-    y = visualViewport!.height - element.offsetHeight;
+  const rect = element.getBoundingClientRect();
+  const origX = rect.left;
+  const origY = rect.top;
+  if (x > visualViewport!.width - rect.width)
+    x = visualViewport!.width - rect.width;
+  if (y > visualViewport!.height - rect.height)
+    y = visualViewport!.height - rect.height;
   if (x < 0) x = 0;
   if (y < 0) y = 0;
   if (x != origX || y != origY) {

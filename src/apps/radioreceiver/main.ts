@@ -2,7 +2,7 @@ import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { ConfigProvider, loadConfig } from "./config";
 import { RrMainControls } from "./main-controls";
-import { Demodulator } from "../../demod/demodulator";
+import { Demodulator, StereoStatusEvent } from "../../demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../../demod/sample-counter";
 import { type Mode } from "../../demod/scheme";
 import { Spectrum } from "../../demod/spectrum";
@@ -130,6 +130,8 @@ export class RadioReceiverMain extends LitElement {
           : this.mode.scheme == "NBFM"
             ? this.mode.maxF * 2
             : this.mode.bandwidth}
+        .stereo=${this.mode.scheme == "WBFM" ? this.mode.stereo : false}
+        .stereoStatus=${this.stereoStatus}
         .gain=${this.gain}
         .gainDisabled=${this.gainDisabled}
         @rr-start=${this.onStart}
@@ -140,6 +142,7 @@ export class RadioReceiverMain extends LitElement {
         @rr-tuning-step-changed=${this.onTuningStepChange}
         @rr-mode-changed=${this.onSchemeChange}
         @rr-bandwidth-changed=${this.onBandwidthChange}
+        @rr-stereo-changed=${this.onStereoChange}
         @rr-gain-changed=${this.onGainChange}
       ></rr-main-controls>`;
   }
@@ -156,6 +159,7 @@ export class RadioReceiverMain extends LitElement {
   private centerFrequencyScroller?: CenterFrequencyScroller;
 
   @state() private bandwidth: number = RtlSampleRate;
+  @state() private stereoStatus: boolean = false;
   @state() private minDecibels: number = -90;
   @state() private maxDecibels: number = -20;
   @state() private playing: boolean = false;
@@ -194,6 +198,7 @@ export class RadioReceiverMain extends LitElement {
 
     this.demodulator.setVolume(1);
     this.demodulator.setMode(this.mode);
+    this.demodulator.addEventListener("stereo-status", (e) => this.onStereoStatusEvent(e));
 
     this.radio.addEventListener("radio", (e) => this.onRadioEvent(e));
     this.sampleCounter.addEventListener("sample-click", (e) =>
@@ -334,6 +339,16 @@ export class RadioReceiverMain extends LitElement {
       default:
         newMode.bandwidth = value;
         break;
+    }
+    this.setMode(newMode);
+  }
+
+  private onStereoChange(e: Event) {
+    let target = e.target as RrMainControls;
+    let value = target.stereo;
+    let newMode = { ...this.mode };
+    if (newMode.scheme == "WBFM") {
+      newMode.stereo = value;
     }
     this.setMode(newMode);
   }
@@ -510,6 +525,10 @@ export class RadioReceiverMain extends LitElement {
         newMode.bandwidth = size;
     }
     this.setMode(newMode);
+  }
+
+  private onStereoStatusEvent(e: StereoStatusEvent) {
+    this.stereoStatus = e.detail;
   }
 
   private onRadioEvent(e: RadioEvent) {
