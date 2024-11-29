@@ -1,4 +1,3 @@
-import { RtlSampleRate } from "../radio/constants";
 import { concatenateReceivers, SampleReceiver } from "../radio/sample_receiver";
 
 export class SampleClickEvent extends Event {
@@ -8,12 +7,12 @@ export class SampleClickEvent extends Event {
 }
 
 export class SampleCounter extends EventTarget implements SampleReceiver {
-  constructor(clicksPerSecond?: number) {
+  constructor(sampleRate: number, clicksPerSecond?: number) {
     super();
     this.samplesPerClick =
       clicksPerSecond === undefined
         ? undefined
-        : Math.floor(RtlSampleRate / clicksPerSecond);
+        : Math.floor(sampleRate / clicksPerSecond);
     this.countedSamples = 0;
   }
 

@@ -17,7 +17,6 @@
 import { U8ToFloat32 } from "../dsp/converters";
 import { RadioError, RadioErrorType } from "../errors";
 import { RtlDevice, RtlDeviceProvider } from "../rtlsdr/rtldevice";
-import { RtlSampleRate } from "./constants";
 import { Channel } from "./msgqueue";
 import { SampleReceiver } from "./sample_receiver";
 
@@ -59,7 +58,8 @@ export class Radio extends EventTarget {
   /** @param sampleReceiver the object that will receive the radio samples. */
   constructor(
     private rtlProvider: RtlDeviceProvider,
-    private sampleReceiver: SampleReceiver
+    private sampleReceiver: SampleReceiver,
+    private sampleRate: number
   ) {
     super();
     this.state = State.OFF;
@@ -86,9 +86,6 @@ export class Radio extends EventTarget {
 
   /** Receive this many buffers per second. */
   private static BUFS_PER_SEC = 20;
-  /** How many samples to receive in each buffer. Must be a multiple of 512. */
-  private static SAMPLES_PER_BUF =
-    512 * Math.ceil(RtlSampleRate / Radio.BUFS_PER_SEC / 512);
 
   /** Starts playing the radio. */
   start() {
@@ -159,6 +156,9 @@ export class Radio extends EventTarget {
   private async runLoop() {
     let transfers: Transfers;
     let rtl: RtlDevice;
+    // We can only receive samples in multiples of 512.
+    const samplesPerBuf =
+      512 * Math.ceil(this.sampleRate / Radio.BUFS_PER_SEC / 512);
     while (true) {
       let msg = await this.channel.receive();
       try {
@@ -184,7 +184,7 @@ export class Radio extends EventTarget {
             }
             if (msg.type != "start") continue;
             rtl = await this.rtlProvider.get();
-            await rtl.setSampleRate(RtlSampleRate);
+            await rtl.setSampleRate(this.sampleRate);
             await rtl.setFrequencyCorrection(this.frequencyCorrection);
             await rtl.setGain(this.gain);
             await rtl.enableDirectSampling(this.directSamplingEnabled);
@@ -194,7 +194,7 @@ export class Radio extends EventTarget {
               rtl,
               this.sampleReceiver,
               this,
-              Radio.SAMPLES_PER_BUF
+              samplesPerBuf
             );
             transfers.startStream();
             this.state = State.PLAYING;

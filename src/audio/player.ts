@@ -71,4 +71,9 @@ export class Player {
   getVolume(): number {
     return this.gain;
   }
+
+  get sampleRate(): number {
+    if (this.ac) return this.ac.sampleRate;
+    return 48000;
+  }
 }

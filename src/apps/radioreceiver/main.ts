@@ -8,7 +8,6 @@ import { type Mode } from "../../demod/scheme";
 import { Spectrum } from "../../demod/spectrum";
 import { Float32Buffer } from "../../dsp/buffers";
 import { RadioErrorType } from "../../errors";
-import { RtlSampleRate } from "../../radio/constants";
 import { Radio, RadioEvent } from "../../radio/radio";
 import { FakeRtlProvider } from "../../rtlsdr/fakertl/fakertl";
 import {
@@ -28,6 +27,8 @@ import {
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
 import "./main-controls";
 import "../../ui/spectrum/spectrum";
+
+const RtlSampleRate = 1024000;
 
 type Frequency = {
   center: number;
@@ -177,11 +178,12 @@ export class RadioReceiverMain extends LitElement {
     this.configProvider = loadConfig();
     this.spectrumBuffer = new Float32Buffer(2, 2048);
     this.spectrum = new Spectrum();
-    this.demodulator = new Demodulator();
-    this.sampleCounter = new SampleCounter(20);
+    this.demodulator = new Demodulator(RtlSampleRate);
+    this.sampleCounter = new SampleCounter(RtlSampleRate, 20);
     this.radio = new Radio(
       getRtlProvider(),
-      this.spectrum.andThen(this.demodulator).andThen(this.sampleCounter)
+      this.spectrum.andThen(this.demodulator).andThen(this.sampleCounter),
+      RtlSampleRate
     );
 
     this.applyConfig();
