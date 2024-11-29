@@ -29,7 +29,7 @@ export class SchemeCW implements ModulationScheme {
     this.filterI = new FIRFilter(kernel);
     this.filterQ = new FIRFilter(kernel);
     this.toneShifter = new FrequencyShifter(outRate);
-    this.agc = new AGC(outRate, 1);
+    this.agc = new AGC(outRate, 10);
   }
 
   private shifter: FrequencyShifter;

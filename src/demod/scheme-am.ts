@@ -32,7 +32,7 @@ export class SchemeAM implements ModulationScheme {
     this.filterI = new FIRFilter(kernel);
     this.filterQ = new FIRFilter(kernel);
     this.demodulator = new AMDemodulator(outRate);
-    this.agc = new AGC(outRate, 1);
+    this.agc = new AGC(outRate, 3);
   }
 
   private shifter: FrequencyShifter;

@@ -96,21 +96,24 @@ export class FIRFilter implements Filter {
 export class AGC implements Filter {
   constructor(
     private sampleRate: number,
-    timeConstantSeconds: number
+    timeConstantSeconds: number,
+    maxGain?: number
   ) {
     this.dcBlocker = new DcBlocker(sampleRate);
     this.alpha = 1 - Math.exp(-1 / (sampleRate * timeConstantSeconds));
     this.counter = 0;
     this.maxPower = 0;
+    this.maxGain = maxGain || 100;
   }
 
   private dcBlocker: DcBlocker;
   private alpha: number;
   private counter: number;
   private maxPower: number;
+  private maxGain: number;
 
   clone(): AGC {
-    let copy = new AGC(this.sampleRate, 1);
+    let copy = new AGC(this.sampleRate, 1, this.maxGain);
     copy.alpha = this.alpha;
     return copy;
   }
@@ -138,7 +141,7 @@ export class AGC implements Filter {
       } else {
         maxPower -= alpha * maxPower;
       }
-      gain = Math.min(10, 1 / Math.sqrt(maxPower));
+      gain = Math.min(this.maxGain, 1 / Math.sqrt(maxPower));
       samples[i] *= gain;
     }
     this.maxPower = maxPower;

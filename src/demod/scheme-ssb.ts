@@ -38,7 +38,7 @@ export class SchemeSSB implements ModulationScheme {
     this.demodulator = new SSBDemodulator(
       upper ? Sideband.Upper : Sideband.Lower
     );
-    this.agc = new AGC(outRate, 1);
+    this.agc = new AGC(outRate, 3);
   }
 
   private shifter: FrequencyShifter;
