@@ -19,6 +19,14 @@ export class RrMainControls extends LitElement {
           font-family: Arial, Helvetica, sans-serif;
         }
 
+        @media (prefers-color-scheme: dark) {
+          input,
+          select {
+            background: #222;
+            color: #ddd;
+          }
+        }
+
         rr-window {
           position: absolute;
           bottom: calc(1em + 24px);
@@ -60,6 +68,16 @@ export class RrMainControls extends LitElement {
 
         #stereoIcon.stereo {
           fill: #060;
+        }
+
+        @media (prefers-color-scheme: dark) {
+          #stereoIcon {
+            fill: #666;
+          }
+
+          #stereoIcon.stereo {
+            fill: #0b0;
+          }
         }
 
         label[for="centerFrequency"],

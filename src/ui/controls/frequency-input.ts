@@ -28,7 +28,16 @@ export class RrFrequencyInput extends LitElement {
       css`
         input {
           width: 13ex;
-        }`,
+        }
+
+        @media (prefers-color-scheme: dark) {
+          input,
+          select {
+            background: #222;
+            color: #ddd;
+          }
+        }
+      `,
     ];
   }
 

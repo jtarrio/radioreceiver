@@ -74,9 +74,9 @@ export class RrWindow extends LitElement {
 
         @media (prefers-color-scheme: dark) {
           :host {
-            --ips-border-color: var(--rr-window-border-color, white);
+            --ips-border-color: var(--rr-window-border-color, #ddd);
             --ips-background: var(--rr-window-background, black);
-            --ips-color: var(--rr-window-color, white);
+            --ips-color: var(--rr-window-color, #ddd);
             --ips-label-background: var(--rr-label-background, #1f2f7f);
             --ips-label-color: var(--rr-label-color, white);
           }
