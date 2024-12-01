@@ -34,6 +34,7 @@ async function compile(src) {
     sourcemap: SOURCE_MAPS,
     loader: {
       ".html": "copy",
+      ".png": "file",
       ".ttf": "file",
       ".woff": "file",
       ".woff2": "file",
