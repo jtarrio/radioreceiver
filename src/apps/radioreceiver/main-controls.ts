@@ -23,7 +23,6 @@ export class RrMainControls extends LitElement {
         }
 
         rr-window {
-          position: absolute;
           bottom: calc(1em + 24px);
           left: 1em;
         }

@@ -41,7 +41,6 @@ export class RrSettings extends LitElement {
         }
 
         rr-window {
-          position: absolute;
           bottom: calc(1em + 24px);
           right: 1em;
         }

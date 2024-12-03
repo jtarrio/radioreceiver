@@ -30,7 +30,7 @@ export class RrWindow extends LitElement {
           border: 2px solid var(--ips-border-color);
           border-bottom: none;
           border-radius: 10px 10px 0 0;
-          padding: 3px 16px 3px 16px;
+          padding: 3px 8px;
           background: var(--ips-label-background);
           color: var(--ips-label-color);
           cursor: grab;
@@ -81,6 +81,23 @@ export class RrWindow extends LitElement {
             --ips-color: var(--rr-window-color, #ddd);
             --ips-label-background: var(--rr-label-background, #1f2f7f);
             --ips-label-color: var(--rr-label-color, white);
+          }
+        }
+
+        @media (max-width: 450px) {
+          :host {
+            position: initial;
+          }
+
+          .label {
+            border: 1px solid var(--ips-border-color);
+            border-bottom: none;
+            border-radius: 0;
+          }
+
+          .content {
+            border: 1px solid var(--ips-border-color);
+            border-radius: 0;
           }
         }
       `,
