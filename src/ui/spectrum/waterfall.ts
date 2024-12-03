@@ -188,7 +188,8 @@ class WaterfallDragHandler implements DragHandler {
   }
 
   drag(deltaX: number, _: number): void {
-    this.fraction = deltaX / this.waterfall.clientWidth;
+    this.fraction =
+      deltaX / (this.waterfall.clientWidth * this.waterfall.zoom.level);
     this.waterfall.dispatchEvent(
       new SpectrumDragEvent({ fraction: this.fraction, target: "waterfall" })
     );
