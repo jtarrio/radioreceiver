@@ -48,6 +48,7 @@ export class RrScopeLine extends LitElement {
 
   addFloatSpectrum(spectrum: Float32Array) {
     if (this.fftSize != spectrum.length) {
+      this.fftSize = spectrum.length;
       this.spectrum = new Float32Array(this.fftSize);
     }
     this.spectrum.set(spectrum);

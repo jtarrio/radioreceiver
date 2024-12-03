@@ -4,6 +4,7 @@ import { WindowClosedEvent } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
+import { DefaultFftSize } from "../../ui/spectrum/constants";
 
 const AVAILABLE_SAMPLE_RATES: number[] = (() => {
   let rateSet: Set<number> = new Set([256000]);
@@ -12,6 +13,14 @@ const AVAILABLE_SAMPLE_RATES: number[] = (() => {
   let rates = [...rateSet];
   rates.sort((a, b) => Number(a) - Number(b));
   return rates;
+})();
+
+const AVAILABLE_FFT_SIZES: number[] = (() => {
+  let sizes = new Array();
+  for (let s = 32; s <= 32768; s *= 2) {
+    sizes.push(s);
+  }
+  return sizes;
 })();
 
 @customElement("rr-settings")
@@ -102,6 +111,17 @@ export class RrSettings extends LitElement {
           @change=${this.onPpmChange}
         />PPM
       </div>
+      <div>
+        <label for="fftSize">FFT size: </label
+        ><select id="fftSize" @change=${this.onFftSizeChange}>
+          ${AVAILABLE_FFT_SIZES.map(
+            (s) =>
+              html`<option value=${s} .selected=${this.fftSize == s}>
+                ${s}
+              </option>`
+          )}
+        </select>
+      </div>
     </rr-window>`;
   }
 
@@ -110,6 +130,7 @@ export class RrSettings extends LitElement {
   @property({ attribute: false }) playing: boolean = false;
   @property({ attribute: false }) sampleRate: number = 1024000;
   @property({ attribute: false }) ppm: number = 0;
+  @property({ attribute: false }) fftSize: number = 2048;
 
   private onClose() {
     this.dispatchEvent(new WindowClosedEvent());
@@ -131,6 +152,12 @@ export class RrSettings extends LitElement {
     this.ppm = value;
     this.dispatchEvent(new PpmChangedEvent());
   }
+
+  private onFftSizeChange(e: Event) {
+    let value = (e.target as HTMLSelectElement).selectedOptions[0].value;
+    this.fftSize = Number(value);
+    this.dispatchEvent(new FftSizeChangedEvent());
+  }
 }
 
 class SampleRateChangedEvent extends Event {
@@ -145,9 +172,16 @@ class PpmChangedEvent extends Event {
   }
 }
 
+class FftSizeChangedEvent extends Event {
+  constructor() {
+    super("rr-fft-size-changed", { bubbles: true, composed: true });
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "rr-sample-rate-changed": SampleRateChangedEvent;
     "rr-ppm-changed": PpmChangedEvent;
+    "rr-fft-size-changed": FftSizeChangedEvent;
   }
 }

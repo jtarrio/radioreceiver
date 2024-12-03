@@ -62,6 +62,7 @@ function blankConfig(): RawConfig {
       gain: null,
       sampleRate: 1024000,
       ppm: 0,
+      fftSize: 2048,
       minDecibels: -90,
       maxDecibels: -20,
     },
@@ -98,6 +99,8 @@ type ConfigV1 = {
   sampleRate: number;
   /** RTL frequency correction factor in PPM. */
   ppm: number;
+  /** Size of the spectrum display. */
+  fftSize: number;
   /** Minimum number of decibels for scope. */
   minDecibels: number;
   /** Maximum number of decibels for scope. */
