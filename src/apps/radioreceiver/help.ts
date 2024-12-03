@@ -1,5 +1,6 @@
 import { css, html, LitElement } from "lit";
-import { customElement, query, state } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
+import * as Icons from "../../ui/icons";
 import { RrScope } from "../../ui/spectrum/scope";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
 import { type GridSelection } from "../../ui/spectrum/types";
@@ -8,6 +9,7 @@ import "../../ui/spectrum/scope";
 import "../../ui/spectrum/spectrum";
 import "../../ui/spectrum/waterfall";
 import "../radioreceiver/main-controls";
+import "../radioreceiver/settings";
 
 abstract class DemoSpectrumWidget extends LitElement {
   private observer?: IntersectionObserver;
@@ -224,6 +226,76 @@ export class RrDemoControls extends LitElement {
       ></rr-main-controls>
     </div>`;
   }
+}
+
+@customElement("rr-demo-settings")
+export class RrDemoSettings extends LitElement {
+  static get styles() {
+    return [
+      css`
+        :host {
+          display: block;
+        }
+
+        #container {
+          position: relative;
+        }
+
+        rr-settings {
+          height: 100%;
+        }
+      `,
+    ];
+  }
+
+  render() {
+    return html`<div id="container">
+      <rr-settings id="settings" .inline=${true}></rr-settings>
+    </div>`;
+  }
+}
+
+@customElement("rr-demo-button")
+export class RrDemoButton extends LitElement {
+  static get styles() {
+    return [
+      css`
+        :host {
+          display: inline-block;
+          vertical-align: middle;
+          margin-top: -2px;
+          margin-bottom: -2px;
+        }
+        button {
+          padding-inline: 0;
+          width: 24px;
+          height: 24px;
+        }
+        button > svg {
+          display: block;
+          width: 16px;
+          height: 16px;
+          margin: auto;
+        }
+      `,
+    ];
+  }
+
+  render() {
+    return html`<button>${RrDemoButton.BUTTONS.get(this.name)}</button>`;
+  }
+
+  static BUTTONS = new Map([
+    ["play", Icons.Play],
+    ["stop", Icons.Stop],
+    ["settings", Icons.Settings],
+    ["zoom-in", Icons.ZoomIn],
+    ["zoom-out", Icons.ZoomOut],
+    ["scroll-left", Icons.ScrollLeft],
+    ["scroll-right", Icons.ScrollRight],
+  ]);
+
+  @property({ type: String, reflect: true }) name: string = "play";
 }
 
 @customElement("rr-demo-highlight")

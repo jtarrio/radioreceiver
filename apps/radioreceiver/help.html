@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="icon" type="image/png" href="favicon.png" />
     <style>
       body {
         font-family: Arial, Helvetica, sans-serif;
@@ -344,10 +344,12 @@
         else document.write("middle of the bar");
       </script>
       contains the zoom controls, which contain two “magnifier glass” buttons
-      with a number in between. The button on the right with the plus sign zooms
-      in, while the button on the left with the minus sign zooms out. The
-      current zoom level is shown between the buttons; you can edit it directly
-      if you prefer.
+      with a number in between. The “zoom in“ button
+      <rr-demo-button name="zoom-in"></rr-demo-button> increases the
+      magnification level, while the “zoom out” button
+      <rr-demo-button name="zoom-out"></rr-demo-button> decreases it. The
+      current magnification level is shown between the buttons; you can edit it
+      directly if you prefer.
     </p>
     <p>
       The
@@ -357,9 +359,10 @@
       </script>
       contains a scrollbar that you can use to move around the spectrum when you
       are zoomed in. This works like a classic Windows scrollbar: click on the
-      arrow buttons to scroll a little, click between the slider and the button
-      to scroll one page, and drag the slider from side to side to scroll
-      freely.
+      arrow buttons <rr-demo-button name="scroll-left"></rr-demo-button
+      ><rr-demo-button name="scroll-right"></rr-demo-button> to scroll a little,
+      click between the slider and the button to scroll one page, and drag the
+      slider from side to side to scroll freely.
     </p>
 
     <h2 id="main_controls">The main controls</h2>
@@ -370,6 +373,21 @@
     </p>
 
     <rr-demo-controls></rr-demo-controls>
+
+    <h3>Play/stop/settings</h3>
+
+    <p>
+      Press the “play“ button <rr-demo-button name="play"></rr-demo-button> to
+      start listening to the radio. When the radio is playing, the “play” button
+      becomes the “stop” button <rr-demo-button name="stop"></rr-demo-button>,
+      which you can press to stop listening.
+    </p>
+
+    <p>
+      Press the “settings” button
+      <rr-demo-button name="settings"></rr-demo-button> to open the
+      <a href="#settings">settings window</a>.
+    </p>
 
     <h3>Tuning</h3>
     <p>
@@ -506,6 +524,38 @@
       You can change the center frequency by clicking and dragging the waterfall
       from side to side. The center frequency will change in increments of the
       selected frequency unit (Hz, kHz, or MHz.)
+    </p>
+
+    <h2 id="settings">The settings window</h2>
+
+    <rr-demo-settings></rr-demo-settings>
+
+    <p>
+      You can open the settings window by clicking the “settings” button
+      <rr-demo-button name="settings"></rr-demo-button> in the main controls
+      window.
+    </p>
+
+    <p>
+      The “sample rate” setting lets you change the RTL-SDR stick's sample rate;
+      that is the number of samples it captures per second. Note that, as you
+      change the sample rate, the bandwidth that is visible in the spectrum
+      display also changes (see the “<a href="#frequency"
+        >frequency, bandwidth, and sample rate</a
+      >” section for more information.)
+    </p>
+
+    <p>
+      The “PPM correction” setting lets you make adjustments if your RTL-SDR
+      stick is not exactly on frequency. By changing the value (which represents
+      the frequency drift, in parts per million), you can make the RTL-SDR stick
+      tune a little bit higher or lower until it's just right.
+    </p>
+
+    <p>
+      The “FFT size” setting lets you change the resolution of the spectrum
+      display. Higher values result in more detailed spectra, at the cost of
+      more processing power.
     </p>
   </body>
 </html>
