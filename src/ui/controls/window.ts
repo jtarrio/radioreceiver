@@ -110,9 +110,9 @@ export class RrWindow extends LitElement {
         class="label${this.dragging ? " moving" : ""}"
         @pointerdown=${this.onPointerDown}
       >
-        <div class="label-left"><slot name="label-left"></slot></div>
+        <div class="label-left" @pointerdown=${this.noPointerDown}><slot name="label-left"></slot></div>
         <div class="label-middle"><slot name="label">${this.label}</slot></div>
-        <div class="label-right"><slot name="label-right"></slot></div>
+        <div class="label-right" @pointerdown=${this.noPointerDown}><slot name="label-right"></slot></div>
       </div>
       <div class="content"><slot></slot></div>`;
   }
@@ -135,6 +135,10 @@ export class RrWindow extends LitElement {
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.dragController = new DragController(new WindowDragHandler(this), 0);
+  }
+
+  private noPointerDown(e: PointerEvent) {
+    e.stopPropagation();
   }
 
   private onPointerDown(e: PointerEvent) {

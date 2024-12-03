@@ -32,7 +32,7 @@ export class RrMainControls extends LitElement {
           display: inline-block;
         }
 
-        @media (max-width: 794px) {
+        @media (max-width: 778px) {
           rr-window {
             bottom: calc(1em + 48px);
           }
