@@ -120,6 +120,12 @@ export class Demodulator extends EventTarget implements SampleReceiver {
     }
   }
 
+  /** Changes the sample rate. */
+  setSampleRate(sampleRate: number): void {
+    this.inRate = sampleRate;
+    this.scheme = this.getScheme(this.mode, undefined);
+  }
+
   /** Receives radio samples. */
   receiveSamples(I: Float32Array, Q: Float32Array, frequency: number): void {
     if (this.expectingFrequency?.center === frequency) {

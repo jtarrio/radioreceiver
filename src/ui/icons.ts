@@ -7,14 +7,24 @@ function icon(title: string, content: SVGTemplateResult): HTMLTemplateResult {
   </svg>`;
 }
 
+export const Close = icon(
+  "Close",
+  svg`<g><path d="M2 4v-2h2l4 4 4 -4h2v2l-4 4 4 4v2h-2l-4 -4 -4 4h-2v-2l4 -4z"></path></g>`
+);
+
 export const Stop = icon(
   "Stop playing",
-  svg`<g><path d="M3,3v10h10V3z"></path></g>`
+  svg`<g><path d="M3 3v10h10V3z"></path></g>`
 );
 
 export const Play = icon(
   "Start playing",
-  svg`<g><path d="M3,2v12l10,-6z"></path></g>`
+  svg`<g><path d="M3 2v12l10 -6z"></path></g>`
+);
+
+export const Settings = icon(
+  "Settings",
+  svg`<g><path d="M5 1A4 4 0 0 0 3.7 1.2L6.5 4 6 6 4 6.5 1.2 3.7A4 4 0 0 0 1 5 4 4 0 0 0 5 9 4 4 0 0 0 6.6 8.6L12.5 14.5A1.4 1.4 0 0 0 13.6 15 1.4 1.4 0 0 0 15 13.6 1.4 1.4 0 0 0 14.5 12.5L8.6 6.6A4 4 0 0 0 9 5 4 4 0 0 0 5 1z"></path></g>`
 );
 
 export const Help = icon(
@@ -29,12 +39,12 @@ export const Help = icon(
 
 export const ScrollLeft = icon(
   "Scroll left",
-  svg`<g><path d="m11,2v2l-4,4 4,4v2H9L3,8 9,2Z"></path></g>`
+  svg`<g><path d="m11 2v2l-4 4 4 4v2H9L3 8 9 2Z"></path></g>`
 );
 
 export const ScrollRight = icon(
   "Scroll right",
-  svg`<g><path d="m5,2v2l4,4 -4,4v2h2L13,8 7,2Z"></path></g>`
+  svg`<g><path d="m5 2v2l4 4 -4 4v2h2L13 8 7 2Z"></path></g>`
 );
 
 function zoomIcon(title: string, sign: SVGTemplateResult) {
@@ -44,7 +54,7 @@ function zoomIcon(title: string, sign: SVGTemplateResult) {
         <path
           d="M7 1A6 6 0 0 0 1 7A6 6 0 0 0 7 13A6 6 0 0 0 13 7A6 6 0 0 0 7 1zM7 3A4 4 0 0 1 11 7A4 4 0 0 1 7 11A4 4 0 0 1 3 7A4 4 0 0 1 7 3z"
         ></path>
-        <path d="M14.5,13l-1.5,1.5 -4,-4 1.5,-1.5z"></path>
+        <path d="M14.5 13l-1.5 1.5 -4 -4 1.5 -1.5z"></path>
         ${sign}
       </g>`
   );
@@ -52,12 +62,12 @@ function zoomIcon(title: string, sign: SVGTemplateResult) {
 
 export const ZoomIn = zoomIcon(
   "Zoom in",
-  svg`<path d="M4,6v2h2v2h2v-2h2v-2h-2v-2h-2v2Z"></path>`
+  svg`<path d="M4 6v2h2v2h2v-2h2v-2h-2v-2h-2v2Z"></path>`
 );
 
 export const ZoomOut = zoomIcon(
   "Zoom out",
-  svg`<path d="M4,6v2h6v-2Z"></path>`
+  svg`<path d="M4 6v2h6v-2Z"></path>`
 );
 
 export const Stereo = icon(

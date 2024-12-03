@@ -1,4 +1,4 @@
-import { css, html, LitElement, PropertyValues } from "lit";
+import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { DragController, DragHandler } from "./drag-controller";
 
@@ -8,6 +8,8 @@ export class RrWindow extends LitElement {
   label: string = "";
   @property({ type: Boolean, reflect: true })
   fixed: boolean = false;
+  @property({ type: Boolean, reflect: true })
+  hidden: boolean = false;
 
   static get styles() {
     return [
@@ -48,11 +50,11 @@ export class RrWindow extends LitElement {
           flex: 1;
         }
 
-        .label-left ::slotted(*) {
+        .label-left {
           margin-right: 8px;
         }
 
-        .label-right ::slotted(*) {
+        .label-right {
           margin-left: 8px;
         }
 
@@ -86,6 +88,7 @@ export class RrWindow extends LitElement {
   }
 
   render() {
+    if (this.hidden) return nothing;
     return html`<div
         class="label${this.dragging ? " moving" : ""}"
         @pointerdown=${this.onPointerDown}
@@ -189,4 +192,16 @@ class WindowDragHandler implements DragHandler {
   }
 
   onClick(): void {}
+}
+
+export class WindowClosedEvent extends Event {
+  constructor() {
+    super("rr-window-closed", { bubbles: true, composed: true });
+  }
+}
+
+declare global {
+  interface HTMLElementEventMap {
+    "rr-window-closed": WindowClosedEvent;
+  }
 }

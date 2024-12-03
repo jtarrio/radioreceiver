@@ -7,17 +7,28 @@ export class SampleClickEvent extends Event {
 }
 
 export class SampleCounter extends EventTarget implements SampleReceiver {
-  constructor(sampleRate: number, clicksPerSecond?: number) {
+  constructor(
+    private sampleRate: number,
+    private clicksPerSecond?: number
+  ) {
     super();
-    this.samplesPerClick =
-      clicksPerSecond === undefined
-        ? undefined
-        : Math.floor(sampleRate / clicksPerSecond);
+    this.samplesPerClick = this.getSamplesPerClick();
     this.countedSamples = 0;
   }
 
   private samplesPerClick?: number;
   private countedSamples: number;
+
+  private getSamplesPerClick(): number | undefined {
+    return this.clicksPerSecond === undefined
+      ? undefined
+      : Math.floor(this.sampleRate / this.clicksPerSecond);
+  }
+
+  setSampleRate(sampleRate: number): void {
+    this.sampleRate = sampleRate;
+    this.samplesPerClick = this.getSamplesPerClick();
+  }
 
   receiveSamples(I: Float32Array, Q: Float32Array): void {
     this.countedSamples += I.length;

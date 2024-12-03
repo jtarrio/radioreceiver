@@ -1,10 +1,10 @@
 /** Loads the configuration from local storage. */
 export function loadConfig(): ConfigProvider {
   let cfgJson = localStorage.getItem("config");
-  let cfg =
-    cfgJson == null
-      ? blankConfig()
-      : { ...blankConfig, ...JSON.parse(cfgJson) };
+  let cfg = blankConfig();
+  if (cfgJson != null) {
+    cfg = merged(cfg, JSON.parse(cfgJson));
+  }
   return new ConfigProvider(cfg);
 }
 
@@ -60,10 +60,22 @@ function blankConfig(): RawConfig {
       tuningStep: 1000,
       frequencyScale: 1000,
       gain: null,
+      sampleRate: 1024000,
+      ppm: 0,
       minDecibels: -90,
       maxDecibels: -20,
     },
   };
+}
+
+function merged(a: any, b: any): any {
+  const isObject = (i: any) => i && typeof i === "object" && !Array.isArray(i);
+  if (!isObject(a) || !isObject(b)) return b;
+  let ret = { ...a };
+  for (const k in b) {
+    ret[k] = merged(ret[k], b[k]);
+  }
+  return ret;
 }
 
 type RawConfig = { v1?: ConfigV1 };
@@ -82,6 +94,10 @@ type ConfigV1 = {
   frequencyScale: number;
   /** Current gain. */
   gain: number | null;
+  /** RTL sample rate. */
+  sampleRate: number;
+  /** RTL frequency correction factor in PPM. */
+  ppm: number;
   /** Minimum number of decibels for scope. */
   minDecibels: number;
   /** Maximum number of decibels for scope. */

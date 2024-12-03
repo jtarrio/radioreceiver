@@ -7,11 +7,6 @@ import "../../ui/controls/window";
 
 @customElement("rr-main-controls")
 export class RrMainControls extends LitElement {
-  @property({ attribute: false })
-  inline: boolean = false;
-  @property({ attribute: false })
-  showHelp: boolean = true;
-
   static get styles() {
     return [
       css`
@@ -106,6 +101,15 @@ export class RrMainControls extends LitElement {
         : html`<button slot="label-left" id="start" @click=${this.onStart}>
             ${Icons.Play}
           </button>`}
+      ${this.showSettings
+        ? html`<button
+            slot="label-right"
+            id="settings"
+            @click=${this.onSettings}
+          >
+            ${Icons.Settings}
+          </button>`
+        : nothing}
       ${this.showHelp
         ? html`<a slot="label-right" href="help.html" target="_blank"
             ><button id="help">${Icons.Help}</button></a
@@ -210,6 +214,9 @@ export class RrMainControls extends LitElement {
     </rr-window>`;
   }
 
+  @property({ attribute: false }) inline: boolean = false;
+  @property({ attribute: false }) showSettings: boolean = true;
+  @property({ attribute: false }) showHelp: boolean = true;
   @property({ attribute: false }) playing: boolean = false;
   @property({ attribute: false }) scale: number = 1000;
   @property({ attribute: false }) centerFrequency: number = 88500000;
@@ -230,6 +237,10 @@ export class RrMainControls extends LitElement {
 
   private onStop() {
     this.dispatchEvent(new StopEvent());
+  }
+
+  private onSettings() {
+    this.dispatchEvent(new SettingsEvent());
   }
 
   private onScaleChange(e: Event) {
@@ -322,6 +333,12 @@ class StopEvent extends Event {
   }
 }
 
+class SettingsEvent extends Event {
+  constructor() {
+    super("rr-settings", { bubbles: true, composed: true });
+  }
+}
+
 class ScaleChangedEvent extends Event {
   constructor() {
     super("rr-scale-changed", { bubbles: true, composed: true });
@@ -374,6 +391,7 @@ declare global {
   interface HTMLElementEventMap {
     "rr-start": StartEvent;
     "rr-stop": StopEvent;
+    "rr-settings": SettingsEvent;
     "rr-scale-changed": ScaleChangedEvent;
     "rr-center-frequency-changed": CenterFrequencyChangedEvent;
     "rr-tuned-frequency-changed": TunedFrequencyChangedEvent;

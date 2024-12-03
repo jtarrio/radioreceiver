@@ -14,6 +14,9 @@
 
 /** Interface for classes that get samples from a Radio class. */
 export interface SampleReceiver {
+  /** Sets the sample rate. */
+  setSampleRate(sampleRate: number): void;
+
   /** Receives samples that should be demodulated. */
   receiveSamples(I: Float32Array, Q: Float32Array, frequency: number): void;
 
@@ -41,6 +44,12 @@ export function concatenateReceivers(
 
 class ReceiverSequence implements SampleReceiver {
   constructor(public receivers: SampleReceiver[]) {}
+
+  setSampleRate(sampleRate: number): void {
+    for (let receiver of this.receivers) {
+      receiver.setSampleRate(sampleRate);
+    }
+  }
 
   receiveSamples(I: Float32Array, Q: Float32Array, frequency: number): void {
     for (let receiver of this.receivers) {

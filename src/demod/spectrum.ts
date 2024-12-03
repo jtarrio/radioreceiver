@@ -52,6 +52,8 @@ export class Spectrum implements SampleReceiver {
     return this.fft.length;
   }
 
+  setSampleRate(_: number): void {}
+
   receiveSamples(I: Float32Array, Q: Float32Array, frequency: number): void {
     this.I.store(I);
     this.Q.store(Q);

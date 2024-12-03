@@ -20,11 +20,7 @@ import { RtlDevice, RtlDeviceProvider } from "../rtlsdr/rtldevice";
 import { Channel } from "./msgqueue";
 import { SampleReceiver } from "./sample_receiver";
 
-/**
- * A message sent to the state machine.
- *
- * All of these messages are also 'radio' event details.
- */
+/** A message sent to the state machine. */
 type Message =
   | { type: "start" }
   | { type: "stop" }
@@ -84,9 +80,6 @@ export class Radio extends EventTarget {
   /** Whether direct sampling mode is enabled. */
   private directSamplingEnabled: boolean;
 
-  /** Receive this many buffers per second. */
-  private static BUFS_PER_SEC = 20;
-
   /** Starts playing the radio. */
   start() {
     this.channel.send({ type: "start" });
@@ -138,27 +131,30 @@ export class Radio extends EventTarget {
     return this.gain;
   }
 
-  /**
-   * Enables or disables direct sampling mode.
-   */
+  /** Enables or disables direct sampling mode. */
   enableDirectSampling(enable: boolean) {
     this.channel.send({ type: "directSamplingEnabled", value: enable });
   }
 
-  /**
-   * Returns whether direct sampling mode is enabled.
-   */
+  /** Returns whether direct sampling mode is enabled. */
   isDirectSamplingEnabled(): boolean {
     return this.directSamplingEnabled;
+  }
+
+  /** Changes the sample rate. This change only takes effect when the radio is started. */
+  setSampleRate(sampleRate: number) {
+    this.sampleRate = sampleRate;
+  }
+
+  /** Returns the current sample rate. */
+  getSampleRate(): number {
+    return this.sampleRate;
   }
 
   /** Runs the state machine. */
   private async runLoop() {
     let transfers: Transfers;
     let rtl: RtlDevice;
-    // We can only receive samples in multiples of 512.
-    const samplesPerBuf =
-      512 * Math.ceil(this.sampleRate / Radio.BUFS_PER_SEC / 512);
     while (true) {
       let msg = await this.channel.receive();
       try {
@@ -194,7 +190,7 @@ export class Radio extends EventTarget {
               rtl,
               this.sampleReceiver,
               this,
-              samplesPerBuf
+              this.sampleRate
             );
             transfers.startStream();
             this.state = State.PLAYING;
@@ -276,12 +272,17 @@ export class Radio extends EventTarget {
  * transfer. In this way, there is always a stream of samples coming in.
  */
 class Transfers {
+  /** Receive this many buffers per second. */
+  private static BUFS_PER_SEC = 20;
+
   constructor(
     private rtl: RtlDevice,
     private sampleReceiver: SampleReceiver,
     private radio: Radio,
-    private samplesPerBuf: number
+    private sampleRate: number
   ) {
+    this.samplesPerBuf =
+      512 * Math.ceil(sampleRate / Transfers.BUFS_PER_SEC / 512);
     this.buffersWanted = 0;
     this.buffersRunning = 0;
     this.iqConverter = new U8ToFloat32(this.samplesPerBuf);
@@ -289,6 +290,7 @@ class Transfers {
     this.stopCallback = Transfers.nilCallback;
   }
 
+  private samplesPerBuf: number;
   private buffersWanted: number;
   private buffersRunning: number;
   private iqConverter: U8ToFloat32;
@@ -299,6 +301,7 @@ class Transfers {
 
   /** Starts the transfers as a stream. */
   async startStream() {
+    this.sampleReceiver.setSampleRate(this.sampleRate);
     await this.rtl.resetBuffer();
     this.buffersWanted = Transfers.PARALLEL_BUFFERS;
     while (this.buffersRunning < this.buffersWanted) {

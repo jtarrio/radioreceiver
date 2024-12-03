@@ -2,6 +2,7 @@ import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { ConfigProvider, loadConfig } from "./config";
 import { RrMainControls } from "./main-controls";
+import { RrSettings } from "./settings";
 import { Demodulator, StereoStatusEvent } from "../../demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../../demod/sample-counter";
 import { type Mode } from "../../demod/scheme";
@@ -26,9 +27,8 @@ import {
 } from "../../ui/spectrum/events";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
 import "./main-controls";
+import "./settings";
 import "../../ui/spectrum/spectrum";
-
-const RtlSampleRate = 1024000;
 
 type Frequency = {
   center: number;
@@ -136,6 +136,7 @@ export class RadioReceiverMain extends LitElement {
         .gainDisabled=${this.gainDisabled}
         @rr-start=${this.onStart}
         @rr-stop=${this.onStop}
+        @rr-settings=${this.onSettings}
         @rr-scale-changed=${this.onScaleChange}
         @rr-center-frequency-changed=${this.onCenterFrequencyChange}
         @rr-tuned-frequency-changed=${this.onTunedFrequencyChange}
@@ -144,7 +145,17 @@ export class RadioReceiverMain extends LitElement {
         @rr-bandwidth-changed=${this.onBandwidthChange}
         @rr-stereo-changed=${this.onStereoChange}
         @rr-gain-changed=${this.onGainChange}
-      ></rr-main-controls>`;
+      ></rr-main-controls>
+
+      <rr-settings
+        .hidden=${!this.settingsVisible}
+        .playing=${this.playing}
+        .sampleRate=${this.sampleRate}
+        .ppm=${this.ppm}
+        @rr-sample-rate-changed=${this.onSampleRateChange}
+        @rr-ppm-changed=${this.onPpmChange}
+        @rr-window-closed=${this.onSettingsClosed}
+      ></rr-settings>`;
   }
 
   private configProvider: ConfigProvider;
@@ -158,7 +169,9 @@ export class RadioReceiverMain extends LitElement {
   );
   private centerFrequencyScroller?: CenterFrequencyScroller;
 
-  @state() private bandwidth: number = RtlSampleRate;
+  @state() private sampleRate: number = 1024000;
+  @state() private ppm: number = 0;
+  @state() private bandwidth: number = this.sampleRate;
   @state() private stereoStatus: boolean = false;
   @state() private minDecibels: number = -90;
   @state() private maxDecibels: number = -20;
@@ -174,6 +187,7 @@ export class RadioReceiverMain extends LitElement {
   @state() private mode: Mode = this.availableModes.get("WBFM")!;
   @state() private gain: number | null = null;
   @state() private gainDisabled: boolean = false;
+  @state() private settingsVisible: boolean = false;
 
   @query("#spectrum") private spectrumView?: RrSpectrum;
 
@@ -182,23 +196,26 @@ export class RadioReceiverMain extends LitElement {
     this.configProvider = loadConfig();
     this.spectrumBuffer = new Float32Buffer(2, 2048);
     this.spectrum = new Spectrum();
-    this.demodulator = new Demodulator(RtlSampleRate);
-    this.sampleCounter = new SampleCounter(RtlSampleRate, 20);
+    this.demodulator = new Demodulator(this.sampleRate);
+    this.sampleCounter = new SampleCounter(this.sampleRate, 20);
     this.radio = new Radio(
       getRtlProvider(),
       this.spectrum.andThen(this.demodulator).andThen(this.sampleCounter),
-      RtlSampleRate
+      this.sampleRate
     );
 
     this.applyConfig();
 
     this.radio.enableDirectSampling(true);
+    this.radio.setFrequencyCorrection(this.ppm);
     this.radio.setFrequency(this.frequency.center);
     this.radio.setGain(this.gain);
 
     this.demodulator.setVolume(1);
     this.demodulator.setMode(this.mode);
-    this.demodulator.addEventListener("stereo-status", (e) => this.onStereoStatusEvent(e));
+    this.demodulator.addEventListener("stereo-status", (e) =>
+      this.onStereoStatusEvent(e)
+    );
 
     this.radio.addEventListener("radio", (e) => this.onRadioEvent(e));
     this.sampleCounter.addEventListener("sample-click", (e) =>
@@ -221,6 +238,8 @@ export class RadioReceiverMain extends LitElement {
     this.tuningStep = cfg.tuningStep;
     this.scale = cfg.frequencyScale;
     this.setGain(cfg.gain);
+    this.setSampleRate(cfg.sampleRate);
+    this.setPpm(cfg.ppm);
     this.minDecibels = cfg.minDecibels;
     this.maxDecibels = cfg.maxDecibels;
   }
@@ -238,6 +257,7 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onStart(e: Event) {
+    this.bandwidth = this.radio.getSampleRate();
     this.radio.start();
     e.preventDefault();
   }
@@ -245,6 +265,14 @@ export class RadioReceiverMain extends LitElement {
   private onStop(e: Event) {
     this.radio.stop();
     e.preventDefault();
+  }
+
+  private onSettings() {
+    this.settingsVisible = true;
+  }
+
+  private onSettingsClosed() {
+    this.settingsVisible = false;
   }
 
   private onScaleChange(e: Event) {
@@ -431,6 +459,33 @@ export class RadioReceiverMain extends LitElement {
     this.radio.setGain(gain);
     this.gain = gain;
     this.configProvider.update((cfg) => (cfg.gain = gain));
+  }
+
+  private onSampleRateChange(e: Event) {
+    let target = e.target as RrSettings;
+    let sampleRate = target.sampleRate;
+    this.setSampleRate(sampleRate);
+  }
+
+  private setSampleRate(sampleRate: number) {
+    this.sampleRate = sampleRate;
+    this.radio.setSampleRate(sampleRate);
+    this.configProvider.update((cfg) => (cfg.sampleRate = sampleRate));
+    if (this.radio.isPlaying()) return;
+    this.bandwidth = sampleRate;
+    this.setTunedFrequency(this.frequency.center + this.frequency.offset);
+  }
+
+  private onPpmChange(e: Event) {
+    let target = e.target as RrSettings;
+    let ppm = target.ppm;
+    this.setPpm(ppm);
+  }
+
+  private setPpm(ppm: number) {
+    this.radio.setFrequencyCorrection(this.ppm);
+    this.ppm = ppm;
+    this.configProvider.update((cfg) => (cfg.ppm = ppm));
   }
 
   private onSpectrumTap(e: SpectrumTapEvent) {
