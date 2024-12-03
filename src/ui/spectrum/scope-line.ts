@@ -79,17 +79,32 @@ export class RrScopeLine extends LitElement {
     const range = max - min;
     const mul = (1 - height) / range;
 
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.strokeStyle = getComputedStyle(this.canvas!).getPropertyValue("color");
+    ctx.beginPath();
     const mapping = new Mapping(this.zoom, this.width, this.fftSize);
-    const x = (bin: number) => mapping.binNumberToCenterCoord(bin);
     const y = (bin: number) =>
       (this.spectrum[mapping.screenBinToFftBin(bin)] - max) * mul;
-
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.beginPath();
-    ctx.strokeStyle = getComputedStyle(this.canvas!).getPropertyValue("color");
-    ctx.moveTo(x(mapping.leftBin - 1), y(mapping.leftBin - 1));
-    for (let i = 0; i < mapping.visibleBins + 1; ++i) {
-      ctx.lineTo(x(mapping.leftBin + i), y(mapping.leftBin + i));
+    if (mapping.visibleBins <= width) {
+      const x = (bin: number) => mapping.binNumberToCenterCoord(bin);
+      ctx.moveTo(x(mapping.leftBin - 1), y(mapping.leftBin - 1));
+      for (let i = 0; i < mapping.visibleBins + 1; ++i) {
+        ctx.lineTo(x(mapping.leftBin + i), y(mapping.leftBin + i));
+      }
+    } else {
+      for (let x = 0; x < width; ++x) {
+        let leftBin = mapping.leftCoordToBinNumber(x);
+        let rightBin = mapping.leftCoordToBinNumber(x + 1);
+        let min = y(leftBin);
+        for (let b = leftBin + 1; b < rightBin; ++b) {
+          min = Math.min(min, y(b));
+        }
+        if (x == 0) {
+          ctx.moveTo(x, min);
+        } else {
+          ctx.lineTo(x, min);
+        }
+      }
     }
     ctx.stroke();
   }

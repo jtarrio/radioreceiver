@@ -44,6 +44,10 @@ export class Mapping {
     return (bin + this.bins / 2) % this.bins;
   }
 
+  leftCoordToBinNumber(x: number) : ScreenBin {
+    return Math.round(this.leftBin + x * this.visibleBins / this.width);
+  }
+
   binNumberToCenterCoord(bin: ScreenBin): number {
     return (this.width * (bin + 0.5 - this.leftBin)) / this.visibleBins;
   }
