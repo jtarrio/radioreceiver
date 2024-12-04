@@ -154,16 +154,9 @@ export class RrWaterfall extends LitElement {
     this.canvas.width = this.waterfall.width;
     this.canvas.height = this.canvas.offsetHeight;
     this.context = this.canvas.getContext("2d")!;
-    const resizeObserver = new ResizeObserver(() => this.resize());
+    const resizeObserver = new ResizeObserver(() => this.redraw());
     resizeObserver.observe(this.canvas);
     return this.context;
-  }
-
-  private resize() {
-    let ctx = this.context;
-    if (!ctx) return;
-    ctx.canvas.height = ctx.canvas.offsetHeight;
-    ctx.putImageData(this.waterfall, 0, 0);
   }
 
   private onPointerDown(e: PointerEvent) {
