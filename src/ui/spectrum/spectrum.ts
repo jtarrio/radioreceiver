@@ -189,6 +189,9 @@ export class RrSpectrum extends LitElement {
   @query("#waterfall") waterfall?: RrWaterfall;
 
   addFloatSpectrum(frequency: number | undefined, spectrum: Float32Array) {
+    if (this.fftSize != spectrum.length) {
+      this.fftSize = spectrum.length;
+    }
     this.scope?.addFloatSpectrum(spectrum);
     this.waterfall?.addFloatSpectrum(frequency, spectrum);
   }

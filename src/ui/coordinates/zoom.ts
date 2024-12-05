@@ -48,6 +48,11 @@ export class Zoom {
     return this.center + 1 / (2 * this.level);
   }
 
+  /** Returns the width fraction of the zoomed area's span. */
+  get spanFraction(): WidthFraction {
+    return 1 / this.level;
+  }
+
   /** Returns whether the given width fraction is visible with this zoom. */
   isVisible(fraction: WidthFraction): boolean {
     const zoomed = this.zoomed(fraction);

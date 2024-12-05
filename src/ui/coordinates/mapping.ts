@@ -19,7 +19,7 @@ export class Mapping {
     // Therefore, we must compute the bins first and then everything else from there.
     // These are "screen" bins going from 0 to B-1. We'll convert them to "FFT" bins later.
     this.leftBin = Math.floor(zoom.leftFraction * bins);
-    this.visibleBins = Math.ceil(zoom.rightFraction * bins) - this.leftBin;
+    this.visibleBins = Math.floor(zoom.spanFraction * bins);
 
     this.leftFrequency = this.binNumberToFrequency(this.leftBin - 0.5);
     this.rightFrequency = this.binNumberToFrequency(
@@ -44,8 +44,8 @@ export class Mapping {
     return (bin + this.bins / 2) % this.bins;
   }
 
-  leftCoordToBinNumber(x: number) : ScreenBin {
-    return Math.round(this.leftBin + x * this.visibleBins / this.width);
+  leftCoordToBinNumber(x: number): ScreenBin {
+    return Math.round(this.leftBin + (x * this.visibleBins) / this.width);
   }
 
   binNumberToCenterCoord(bin: ScreenBin): number {
