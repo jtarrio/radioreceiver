@@ -71,7 +71,8 @@ export class RrWaterfall extends LitElement {
       spectrum,
       this.minDecibels,
       this.maxDecibels,
-      frequency
+      frequency,
+      this.bandwidth
     );
     this.redraw();
   }
