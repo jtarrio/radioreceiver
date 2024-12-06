@@ -555,9 +555,9 @@ export class RadioReceiverMain extends LitElement {
 
   private setTunedFrequencyFraction(fraction: number) {
     const min =
-      this.frequency.center - this.bandwidth / 2 + this.frequency.rightBand;
+      this.frequency.center - this.bandwidth / 2 + this.frequency.leftBand;
     const max =
-      this.frequency.center + this.bandwidth / 2 - this.frequency.leftBand;
+      this.frequency.center + this.bandwidth / 2 - this.frequency.rightBand;
     let frequency = Math.max(
       min,
       Math.min(this.frequency.center + this.bandwidth * (fraction - 0.5), max)
