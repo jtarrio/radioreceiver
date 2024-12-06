@@ -93,13 +93,17 @@ export class RrMainControls extends LitElement {
       class=${this.inline ? "inline" : ""}
       .fixed=${this.inline}
     >
-      ${this.playing
-        ? html`<button slot="label-left" id="stop" @click=${this.onStop}>
-            ${Icons.Stop}
+      ${this.errorState
+        ? html`<button slot="label-left" id="errorState" disabled>
+            ${Icons.ErrorState}
           </button>`
-        : html`<button slot="label-left" id="start" @click=${this.onStart}>
-            ${Icons.Play}
-          </button>`}
+        : this.playing
+          ? html`<button slot="label-left" id="stop" @click=${this.onStop}>
+              ${Icons.Stop}
+            </button>`
+          : html`<button slot="label-left" id="start" @click=${this.onStart}>
+              ${Icons.Play}
+            </button>`}
       ${this.showSettings
         ? html`<button
             slot="label-right"
@@ -216,6 +220,7 @@ export class RrMainControls extends LitElement {
   @property({ attribute: false }) inline: boolean = false;
   @property({ attribute: false }) showSettings: boolean = true;
   @property({ attribute: false }) showHelp: boolean = true;
+  @property({ attribute: false }) errorState: boolean = false;
   @property({ attribute: false }) playing: boolean = false;
   @property({ attribute: false }) scale: number = 1000;
   @property({ attribute: false }) centerFrequency: number = 88500000;

@@ -119,6 +119,7 @@ export class RadioReceiverMain extends LitElement {
 
       <rr-main-controls
         .playing=${this.playing}
+        .errorState=${this.errorState}
         .centerFrequency=${this.frequency.center}
         .tunedFrequency=${this.frequency.center + this.frequency.offset}
         .tuningStep=${this.tuningStep}
@@ -179,6 +180,7 @@ export class RadioReceiverMain extends LitElement {
   @state() private minDecibels: number = -90;
   @state() private maxDecibels: number = -20;
   @state() private playing: boolean = false;
+  @state() private errorState: boolean = false;
   @state() private scale: number = 1000;
   @state() private frequency: Frequency = {
     center: 88500000,
@@ -625,8 +627,13 @@ export class RadioReceiverMain extends LitElement {
           alert(
             "This browser does not support the HTML5 USB API. Please try Chrome, Edge, or Opera on a computer or Android."
           );
-        } else {
-          alert(error.message);
+        } else if (!this.errorState) {
+          this.errorState = true;
+          if (error.cause) {
+            alert(`${error.message}\n\nCaused by: ${error.cause}`);
+          } else {
+            alert(error.message);
+          }
         }
         break;
       default:

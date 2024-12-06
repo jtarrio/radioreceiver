@@ -315,6 +315,7 @@ class Transfers {
    * @returns a promise that resolves when the stream is stopped.
    */
   async stopStream(): Promise<void> {
+    if (this.buffersRunning == 0 && this.buffersWanted == 0) return;
     let promise = new Promise<void>((r) => {
       this.stopCallback = r;
     });
@@ -323,10 +324,10 @@ class Transfers {
   }
 
   /** Runs the transfer stream. */
-  private readStream() {
-    this.rtl
-      .readSamples(this.samplesPerBuf)
-      .then((b) => {
+  private async readStream(): Promise<void> {
+    try {
+      while (this.buffersRunning <= this.buffersWanted) {
+        const b = await this.rtl.readSamples(this.samplesPerBuf);
         let [I, Q] = this.iqConverter.convert(b.data);
         this.sampleReceiver.receiveSamples(I, Q, b.frequency);
         if (this.directSampling != b.directSampling) {
@@ -338,22 +339,21 @@ class Transfers {
             })
           );
         }
-        if (this.buffersRunning <= this.buffersWanted) return this.readStream();
-        --this.buffersRunning;
-        if (this.buffersRunning == 0) {
-          this.stopCallback();
-          this.stopCallback = Transfers.nilCallback;
-        }
-      })
-      .catch((e) => {
-        let error = new RadioError(
-          "Sample transfer was interrupted. Did you unplug your device?",
-          RadioErrorType.UsbTransferError,
-          { cause: e }
-        );
-        let event = new RadioEvent({ type: "error", exception: error });
-        this.radio.dispatchEvent(event);
-      });
+      }
+    } catch (e) {
+      let error = new RadioError(
+        "Sample transfer was interrupted. Did you unplug your device?",
+        RadioErrorType.UsbTransferError,
+        { cause: e }
+      );
+      let event = new RadioEvent({ type: "error", exception: error });
+      this.radio.dispatchEvent(event);
+    }
+    --this.buffersRunning;
+    if (this.buffersRunning == 0) {
+      this.stopCallback();
+      this.stopCallback = Transfers.nilCallback;
+    }
   }
 
   static nilCallback() {}
