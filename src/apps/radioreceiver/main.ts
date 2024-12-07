@@ -569,34 +569,28 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private setSidebandFraction(sideband: "left" | "right", fraction: number) {
-    const min = this.frequency.center - this.bandwidth / 2;
-    const max = this.frequency.center + this.bandwidth / 2;
-    const frequency = this.frequency.center + this.frequency.offset;
-    const sidebandEdge =
-      this.frequency.center + this.bandwidth * (fraction - 0.5);
-    let size =
-      sideband == "left" ? frequency - sidebandEdge : sidebandEdge - frequency;
-    if (frequency - size < min) {
-      size = frequency - min;
-    }
-    if (frequency + size > max) {
-      size = max - frequency;
-    }
-    size = Math.floor(size);
-
+    const maxLeftSize = Math.floor(this.frequency.offset + this.bandwidth / 2);
+    const maxRightSize = Math.floor(this.bandwidth / 2 - this.frequency.offset);
+    const size = Math.floor(
+      Math.abs(this.frequency.offset - this.bandwidth * (fraction - 0.5))
+    );
     let newMode = { ...this.mode };
     switch (newMode.scheme) {
       case "WBFM":
         break;
       case "NBFM":
-        newMode.maxF = size;
+        newMode.maxF = Math.min(size, maxLeftSize, maxRightSize);
         break;
       case "AM":
       case "CW":
-        newMode.bandwidth = size * 2;
+        newMode.bandwidth = Math.min(size, maxLeftSize, maxRightSize) * 2;
         break;
-      default:
-        newMode.bandwidth = size;
+      case "LSB":
+        if (sideband == "left") newMode.bandwidth = Math.min(size, maxLeftSize);
+      case "USB":
+        if (sideband == "right")
+          newMode.bandwidth = Math.min(size, maxRightSize);
+        break;
     }
     this.setMode(newMode);
   }
