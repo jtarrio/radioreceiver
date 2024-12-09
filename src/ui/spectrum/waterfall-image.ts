@@ -95,9 +95,11 @@ class Image {
     private palette: Palette
   ) {
     this.image = new ImageData(size, screen.height);
+    this.offset = 0;
   }
 
   private image: ImageData;
+  private offset: number;
   private scrollError: number = 0;
 
   get size() {
@@ -109,10 +111,11 @@ class Image {
     minDecibels: number,
     maxDecibels: number
   ): ImageRow {
-    const lineSize = 4 * this.size;
-    this.image.data.copyWithin(lineSize, 0, this.image.data.length - lineSize);
+    --this.offset;
+    if (this.offset < 0) this.offset = this.image.height + this.offset;
     return new ImageRow(
       this.image,
+      this.offset * this.size * 4,
       fftSize / this.size,
       minDecibels,
       maxDecibels,
@@ -129,7 +132,10 @@ class Image {
     if (ctx.canvas.height != ctx.canvas.offsetHeight) {
       ctx.canvas.height = ctx.canvas.offsetHeight;
     }
-    ctx.putImageData(this.image, -mapping.leftBin, 0);
+    ctx.putImageData(this.image, -mapping.leftBin, -this.offset);
+    const bottom = this.image.height - this.offset;
+    if (bottom >= ctx.canvas.height) return;
+    ctx.putImageData(this.image, -mapping.leftBin, bottom);
   }
 
   /** Scrolls the image by the given fraction. */
@@ -177,6 +183,7 @@ class Image {
     destCtx.drawImage(orig, 0, 0, newSize, screen.height);
     let newImage = new Image(newSize, this.palette);
     newImage.image = destCtx.getImageData(0, 0, newSize, screen.height);
+    newImage.offset = this.offset;
     return newImage;
   }
 }
@@ -188,6 +195,7 @@ class Image {
 class ImageRow {
   constructor(
     private image: ImageData,
+    private offset: number,
     private ratio: number,
     minDecibels: number,
     maxDecibels: number,
@@ -199,7 +207,6 @@ class ImageRow {
 
   private sub: number;
   private mul: number;
-  private x: number = 0;
   private p: number = 0;
   private value: number = 0;
 
@@ -212,11 +219,10 @@ class ImageRow {
       Math.min(255, Math.floor(this.mul * (this.value - this.sub)))
     );
     const c = this.palette[isNaN(e) ? 0 : e];
-    this.image.data[this.x * 4] = c[0];
-    this.image.data[this.x * 4 + 1] = c[1];
-    this.image.data[this.x * 4 + 2] = c[2];
-    this.image.data[this.x * 4 + 3] = 255;
-    this.x++;
+    this.image.data[this.offset++] = c[0];
+    this.image.data[this.offset++] = c[1];
+    this.image.data[this.offset++] = c[2];
+    this.image.data[this.offset++] = 255;
     this.p = 0;
   }
 }
