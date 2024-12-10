@@ -49,7 +49,7 @@ export class WaterfallImage {
   draw(ctx: CanvasRenderingContext2D, zoom: Zoom) {
     const pixels = zoom.level * ctx.canvas.offsetWidth;
     const image =
-      this.images.find((i) => i.size >= pixels) ||
+      this.images.find((i) => i.width >= pixels) ||
       this.images[this.images.length - 1];
     image?.draw(ctx, zoom);
   }
@@ -60,7 +60,7 @@ export class WaterfallImage {
    */
   private prepareImageStack(fftSize: number) {
     const largestImage = this.images[this.images.length - 1];
-    const currentSize = largestImage?.size || 0;
+    const currentSize = largestImage?.width || 0;
     if (currentSize == fftSize) return;
 
     let imageSizes = [1024, 2048, 8192, 32768].filter((s) => s < fftSize);
@@ -70,7 +70,7 @@ export class WaterfallImage {
     let iImages = 0;
     while (iImageSizes < imageSizes.length || iImages < this.images.length) {
       let wantedSize = imageSizes[iImageSizes];
-      let currentSize = this.images[iImages]?.size;
+      let currentSize = this.images[iImages]?.width;
       if (wantedSize === undefined || wantedSize > currentSize) {
         this.images.splice(iImages, 1);
         continue;
@@ -91,20 +91,18 @@ export class WaterfallImage {
 
 class Image {
   constructor(
-    size: number,
+    readonly width: number,
     private palette: Palette
   ) {
-    this.image = new ImageData(size, screen.height);
+    this.height = screen.height;
+    this.data = new Uint8ClampedArray(this.width * this.height * 4);
     this.offset = 0;
   }
 
-  private image: ImageData;
+  readonly height: number;
+  private data: Uint8ClampedArray;
   private offset: number;
   private scrollError: number = 0;
-
-  get size() {
-    return this.image.width;
-  }
 
   startRow(
     fftSize: number,
@@ -112,11 +110,11 @@ class Image {
     maxDecibels: number
   ): ImageRow {
     --this.offset;
-    if (this.offset < 0) this.offset = this.image.height + this.offset;
+    if (this.offset < 0) this.offset = this.height + this.offset;
     return new ImageRow(
-      this.image,
-      this.offset * this.size * 4,
-      fftSize / this.size,
+      this.data,
+      this.offset * this.width * 4,
+      fftSize / this.width,
       minDecibels,
       maxDecibels,
       this.palette
@@ -125,64 +123,72 @@ class Image {
 
   /** Draws the image. */
   draw(ctx: CanvasRenderingContext2D, zoom: Zoom) {
-    const mapping = new Mapping(zoom, this.size, this.size);
+    const mapping = new Mapping(zoom, this.width, this.width);
     if (ctx.canvas.width != mapping.visibleBins) {
       ctx.canvas.width = mapping.visibleBins;
     }
     if (ctx.canvas.height != ctx.canvas.offsetHeight) {
       ctx.canvas.height = ctx.canvas.offsetHeight;
     }
-    ctx.putImageData(this.image, -mapping.leftBin, -this.offset);
-    const bottom = this.image.height - this.offset;
+    ctx.putImageData(
+      new ImageData(this.data, this.width, this.height),
+      -mapping.leftBin,
+      -this.offset
+    );
+    const bottom = this.height - this.offset;
     if (bottom >= ctx.canvas.height) return;
-    ctx.putImageData(this.image, -mapping.leftBin, bottom);
+    ctx.putImageData(
+      new ImageData(this.data, this.width, this.height),
+      -mapping.leftBin,
+      bottom
+    );
   }
 
   /** Scrolls the image by the given fraction. */
   scroll(fraction: number) {
     if (fraction >= 1 || fraction <= -1) {
-      this.image.data.fill(0);
+      this.data.fill(0);
       this.scrollError = 0;
       return;
     }
 
     fraction += this.scrollError;
-    let pixels = Math.round(this.size * fraction);
-    this.scrollError = fraction - pixels / this.size;
+    let pixels = Math.round(this.width * fraction);
+    this.scrollError = fraction - pixels / this.width;
 
     if (pixels == 0) return;
 
     if (pixels > 0) {
-      this.image.data.copyWithin(0, pixels * 4);
-      for (let i = 0; i < screen.height; ++i) {
-        this.image.data.fill(
+      this.data.copyWithin(0, pixels * 4);
+      for (let i = 0; i < this.height; ++i) {
+        this.data.fill(
           0,
-          ((i + 1) * this.size - pixels) * 4,
-          (i + 1) * this.size * 4
+          ((i + 1) * this.width - pixels) * 4,
+          (i + 1) * this.width * 4
         );
       }
     } else {
-      this.image.data.copyWithin(-pixels * 4, 0);
-      for (let i = 0; i < screen.height; ++i) {
-        this.image.data.fill(
-          0,
-          i * this.size * 4,
-          (i * this.size - pixels) * 4
-        );
+      this.data.copyWithin(-pixels * 4, 0);
+      for (let i = 0; i < this.height; ++i) {
+        this.data.fill(0, i * this.width * 4, (i * this.width - pixels) * 4);
       }
     }
   }
 
   /** Returns a new image resized to the given dimension. */
   resizeTo(newSize: number) {
-    let orig = new OffscreenCanvas(this.size, screen.height);
+    let orig = new OffscreenCanvas(this.width, this.height);
     let origCtx = orig.getContext("2d")!;
-    origCtx.putImageData(this.image, 0, 0);
-    let dest = new OffscreenCanvas(newSize, screen.height);
+    origCtx.putImageData(
+      new ImageData(this.data, this.width, this.height),
+      0,
+      0
+    );
+    let dest = new OffscreenCanvas(newSize, this.height);
     let destCtx = dest.getContext("2d")!;
-    destCtx.drawImage(orig, 0, 0, newSize, screen.height);
+    destCtx.drawImage(orig, 0, 0, newSize, this.height);
     let newImage = new Image(newSize, this.palette);
-    newImage.image = destCtx.getImageData(0, 0, newSize, screen.height);
+    newImage.data = destCtx.getImageData(0, 0, newSize, this.height).data;
     newImage.offset = this.offset;
     return newImage;
   }
@@ -194,7 +200,7 @@ class Image {
  */
 class ImageRow {
   constructor(
-    private image: ImageData,
+    private data: Uint8ClampedArray,
     private offset: number,
     private ratio: number,
     minDecibels: number,
@@ -219,10 +225,10 @@ class ImageRow {
       Math.min(255, Math.floor(this.mul * (this.value - this.sub)))
     );
     const c = this.palette[isNaN(e) ? 0 : e];
-    this.image.data[this.offset++] = c[0];
-    this.image.data[this.offset++] = c[1];
-    this.image.data[this.offset++] = c[2];
-    this.image.data[this.offset++] = 255;
+    this.data[this.offset++] = c[0];
+    this.data[this.offset++] = c[1];
+    this.data[this.offset++] = c[2];
+    this.data[this.offset++] = 255;
     this.p = 0;
   }
 }
