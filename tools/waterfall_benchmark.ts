@@ -38,6 +38,15 @@ class WaterfallBenchmark extends LitElement {
           .value=${String(this.bandwidth)}
           @change=${this.onBandwidthChange}
         />
+        <label for="sweepSize">Sweep: </label
+        ><input
+          type="number"
+          id="sweepSize"
+          .min=${String(-this.bandwidth)}
+          .max=${String(this.bandwidth)}
+          .value=${String(this.sweepSize)}
+          @change=${this.onSweepSizeChange}
+        />
         <label for="fftSize">FFT size: </label
         ><input
           type="number"
@@ -79,6 +88,7 @@ class WaterfallBenchmark extends LitElement {
   @property({ attribute: false }) minDecibels: number = -90;
   @property({ attribute: false }) maxDecibels: number = -20;
   @property({ attribute: false }) bandwidth: number = 1024000;
+  @property({ attribute: false }) sweepSize: number = 0;
   @property({ attribute: false }) fftSize: number = 2048;
   @property({ attribute: false }) rounds: number = 1000;
   @state() running: boolean = false;
@@ -93,6 +103,16 @@ class WaterfallBenchmark extends LitElement {
       return;
     }
     this.bandwidth = value;
+  }
+
+  private onSweepSizeChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let value = Number(target.value);
+    if (isNaN(value)) {
+      target.value = String(this.sweepSize);
+      return;
+    }
+    this.sweepSize = value;
   }
 
   private onFftSizeChange(e: Event) {
@@ -135,6 +155,7 @@ class WaterfallBenchmark extends LitElement {
       waterfall,
       samplesI,
       samplesQ,
+      this.sweepSize,
       this.rounds
     );
     this.running = false;
@@ -151,10 +172,12 @@ async function runBenchmark(
   waterfall: RrWaterfall,
   samplesI: Float32Array,
   samplesQ: Float32Array,
+  sweepSize: number,
   rounds: number
 ) {
   let fftTime = 0;
   let addTime = 0;
+  let frequency = 0;
   let fft = FFT.ofLength(samplesI.length);
   let spectrum = new Float32Array(fft.length);
   const start = performance.now();
@@ -164,8 +187,9 @@ async function runBenchmark(
     toSpectrum(out.real, out.imag, spectrum);
     fftTime += performance.now() - startFft;
     const startAdd = performance.now();
-    waterfall.addFloatSpectrum(1000000, spectrum);
+    waterfall.addFloatSpectrum(frequency, spectrum);
     addTime += performance.now() - startAdd;
+    frequency += sweepSize;
     await waitForAnimationFrame();
   }
   return {
