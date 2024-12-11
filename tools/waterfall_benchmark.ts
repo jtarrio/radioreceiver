@@ -1,8 +1,8 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import "../src/ui/spectrum/waterfall";
-import { RrWaterfall } from "../src/ui/spectrum/waterfall";
 import { FFT } from "../src/dsp/fft";
+import { RrWaterfall } from "../src/ui/spectrum/waterfall";
+import "../src/ui/spectrum/waterfall";
 
 @customElement("waterfall-benchmark")
 class WaterfallBenchmark extends LitElement {
@@ -87,6 +87,7 @@ class WaterfallBenchmark extends LitElement {
 
   @property({ attribute: false }) minDecibels: number = -90;
   @property({ attribute: false }) maxDecibels: number = -20;
+  @property({ attribute: false }) frequency: number = 100000000;
   @property({ attribute: false }) bandwidth: number = 1024000;
   @property({ attribute: false }) sweepSize: number = 0;
   @property({ attribute: false }) fftSize: number = 2048;
@@ -151,13 +152,16 @@ class WaterfallBenchmark extends LitElement {
       samplesI[i] = Math.cos(w) * r;
       samplesQ[i] = Math.sin(w) * r;
     }
-    this.result = await runBenchmark(
+    const result = await runBenchmark(
       waterfall,
       samplesI,
       samplesQ,
+      this.frequency,
       this.sweepSize,
       this.rounds
     );
+    this.result = result;
+    this.frequency = result.frequency;
     this.running = false;
   }
 }
@@ -172,15 +176,14 @@ async function runBenchmark(
   waterfall: RrWaterfall,
   samplesI: Float32Array,
   samplesQ: Float32Array,
+  frequency: number,
   sweepSize: number,
   rounds: number
 ) {
   let fftTime = 0;
   let addTime = 0;
-  let frequency = 0;
   let fft = FFT.ofLength(samplesI.length);
   let spectrum = new Float32Array(fft.length);
-  const start = performance.now();
   for (let i = 0; i < rounds; ++i) {
     const startFft = performance.now();
     const out = fft.transform(samplesI, samplesQ);
@@ -195,6 +198,7 @@ async function runBenchmark(
   return {
     fft: fftTime / rounds,
     add: addTime / rounds,
+    frequency: frequency,
   };
 }
 
