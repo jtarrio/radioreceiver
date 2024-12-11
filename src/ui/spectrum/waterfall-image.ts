@@ -89,31 +89,34 @@ export class WaterfallImage {
   }
 }
 
+/** A waterfall image, with methods to draw and manipulate it. */
 class Image {
   constructor(
     readonly width: number,
     private palette: Palette
   ) {
     this.height = screen.height;
-    this.data = new Uint8ClampedArray(this.width * this.height * 4);
-    this.offset = 0;
+    this.data = new Uint8ClampedArray(4 * this.width * (this.height + 1));
+    this.xOffset = 0;
+    this.yOffset = 0;
   }
 
   readonly height: number;
   private data: Uint8ClampedArray;
-  private offset: number;
+  private xOffset: number;
+  private yOffset: number;
   private scrollError: number = 0;
 
+  /** Returns an object to populate a new row of the waterfall. */
   startRow(
     fftSize: number,
     minDecibels: number,
     maxDecibels: number
   ): ImageRow {
-    --this.offset;
-    if (this.offset < 0) this.offset = this.height + this.offset;
+    this.deltaY(-1);
     return new ImageRow(
       this.data,
-      this.offset * this.width * 4,
+      (this.xOffset + this.yOffset * this.width) * 4,
       fftSize / this.width,
       minDecibels,
       maxDecibels,
@@ -130,17 +133,25 @@ class Image {
     if (ctx.canvas.height != ctx.canvas.offsetHeight) {
       ctx.canvas.height = ctx.canvas.offsetHeight;
     }
+
+    const topLines = Math.min(this.height - this.yOffset, ctx.canvas.height);
+    const topOffset = (this.xOffset + this.yOffset * this.width) * 4;
+    const midOffset = topOffset + topLines * this.width * 4;
     ctx.putImageData(
-      new ImageData(this.data, this.width, this.height),
+      new ImageData(this.data.subarray(topOffset, midOffset), this.width),
       -mapping.leftBin,
-      -this.offset
+      0
     );
-    const bottom = this.height - this.offset;
-    if (bottom >= ctx.canvas.height) return;
+    let bottomLines = ctx.canvas.height - topLines;
+    if (bottomLines <= 0) return;
+    const bottomOffset = (this.xOffset + bottomLines * this.width) * 4;
     ctx.putImageData(
-      new ImageData(this.data, this.width, this.height),
+      new ImageData(
+        this.data.subarray(this.xOffset * 4, bottomOffset),
+        this.width
+      ),
       -mapping.leftBin,
-      bottom
+      topLines
     );
   }
 
@@ -148,6 +159,8 @@ class Image {
   scroll(fraction: number) {
     if (fraction >= 1 || fraction <= -1) {
       this.data.fill(0);
+      this.xOffset = 0;
+      this.yOffset = 0;
       this.scrollError = 0;
       return;
     }
@@ -158,20 +171,13 @@ class Image {
 
     if (pixels == 0) return;
 
-    if (pixels > 0) {
-      this.data.copyWithin(0, pixels * 4);
-      for (let i = 0; i < this.height; ++i) {
-        this.data.fill(
-          0,
-          ((i + 1) * this.width - pixels) * 4,
-          (i + 1) * this.width * 4
-        );
-      }
-    } else {
-      this.data.copyWithin(-pixels * 4, 0);
-      for (let i = 0; i < this.height; ++i) {
-        this.data.fill(0, i * this.width * 4, (i * this.width - pixels) * 4);
-      }
+    this.deltaX(pixels);
+
+    const lOff = pixels > 0 ? -pixels : 0;
+    const rOff = pixels > 0 ? 0 : -pixels;
+    for (let i = 0; i <= this.height; ++i) {
+      const lineOffset = i * this.width + this.xOffset;
+      this.data.fill(0, (lineOffset + lOff) * 4, (lineOffset + rOff) * 4);
     }
   }
 
@@ -180,7 +186,13 @@ class Image {
     let orig = new OffscreenCanvas(this.width, this.height);
     let origCtx = orig.getContext("2d")!;
     origCtx.putImageData(
-      new ImageData(this.data, this.width, this.height),
+      new ImageData(
+        this.data.subarray(
+          this.xOffset * 4,
+          (this.xOffset + this.height * this.width) * 4
+        ),
+        this.width
+      ),
       0,
       0
     );
@@ -188,9 +200,48 @@ class Image {
     let destCtx = dest.getContext("2d")!;
     destCtx.drawImage(orig, 0, 0, newSize, this.height);
     let newImage = new Image(newSize, this.palette);
-    newImage.data = destCtx.getImageData(0, 0, newSize, this.height).data;
-    newImage.offset = this.offset;
+    newImage.data.set(destCtx.getImageData(0, 0, newSize, this.height).data);
+    newImage.xOffset = 0;
+    newImage.yOffset = this.yOffset;
+    newImage.scrollError = this.scrollError;
     return newImage;
+  }
+
+  /** Changes the X offset by the given delta. */
+  private deltaX(delta: number) {
+    let x = this.xOffset + delta;
+    let yDelta = 0;
+    // Wrap the X offset, copying the first line to the end or vice versa to simulate a circular buffer.
+    if (x < 0) {
+      const lastLine = this.height * this.width * 4;
+      this.data.copyWithin(
+        lastLine + this.xOffset * 4,
+        this.xOffset * 4,
+        this.width * 4
+      );
+      while (x < 0) {
+        x += this.width;
+        yDelta--;
+      }
+    }
+    if (x >= this.width) {
+      const lastLine = this.height * this.width * 4;
+      this.data.copyWithin(0, lastLine, lastLine + this.xOffset * 4);
+      while (x >= this.width) {
+        x -= this.width;
+        yDelta++;
+      }
+    }
+    this.xOffset = x;
+    if (yDelta != 0) this.deltaY(yDelta);
+  }
+
+  /** Changes the Y offset by the given delta. */
+  private deltaY(delta: number) {
+    let y = this.yOffset + delta;
+    while (y < 0) y += this.height;
+    while (y >= this.height) y -= this.height;
+    this.yOffset = y;
   }
 }
 
