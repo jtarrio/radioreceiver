@@ -36,7 +36,7 @@ export class SchemeWBFM implements ModulationScheme {
     const deemphTc = 50;
     this.shifter = new FrequencyShifter(inRate);
     if (interRate != inRate) {
-      this.downsampler = new ComplexDownsampler(inRate, interRate, 351);
+      this.downsampler = new ComplexDownsampler(inRate, interRate, 151);
     }
     const kernel = makeLowPassKernel(interRate, maxF, 151);
     this.filterI = new FIRFilter(kernel);
