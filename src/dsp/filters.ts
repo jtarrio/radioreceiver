@@ -85,9 +85,25 @@ export class FIRFilter implements Filter {
    *     to the same index in the latest sample block loaded via loadSamples().
    */
   get(index: number) {
+    let i = 0;
     let out = 0;
-    for (let i = 0; i < this.coefs.length; ++i) {
-      out += this.coefs[i] * this.curSamples[index + i];
+    let len = this.coefs.length;
+    let len4 = 4 * Math.floor(len / 4);
+    while (i < len4) {
+      out +=
+        this.coefs[i++] * this.curSamples[index++] +
+        this.coefs[i++] * this.curSamples[index++] +
+        this.coefs[i++] * this.curSamples[index++] +
+        this.coefs[i++] * this.curSamples[index++];
+    }
+    let len2 = 2 * Math.floor(len / 2);
+    while (i < len2) {
+      out +=
+        this.coefs[i++] * this.curSamples[index++] +
+        this.coefs[i++] * this.curSamples[index++];
+    }
+    while (i < len) {
+      out += this.coefs[i++] * this.curSamples[index++];
     }
     return out;
   }
