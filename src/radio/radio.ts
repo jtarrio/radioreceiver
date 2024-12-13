@@ -231,6 +231,7 @@ export class Radio extends EventTarget {
                   this.biasTeeEnabled = msg.value;
                   await rtl!.enableBiasTee(this.biasTeeEnabled);
                 }
+                break;
               case "stop":
                 await transfers!.stopStream();
                 await rtl!.close();
