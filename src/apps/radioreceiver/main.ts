@@ -18,7 +18,7 @@ import {
   ToneGenerator,
 } from "../../rtlsdr/fakertl/generators";
 import { RTL2832U_Provider } from "../../rtlsdr/rtl2832u";
-import { RtlDeviceProvider } from "../../rtlsdr/rtldevice";
+import { DirectSampling, RtlDeviceProvider } from "../../rtlsdr/rtldevice";
 import {
   SpectrumDecibelRangeChangedEvent,
   SpectrumDragEvent,
@@ -215,7 +215,7 @@ export class RadioReceiverMain extends LitElement {
 
     this.applyConfig();
 
-    this.radio.enableDirectSampling(true);
+    this.radio.setDirectSamplingMethod(DirectSampling.Q);
     this.radio.setFrequencyCorrection(this.ppm);
     this.radio.setFrequency(this.frequency.center);
     this.radio.setGain(this.gain);

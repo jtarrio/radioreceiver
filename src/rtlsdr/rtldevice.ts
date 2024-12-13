@@ -29,12 +29,22 @@ export interface RtlDevice {
   setGain(gain: number | null): Promise<void>;
   getGain(): number | null;
   setCenterFrequency(freq: number): Promise<number>;
-  enableDirectSampling(enable: boolean): Promise<void>;
+  setDirectSamplingMethod(method: DirectSampling): Promise<void>;
+  getDirectSamplingMethod(): DirectSampling;
   enableBiasTee(enable: boolean): Promise<void>;
-  isDirectSamplingEnabled(): boolean;
+  isBiasTeeEnabled(): boolean;
   resetBuffer(): Promise<void>;
   readSamples(length: number): Promise<SampleBlock>;
   close(): Promise<void>;
+}
+
+export enum DirectSampling {
+  /** No direct sampling. */
+  Off,
+  /** I channel. */
+  I,
+  /** Q channel. */
+  Q,
 }
 
 /** Interface for classes that return RtlDevice instances. */

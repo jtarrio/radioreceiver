@@ -17,7 +17,12 @@ import { RadioError, RadioErrorType } from "../errors";
 import { R820T } from "./r820t";
 import { R828D } from "./r828d";
 import { RtlCom } from "./rtlcom";
-import { RtlDevice, RtlDeviceProvider, SampleBlock } from "./rtldevice";
+import {
+  DirectSampling,
+  RtlDevice,
+  RtlDeviceProvider,
+  SampleBlock,
+} from "./rtldevice";
 import { Tuner } from "./tuner";
 
 /** Known RTL2832 devices. */
@@ -76,16 +81,16 @@ export class RTL2832U implements RtlDevice {
     this.centerFrequency = 0;
     this.ppm = 0;
     this.gain = null;
-    this.directSamplingEnabled = false;
-    this.directSampling = false;
+    this.directSamplingMethod = DirectSampling.Off;
+    this.directSampling = DirectSampling.Off;
     this.biasTeeEnabled = false;
   }
 
   private centerFrequency: number;
   private ppm: number;
   private gain: number | null;
-  private directSamplingEnabled: boolean;
-  private directSampling: boolean;
+  private directSamplingMethod: DirectSampling;
+  private directSampling: DirectSampling;
   private biasTeeEnabled: boolean;
 
   /**
@@ -291,36 +296,42 @@ export class RTL2832U implements RtlDevice {
   }
 
   /**
-   * Enables or disables the ability to use direct sampling mode.
-   * If enabled, the radio will enter direct sampling mode for low frequencies. */
-  async enableDirectSampling(enable: boolean) {
-    if (this.directSamplingEnabled == enable) return;
-    this.directSamplingEnabled = enable;
+   * Sets the method used for direct sampling mode, or disables it.
+   * If enabled, the radio will enter direct sampling mode for low frequencies.
+   */
+  async setDirectSamplingMethod(method: DirectSampling) {
+    if (this.directSamplingMethod == method) return;
+    this.directSamplingMethod = method;
     if (this.centerFrequency != 0) {
       await this.setCenterFrequency(this.centerFrequency);
     }
   }
 
-  /** Returns whether direct sampling is enabled. */
-  isDirectSamplingEnabled(): boolean {
-    return this.directSamplingEnabled;
+  /** Returns the current direct sampling method. */
+  getDirectSamplingMethod(): DirectSampling {
+    return this.directSamplingMethod;
   }
 
   private async _maybeSetDirectSampling(frequency: number) {
-    let enable = frequency < this.tuner.getMinimumFrequency();
-    enable = enable && this.directSamplingEnabled;
-    if (this.directSampling == enable) return;
-    this.directSampling = enable;
-    if (enable) {
-      await this.com.openI2C();
-      await this.tuner.close();
-      await this.com.closeI2C();
+    let lowFrequency = frequency < this.tuner.getMinimumFrequency();
+    let method = lowFrequency ? this.directSamplingMethod : DirectSampling.Off;
+    if (this.directSampling == method) return;
+    const tunerWasOn = this.directSampling == DirectSampling.Off;
+    const useDirectSampling = method != DirectSampling.Off;
+    this.directSampling = method;
+    if (useDirectSampling) {
+      if (tunerWasOn) {
+        await this.com.openI2C();
+        await this.tuner.close();
+        await this.com.closeI2C();
+      }
       // [0] disable zero-IF input
       await this.com.setDemodReg(1, 0xb1, 0b00011010, 1);
       // [0] non-inverted spectrum
       await this.com.setDemodReg(1, 0x15, 0b00000000, 1);
-      // [5:4] exchange ADC_I, ADC_Q datapath
-      await this.com.setDemodReg(0, 0x06, 0b10010000, 1);
+      // [5:4] exchange ADC_I, ADC_Q datapath if Q channel is selected
+      let regValue = method == DirectSampling.I ? 0b10000000 : 0b10010000;
+      await this.com.setDemodReg(0, 0x06, regValue, 1);
       await this._enableRtlAgc(true);
     } else {
       await this.com.openI2C();
@@ -354,7 +365,7 @@ export class RTL2832U implements RtlDevice {
   async readSamples(length: number): Promise<SampleBlock> {
     const data = await this.com.getSamples(length * RTL2832U.BYTES_PER_SAMPLE);
     const frequency = this.centerFrequency;
-    const directSampling = this.directSampling;
+    const directSampling = this.directSampling != DirectSampling.Off;
     return { frequency, directSampling, data };
   }
 

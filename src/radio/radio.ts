@@ -16,7 +16,7 @@
 
 import { U8ToFloat32 } from "../dsp/converters";
 import { RadioError, RadioErrorType } from "../errors";
-import { RtlDevice, RtlDeviceProvider } from "../rtlsdr/rtldevice";
+import { DirectSampling, RtlDevice, RtlDeviceProvider } from "../rtlsdr/rtldevice";
 import { Channel } from "./msgqueue";
 import { SampleReceiver } from "./sample_receiver";
 
@@ -27,7 +27,7 @@ type Message =
   | { type: "frequency"; value: number }
   | { type: "frequencyCorrection"; value: number }
   | { type: "gain"; value: number | null }
-  | { type: "directSamplingEnabled"; value: boolean }
+  | { type: "directSamplingMethod"; value: DirectSampling }
   | { type: "biasTeeEnabled"; value: boolean };
 
 /** The information in a 'radio' event. */
@@ -64,7 +64,7 @@ export class Radio extends EventTarget {
     this.frequencyCorrection = 0;
     this.gain = null;
     this.frequency = 88500000;
-    this.directSamplingEnabled = false;
+    this.directSamplingMethod = DirectSampling.Off;
     this.biasTeeEnabled = false;
     this.runLoop();
   }
@@ -80,7 +80,7 @@ export class Radio extends EventTarget {
   /** Currently tuned frequency. */
   private frequency: number;
   /** Whether direct sampling mode is enabled. */
-  private directSamplingEnabled: boolean;
+  private directSamplingMethod: DirectSampling;
   /** Whether the bias tee is enabled. */
   private biasTeeEnabled: boolean;
 
@@ -135,14 +135,14 @@ export class Radio extends EventTarget {
     return this.gain;
   }
 
-  /** Enables or disables direct sampling mode. */
-  enableDirectSampling(enable: boolean) {
-    this.channel.send({ type: "directSamplingEnabled", value: enable });
+  /** Sets the direct sampling method. */
+  setDirectSamplingMethod(method: DirectSampling) {
+    this.channel.send({ type: "directSamplingMethod", value: method });
   }
 
-  /** Returns whether direct sampling mode is enabled. */
-  isDirectSamplingEnabled(): boolean {
-    return this.directSamplingEnabled;
+  /** Returns the current direct sampling method. */
+  getDirectSamplingMethod(): DirectSampling {
+    return this.directSamplingMethod;
   }
 
   /** Changes the sample rate. This change only takes effect when the radio is started. */
@@ -178,15 +178,15 @@ export class Radio extends EventTarget {
             if (msg.type == "frequencyCorrection")
               this.frequencyCorrection = msg.value;
             if (msg.type == "gain") this.gain = msg.value;
-            if (msg.type == "directSamplingEnabled")
-              this.directSamplingEnabled = msg.value;
+            if (msg.type == "directSamplingMethod")
+              this.directSamplingMethod = msg.value;
             if (msg.type == "biasTeeEnabled") this.biasTeeEnabled = msg.value;
             if (msg.type != "start") continue;
             rtl = await this.rtlProvider.get();
             await rtl.setSampleRate(this.sampleRate);
             await rtl.setFrequencyCorrection(this.frequencyCorrection);
             await rtl.setGain(this.gain);
-            await rtl.enableDirectSampling(this.directSamplingEnabled);
+            await rtl.setDirectSamplingMethod(this.directSamplingMethod);
             await rtl.setCenterFrequency(this.frequency);
             await rtl.resetBuffer();
             transfers = new Transfers(
@@ -220,10 +220,10 @@ export class Radio extends EventTarget {
                   await rtl!.setFrequencyCorrection(this.frequencyCorrection);
                 }
                 break;
-              case "directSamplingEnabled":
-                if (this.directSamplingEnabled != msg.value) {
-                  this.directSamplingEnabled = msg.value;
-                  await rtl!.enableDirectSampling(this.directSamplingEnabled);
+              case "directSamplingMethod":
+                if (this.directSamplingMethod != msg.value) {
+                  this.directSamplingMethod = msg.value;
+                  await rtl!.setDirectSamplingMethod(this.directSamplingMethod);
                 }
                 break;
               case "biasTeeEnabled":
