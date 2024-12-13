@@ -121,6 +121,15 @@ export class RrSettings extends LitElement {
           )}
         </select>
       </div>
+      <div>
+        <label for="biasTee">Bias tee: </label
+        ><input
+          type="checkbox"
+          id="biasTee"
+          .checked=${this.biasTee}
+          @change=${this.onBiasTeeChange}
+        />
+      </div>
     </rr-window>`;
   }
 
@@ -130,6 +139,7 @@ export class RrSettings extends LitElement {
   @property({ attribute: false }) sampleRate: number = 1024000;
   @property({ attribute: false }) ppm: number = 0;
   @property({ attribute: false }) fftSize: number = 2048;
+  @property({ attribute: false }) biasTee: boolean = false;
 
   private onClose() {
     this.dispatchEvent(new WindowClosedEvent());
@@ -157,6 +167,12 @@ export class RrSettings extends LitElement {
     this.fftSize = Number(value);
     this.dispatchEvent(new FftSizeChangedEvent());
   }
+
+  private onBiasTeeChange(e: Event) {
+    let value = (e.target as HTMLInputElement).checked;
+    this.biasTee = value;
+    this.dispatchEvent(new BiasTeeChangedEvent());
+  }
 }
 
 class SampleRateChangedEvent extends Event {
@@ -177,10 +193,17 @@ class FftSizeChangedEvent extends Event {
   }
 }
 
+class BiasTeeChangedEvent extends Event {
+  constructor() {
+    super("rr-bias-tee-changed", { bubbles: true, composed: true });
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "rr-sample-rate-changed": SampleRateChangedEvent;
     "rr-ppm-changed": PpmChangedEvent;
     "rr-fft-size-changed": FftSizeChangedEvent;
+    "rr-bias-tee-changed": BiasTeeChangedEvent;
   }
 }

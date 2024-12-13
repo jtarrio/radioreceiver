@@ -30,6 +30,7 @@ export interface RtlDevice {
   getGain(): number | null;
   setCenterFrequency(freq: number): Promise<number>;
   enableDirectSampling(enable: boolean): Promise<void>;
+  enableBiasTee(enable: boolean): Promise<void>;
   isDirectSamplingEnabled(): boolean;
   resetBuffer(): Promise<void>;
   readSamples(length: number): Promise<SampleBlock>;

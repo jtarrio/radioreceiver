@@ -78,6 +78,7 @@ export class RTL2832U implements RtlDevice {
     this.gain = null;
     this.directSamplingEnabled = false;
     this.directSampling = false;
+    this.biasTeeEnabled = false;
   }
 
   private centerFrequency: number;
@@ -85,6 +86,7 @@ export class RTL2832U implements RtlDevice {
   private gain: number | null;
   private directSamplingEnabled: boolean;
   private directSampling: boolean;
+  private biasTeeEnabled: boolean;
 
   /**
    * Initializes the demodulator.
@@ -242,6 +244,16 @@ export class RTL2832U implements RtlDevice {
 
   getGain(): number | null {
     return this.gain;
+  }
+
+  async enableBiasTee(enabled: boolean) {
+    this.biasTeeEnabled = enabled;
+    await this.com.setGpioOutput(0);
+    await this.com.setGpioBit(0, enabled ? 1 : 0);
+  }
+
+  isBiasTeeEnabled(): boolean {
+    return this.biasTeeEnabled;
   }
 
   private async _enableRtlAgc(enable: boolean) {

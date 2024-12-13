@@ -27,7 +27,8 @@ type Message =
   | { type: "frequency"; value: number }
   | { type: "frequencyCorrection"; value: number }
   | { type: "gain"; value: number | null }
-  | { type: "directSamplingEnabled"; value: boolean };
+  | { type: "directSamplingEnabled"; value: boolean }
+  | { type: "biasTeeEnabled"; value: boolean };
 
 /** The information in a 'radio' event. */
 export type RadioEventType =
@@ -64,6 +65,7 @@ export class Radio extends EventTarget {
     this.gain = null;
     this.frequency = 88500000;
     this.directSamplingEnabled = false;
+    this.biasTeeEnabled = false;
     this.runLoop();
   }
 
@@ -79,6 +81,8 @@ export class Radio extends EventTarget {
   private frequency: number;
   /** Whether direct sampling mode is enabled. */
   private directSamplingEnabled: boolean;
+  /** Whether the bias tee is enabled. */
+  private biasTeeEnabled: boolean;
 
   /** Starts playing the radio. */
   start() {
@@ -151,6 +155,16 @@ export class Radio extends EventTarget {
     return this.sampleRate;
   }
 
+  /** Enables or disables the bias tee. */
+  enableBiasTee(enable: boolean) {
+    this.channel.send({ type: "biasTeeEnabled", value: enable });
+  }
+
+  /** Returns whether the bias tee is enabled. */
+  isBiasTeeEnabled(): boolean {
+    return this.biasTeeEnabled;
+  }
+
   /** Runs the state machine. */
   private async runLoop() {
     let transfers: Transfers;
@@ -160,24 +174,13 @@ export class Radio extends EventTarget {
       try {
         switch (this.state) {
           case State.OFF: {
-            if (msg.type == "frequency" && this.frequency != msg.value) {
-              this.frequency = msg.value;
-            }
-            if (
-              msg.type == "frequencyCorrection" &&
-              this.frequencyCorrection != msg.value
-            ) {
+            if (msg.type == "frequency") this.frequency = msg.value;
+            if (msg.type == "frequencyCorrection")
               this.frequencyCorrection = msg.value;
-            }
-            if (msg.type == "gain" && this.gain != msg.value) {
-              this.gain = msg.value;
-            }
-            if (
-              msg.type == "directSamplingEnabled" &&
-              this.directSamplingEnabled != msg.value
-            ) {
+            if (msg.type == "gain") this.gain = msg.value;
+            if (msg.type == "directSamplingEnabled")
               this.directSamplingEnabled = msg.value;
-            }
+            if (msg.type == "biasTeeEnabled") this.biasTeeEnabled = msg.value;
             if (msg.type != "start") continue;
             rtl = await this.rtlProvider.get();
             await rtl.setSampleRate(this.sampleRate);
@@ -223,6 +226,11 @@ export class Radio extends EventTarget {
                   await rtl!.enableDirectSampling(this.directSamplingEnabled);
                 }
                 break;
+              case "biasTeeEnabled":
+                if (this.biasTeeEnabled != msg.value) {
+                  this.biasTeeEnabled = msg.value;
+                  await rtl!.enableBiasTee(this.biasTeeEnabled);
+                }
               case "stop":
                 await transfers!.stopStream();
                 await rtl!.close();

@@ -63,6 +63,7 @@ function blankConfig(): RawConfig {
       sampleRate: 1024000,
       ppm: 0,
       fftSize: 2048,
+      biasTee: false,
       minDecibels: -90,
       maxDecibels: -20,
     },
@@ -101,6 +102,8 @@ type ConfigV1 = {
   ppm: number;
   /** Size of the spectrum display. */
   fftSize: number;
+  /** Whether the bias tee is enabled. */
+  biasTee: boolean;
   /** Minimum number of decibels for scope. */
   minDecibels: number;
   /** Maximum number of decibels for scope. */

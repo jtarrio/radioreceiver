@@ -154,9 +154,11 @@ export class RadioReceiverMain extends LitElement {
         .sampleRate=${this.sampleRate}
         .ppm=${this.ppm}
         .fftSize=${this.fftSize}
+        .biasTee=${this.biasTee}
         @rr-sample-rate-changed=${this.onSampleRateChange}
         @rr-ppm-changed=${this.onPpmChange}
         @rr-fft-size-changed=${this.onFftSizeChange}
+        @rr-bias-tee-changed=${this.onBiasTeeChange}
         @rr-window-closed=${this.onSettingsClosed}
       ></rr-settings>`;
   }
@@ -175,6 +177,7 @@ export class RadioReceiverMain extends LitElement {
   @state() private sampleRate: number = 1024000;
   @state() private ppm: number = 0;
   @state() private fftSize: number = 2048;
+  @state() private biasTee: boolean = false;
   @state() private bandwidth: number = this.sampleRate;
   @state() private stereoStatus: boolean = false;
   @state() private minDecibels: number = -90;
@@ -247,6 +250,7 @@ export class RadioReceiverMain extends LitElement {
     this.setSampleRate(cfg.sampleRate);
     this.setPpm(cfg.ppm);
     this.setFftSize(cfg.fftSize);
+    this.enableBiasTee(cfg.biasTee);
     this.minDecibels = cfg.minDecibels;
     this.maxDecibels = cfg.maxDecibels;
   }
@@ -458,8 +462,7 @@ export class RadioReceiverMain extends LitElement {
 
   private onGainChange(e: Event) {
     let target = e.target as RrMainControls;
-    let gain = target.gain;
-    this.setGain(gain);
+    this.setGain(target.gain);
   }
 
   private setGain(gain: number | null) {
@@ -470,8 +473,7 @@ export class RadioReceiverMain extends LitElement {
 
   private onSampleRateChange(e: Event) {
     let target = e.target as RrSettings;
-    let sampleRate = target.sampleRate;
-    this.setSampleRate(sampleRate);
+    this.setSampleRate(target.sampleRate);
   }
 
   private setSampleRate(sampleRate: number) {
@@ -485,8 +487,7 @@ export class RadioReceiverMain extends LitElement {
 
   private onPpmChange(e: Event) {
     let target = e.target as RrSettings;
-    let ppm = target.ppm;
-    this.setPpm(ppm);
+    this.setPpm(target.ppm);
   }
 
   private setPpm(ppm: number) {
@@ -497,14 +498,24 @@ export class RadioReceiverMain extends LitElement {
 
   private onFftSizeChange(e: Event) {
     let target = e.target as RrSettings;
-    let fftSize = target.fftSize;
-    this.setFftSize(fftSize);
+    this.setFftSize(target.fftSize);
   }
 
   private setFftSize(fftSize: number) {
     this.fftSize = fftSize;
     this.spectrum.size = fftSize;
     this.configProvider.update((cfg) => (cfg.fftSize = fftSize));
+  }
+
+  private onBiasTeeChange(e: Event) {
+    let target = e.target as RrSettings;
+    this.enableBiasTee(target.biasTee);
+  }
+
+  private enableBiasTee(biasTee: boolean) {
+    this.radio.enableBiasTee(biasTee);
+    this.biasTee = biasTee;
+    this.configProvider.update((cfg) => (cfg.biasTee = biasTee));
   }
 
   private onSpectrumTap(e: SpectrumTapEvent) {
