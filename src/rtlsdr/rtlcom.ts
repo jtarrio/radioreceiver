@@ -132,6 +132,7 @@ export class RtlCom {
   }
 
   async setGpioOutput(gpio: number) {
+    gpio = 1 << gpio;
     let r = await this.getSysReg(0x3004);
     await this.setSysReg(0x3004, r & ~gpio);
     r = await this.getSysReg(0x3003);
@@ -139,6 +140,7 @@ export class RtlCom {
   }
 
   async setGpioBit(gpio: number, val: number) {
+    gpio = 1 << gpio;
     let r = await this.getSysReg(0x3001);
     r = val ? (r | gpio) : (r & ~gpio);
     await this.setSysReg(0x3001, r);
