@@ -9,11 +9,13 @@ import buildCommands from "./build_settings.mjs";
 program.option("--clean", "Clean output directory");
 program.option("--dist", "Enable distribution mode");
 program.option("--no-source-maps", "Disable source maps");
+program.option("--no-minify", "Disable minification");
 program.parse();
 
 const CLEAN_MODE = program.opts().clean;
 const DIST_MODE = program.opts().dist;
 const SOURCE_MAPS = program.opts().sourceMaps && !DIST_MODE;
+const MINIFY = program.opts().minify;
 
 function asArray(src) {
   if (Array.isArray(src)) return src;
@@ -29,7 +31,7 @@ async function compile(src) {
     outbase: ".",
     assetNames: `${assetPrefix}/assets/[name]-[hash]`,
     bundle: true,
-    minify: true,
+    minify: MINIFY,
     treeShaking: true,
     sourcemap: SOURCE_MAPS,
     loader: {
@@ -49,9 +51,9 @@ async function copyDir(src, dest) {
 }
 
 async function copy(src, base, dest) {
-  let srcFiles = await glob(src, { nodir: true});
+  let srcFiles = await glob(src, { nodir: true });
   if (srcFiles.length == 0) {
-    console.log(`Warning: no files matched for ${src.join(', ')}`);
+    console.log(`Warning: no files matched for ${src.join(", ")}`);
     return;
   }
   for (let src of srcFiles) {
@@ -94,16 +96,20 @@ async function run(cmd) {
   }
 }
 
-let actions = {
-  clean: DIST_MODE || CLEAN_MODE,
-  build: !CLEAN_MODE,
-};
+async function main() {
+  let actions = {
+    clean: DIST_MODE || CLEAN_MODE,
+    build: !CLEAN_MODE,
+  };
 
-if (actions.clean) {
-  await fs.rm("dist", {
-    force: true,
-    recursive: true,
-  });
+  if (actions.clean) {
+    await fs.rm("dist", {
+      force: true,
+      recursive: true,
+    });
+  }
+
+  if (actions.build) run(buildCommands);
 }
 
-if (actions.build) run(buildCommands);
+main();
