@@ -14,7 +14,7 @@
 
 import { makeLowPassKernel } from "../dsp/coefficients";
 import { AMDemodulator } from "../dsp/demodulators";
-import { FrequencyShifter, AGC, FIRFilter } from "../dsp/filters";
+import { FrequencyShifter, FIRFilter } from "../dsp/filters";
 import { ComplexDownsampler } from "../dsp/resamplers";
 import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
@@ -36,7 +36,6 @@ export class SchemeAM implements ModulationScheme {
     this.filterI = new FIRFilter(kernel);
     this.filterQ = new FIRFilter(kernel);
     this.demodulator = new AMDemodulator(outRate);
-    this.agc = new AGC(outRate, 3);
   }
 
   private shifter: FrequencyShifter;
@@ -44,7 +43,6 @@ export class SchemeAM implements ModulationScheme {
   private filterI: FIRFilter;
   private filterQ: FIRFilter;
   private demodulator: AMDemodulator;
-  private agc: AGC;
 
   getMode(): Mode {
     return this.mode;
@@ -74,7 +72,6 @@ export class SchemeAM implements ModulationScheme {
     this.filterI.inPlace(I);
     this.filterQ.inPlace(Q);
     this.demodulator.demodulate(I, Q, I);
-    this.agc.inPlace(I);
     return {
       left: I,
       right: new Float32Array(I),

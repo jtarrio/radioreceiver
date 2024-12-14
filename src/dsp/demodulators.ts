@@ -14,7 +14,7 @@
 // limitations under the License.
 
 import { makeHilbertKernel } from "./coefficients";
-import { FIRFilter, DcBlocker } from "./filters";
+import { FIRFilter } from "./filters";
 import { Float32Buffer } from "./buffers";
 
 /** The sideband to demodulate. */
@@ -58,28 +58,26 @@ export class AMDemodulator {
    * @param sampleRate The signal's sample rate.
    */
   constructor(sampleRate: number) {
-    this.dcBlockerI = new DcBlocker(sampleRate, true);
-    this.dcBlockerQ = new DcBlocker(sampleRate, true);
-    this.dcBlockerA = new DcBlocker(sampleRate);
+    this.alpha = 1 - Math.exp(-1 / (sampleRate / 2));
+    this.carrierAmplitude = 0;
   }
 
-  private dcBlockerI: DcBlocker;
-  private dcBlockerQ: DcBlocker;
-  private dcBlockerA: DcBlocker;
+  private alpha: number;
+  private carrierAmplitude: number;
 
   /** Demodulates the given I/Q samples into the real output. */
   demodulate(I: Float32Array, Q: Float32Array, out: Float32Array) {
-    this.dcBlockerI.inPlace(I);
-    this.dcBlockerQ.inPlace(Q);
+    const alpha = this.alpha;
+    let carrierAmplitude = this.carrierAmplitude;
     for (let i = 0; i < out.length; ++i) {
       const vI = I[i];
       const vQ = Q[i];
-
       const power = vI * vI + vQ * vQ;
       const amplitude = Math.sqrt(power);
-      out[i] = amplitude;
+      carrierAmplitude += alpha * (amplitude - carrierAmplitude);
+      out[i] = carrierAmplitude == 0 ? 0 : amplitude / carrierAmplitude - 1;
     }
-    this.dcBlockerA.inPlace(out);
+    this.carrierAmplitude = carrierAmplitude;
   }
 }
 
