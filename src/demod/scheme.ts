@@ -45,12 +45,12 @@ export type Mode =
   /** Wideband frequency modulation. */
   | { scheme: "WBFM"; stereo: boolean }
   /** Narrowband frequency modulation. */
-  | { scheme: "NBFM"; maxF: number }
+  | { scheme: "NBFM"; maxF: number; squelch: number }
   /** Amplitude modulation. */
-  | { scheme: "AM"; bandwidth: number }
+  | { scheme: "AM"; bandwidth: number; squelch: number }
   /** Upper sideband modulation. */
-  | { scheme: "USB"; bandwidth: number }
+  | { scheme: "USB"; bandwidth: number; squelch: number }
   /** Lower sideband modulation. */
-  | { scheme: "LSB"; bandwidth: number }
+  | { scheme: "LSB"; bandwidth: number; squelch: number }
   /** Continuous wave. */
   | { scheme: "CW"; bandwidth: number };

@@ -39,10 +39,10 @@ type Frequency = {
 
 const DefaultModes: Array<Mode> = [
   { scheme: "WBFM", stereo: true },
-  { scheme: "NBFM", maxF: 5000 },
-  { scheme: "AM", bandwidth: 15000 },
-  { scheme: "LSB", bandwidth: 2800 },
-  { scheme: "USB", bandwidth: 2800 },
+  { scheme: "NBFM", maxF: 5000, squelch: 0 },
+  { scheme: "AM", bandwidth: 15000, squelch: 0 },
+  { scheme: "LSB", bandwidth: 2800, squelch: 0 },
+  { scheme: "USB", bandwidth: 2800, squelch: 0 },
   { scheme: "CW", bandwidth: 50 },
 ];
 
@@ -133,6 +133,9 @@ export class RadioReceiverMain extends LitElement {
             : this.mode.bandwidth}
         .stereo=${this.mode.scheme == "WBFM" ? this.mode.stereo : false}
         .stereoStatus=${this.stereoStatus}
+        .squelch=${this.mode.scheme != "WBFM" && this.mode.scheme != "CW"
+          ? this.mode.squelch
+          : 0}
         .gain=${this.gain}
         .gainDisabled=${this.gainDisabled}
         @rr-start=${this.onStart}
@@ -145,6 +148,7 @@ export class RadioReceiverMain extends LitElement {
         @rr-mode-changed=${this.onSchemeChange}
         @rr-bandwidth-changed=${this.onBandwidthChange}
         @rr-stereo-changed=${this.onStereoChange}
+        @rr-squelch-changed=${this.onSquelchChange}
         @rr-gain-changed=${this.onGainChange}
       ></rr-main-controls>
 
@@ -388,6 +392,16 @@ export class RadioReceiverMain extends LitElement {
     let newMode = { ...this.mode };
     if (newMode.scheme == "WBFM") {
       newMode.stereo = value;
+    }
+    this.setMode(newMode);
+  }
+
+  private onSquelchChange(e: Event) {
+    let target = e.target as RrMainControls;
+    let value = target.squelch;
+    let newMode = { ...this.mode };
+    if (newMode.scheme != "WBFM" && newMode.scheme != "CW") {
+      newMode.squelch = value;
     }
     this.setMode(newMode);
   }

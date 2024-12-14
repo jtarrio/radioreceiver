@@ -43,6 +43,7 @@ export class Demodulator extends EventTarget implements SampleReceiver {
   constructor(private inRate: number) {
     super();
     this.player = new Player();
+    this.squelchControl = new SquelchControl(this.player.sampleRate);
     this.mode = { scheme: "WBFM", stereo: true };
     this.scheme = this.getScheme(this.mode);
     this.frequencyOffset = 0;
@@ -51,6 +52,8 @@ export class Demodulator extends EventTarget implements SampleReceiver {
 
   /** The audio output device. */
   private player: Player;
+  /** Controller that silences the output if the SNR is low. */
+  private squelchControl: SquelchControl;
   /** The modulation parameters as a Mode object. */
   private mode: Mode;
   /** The demodulator class. */
@@ -133,11 +136,12 @@ export class Demodulator extends EventTarget implements SampleReceiver {
       this.expectingFrequency = undefined;
     }
 
-    let { left, right, stereo } = this.scheme.demodulate(
+    let { left, right, stereo, snr } = this.scheme.demodulate(
       I,
       Q,
       this.frequencyOffset
     );
+    this.squelchControl.applySquelch(this.mode, left, right, snr);
     this.player.play(left, right);
     if (stereo != this.latestStereo) {
       this.dispatchEvent(new StereoStatusEvent(stereo));
@@ -175,5 +179,31 @@ export class Demodulator extends EventTarget implements SampleReceiver {
 export class StereoStatusEvent extends CustomEvent<boolean> {
   constructor(stereo: boolean) {
     super("stereo-status", { detail: stereo, bubbles: true, composed: true });
+  }
+}
+
+class SquelchControl {
+  constructor(private sampleRate: number) {}
+
+  private countdown: number = 0;
+
+  applySquelch(
+    mode: Mode,
+    left: Float32Array,
+    right: Float32Array,
+    snr: number
+  ) {
+    const SQUELCH_TAIL = 0.1;
+    if (mode.scheme == "WBFM" || mode.scheme == "CW") return;
+    if (mode.squelch < snr) {
+      this.countdown = SQUELCH_TAIL * this.sampleRate;
+      return;
+    }
+    if (this.countdown > 0) {
+      this.countdown -= left.length;
+      return;
+    }
+    left.fill(0);
+    right.fill(0);
   }
 }

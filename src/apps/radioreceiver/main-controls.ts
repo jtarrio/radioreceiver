@@ -51,6 +51,11 @@ export class RrMainControls extends LitElement {
           margin: auto;
         }
 
+        .cfgBlock {
+          display: inline-flex;
+          flex-direction: column;
+        }
+
         #bandwidth {
           width: 9ex;
         }
@@ -62,6 +67,10 @@ export class RrMainControls extends LitElement {
 
         #stereoIcon.stereo {
           fill: #060;
+        }
+
+        #squelch {
+          width: 12ex;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -166,31 +175,44 @@ export class RrMainControls extends LitElement {
               </option>`
           )}
         </select>
-        <label for="bandwidth" .hidden=${this.mode == "WBFM"}>Bandwidth: </label
-        ><input
-          type="number"
-          id="bandwidth"
-          min="0"
-          max="20000"
-          step="1"
-          .value=${String(this.bandwidth)}
-          .hidden=${this.mode == "WBFM"}
-          @change=${this.onBandwidthChange}
-        />
-        <label for="stereo" .hidden=${this.mode != "WBFM"}>Stereo: </label
-        ><input
-          type="checkbox"
-          id="stereo"
-          .checked=${this.stereo}
-          .hidden=${this.mode != "WBFM"}
-          @change=${this.onStereoChange}
-        />
-        <span
-          id="stereoIcon"
-          class=${this.stereoStatus ? "stereo" : "mono"}
-          .hidden=${this.mode != "WBFM" || !this.stereo}
-          >${Icons.Stereo}</span
-        >
+        <div class="cfgBlock">
+          <span .hidden=${this.mode == "WBFM"}
+            ><label for="bandwidth">Bandwidth: </label
+            ><input
+              type="number"
+              id="bandwidth"
+              min="0"
+              max="20000"
+              step="1"
+              .value=${String(this.bandwidth)}
+              @change=${this.onBandwidthChange} /></span
+          ><span .hidden=${this.mode != "WBFM"}>
+            <label for="stereo">Stereo: </label
+            ><input
+              type="checkbox"
+              id="stereo"
+              .checked=${this.stereo}
+              @change=${this.onStereoChange}
+            />
+            <span
+              id="stereoIcon"
+              class=${this.stereoStatus ? "stereo" : "mono"}
+              .hidden=${this.mode != "WBFM" || !this.stereo}
+              >${Icons.Stereo}</span
+            ></span
+          ><span .hidden=${this.mode == "WBFM" || this.mode == "CW"}>
+            <label for="squelch">Squelch: </label
+            ><input
+              type="range"
+              id="squelch"
+              min="0"
+              max="6"
+              step="0.1"
+              .value=${String(this.squelch)}
+              @input=${this.onSquelchChange}
+            />
+          </span>
+        </div>
       </div>
       <div>
         <label for="gain">Gain: </label
@@ -231,6 +253,7 @@ export class RrMainControls extends LitElement {
   @property({ attribute: false }) bandwidth: number = 150000;
   @property({ attribute: false }) stereo: boolean = true;
   @property({ attribute: false }) stereoStatus: boolean = false;
+  @property({ attribute: false }) squelch: number = 0;
   @property({ attribute: false }) gain: number | null = null;
   @property({ attribute: false }) gainDisabled: boolean = false;
   @state() private savedGain: number = 0;
@@ -249,8 +272,7 @@ export class RrMainControls extends LitElement {
 
   private onScaleChange(e: Event) {
     let input = e.target as RrFrequencyInput;
-    let scale = input.scale;
-    this.scale = scale;
+    this.scale = input.scale;
     this.dispatchEvent(new ScaleChangedEvent());
   }
 
@@ -278,8 +300,7 @@ export class RrMainControls extends LitElement {
   }
 
   private onModeChange(e: Event) {
-    let value = (e.target as HTMLSelectElement).selectedOptions[0].value;
-    this.mode = value;
+    this.mode = (e.target as HTMLSelectElement).selectedOptions[0].value;
     this.dispatchEvent(new ModeChangedEvent());
   }
 
@@ -296,9 +317,23 @@ export class RrMainControls extends LitElement {
 
   private onStereoChange(e: Event) {
     let target = e.target as HTMLInputElement;
-    let value = target.checked;
-    this.stereo = value;
+    this.stereo = target.checked;
     this.dispatchEvent(new StereoChangedEvent());
+  }
+
+  private onSquelchChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let squelch = Number(target.value);
+    if (isNaN(squelch) || squelch < 0) {
+      squelch = 0;
+      target.value = String(squelch);
+    }
+    if (squelch > 6) {
+      squelch = 6;
+      target.value = String(squelch);
+    }
+    this.squelch = squelch;
+    this.dispatchEvent(new SquelchChangedEvent());
   }
 
   private onGainInput(e: Event) {
@@ -314,8 +349,7 @@ export class RrMainControls extends LitElement {
 
   private onGainAutoChange(e: Event) {
     let target = e.target as HTMLInputElement;
-    let auto = target.checked;
-    if (auto) {
+    if (target.checked) {
       if (this.gain != null) this.savedGain = this.gain;
       this.gain = null;
     } else {
@@ -385,6 +419,12 @@ class StereoChangedEvent extends Event {
   }
 }
 
+class SquelchChangedEvent extends Event {
+  constructor() {
+    super("rr-squelch-changed", { bubbles: true, composed: true });
+  }  
+}
+
 class GainChangedEvent extends Event {
   constructor() {
     super("rr-gain-changed", { bubbles: true, composed: true });
@@ -403,6 +443,7 @@ declare global {
     "rr-mode-changed": ModeChangedEvent;
     "rr-bandwidth-changed": BandwidthChangedEvent;
     "rr-stereo-changed": StereoChangedEvent;
+    "rr-squelch-changed": SquelchChangedEvent;
     "rr-gain-changed": GainChangedEvent;
   }
 }
