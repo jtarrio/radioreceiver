@@ -15,6 +15,7 @@
 import { makeLowPassKernel } from "../dsp/coefficients";
 import { Sideband, SSBDemodulator } from "../dsp/demodulators";
 import { FrequencyShifter, AGC, FIRFilter } from "../dsp/filters";
+import { getPower } from "../dsp/power";
 import { ComplexDownsampler } from "../dsp/resamplers";
 import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
@@ -71,9 +72,17 @@ export class SchemeSSB implements ModulationScheme {
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const [I, Q] = this.downsampler.downsample(samplesI, samplesQ);
+    let allPower = getPower(I, Q);
     this.demodulator.demodulate(I, Q, I);
     this.filter.inPlace(I);
+    let signalPower =
+      (getPower(I, I) * this.outRate) / (this.mode.bandwidth * 2);
     this.agc.inPlace(I);
-    return { left: I, right: new Float32Array(I), stereo: false };
+    return {
+      left: I,
+      right: new Float32Array(I),
+      stereo: false,
+      snr: signalPower / allPower,
+    };
   }
 }

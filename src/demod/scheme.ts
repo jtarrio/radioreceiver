@@ -36,6 +36,8 @@ export type Demodulated = {
   right: Float32Array;
   /** The signal is in stereo. */
   stereo: boolean;
+  /** Estimated signal to noise ratio (in units, not dB). */
+  snr: number;
 };
 
 /** Modulation parameters. */

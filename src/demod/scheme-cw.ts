@@ -14,6 +14,7 @@
 
 import { makeLowPassKernel } from "../dsp/coefficients";
 import { AGC, FIRFilter, FrequencyShifter } from "../dsp/filters";
+import { getPower } from "../dsp/power";
 import { ComplexDownsampler } from "../dsp/resamplers";
 import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
@@ -62,14 +63,17 @@ export class SchemeCW implements ModulationScheme {
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const [I, Q] = this.downsampler.downsample(samplesI, samplesQ);
+    let allPower = getPower(I, Q);
     this.filterI.inPlace(I);
     this.filterQ.inPlace(Q);
+    let signalPower = (getPower(I, Q) * this.outRate) / this.mode.bandwidth;
     this.toneShifter.inPlace(I, Q, ToneFrequency);
     this.agc.inPlace(I);
     return {
       left: I,
       right: new Float32Array(I),
       stereo: false,
+      snr: signalPower / allPower,
     };
   }
 }

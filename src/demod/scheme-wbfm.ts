@@ -15,6 +15,7 @@
 import { makeLowPassKernel } from "../dsp/coefficients";
 import { FMDemodulator, StereoSeparator } from "../dsp/demodulators";
 import { FrequencyShifter, Deemphasizer, FIRFilter } from "../dsp/filters";
+import { getPower } from "../dsp/power";
 import { ComplexDownsampler, RealDownsampler } from "../dsp/resamplers";
 import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
@@ -31,24 +32,25 @@ export class SchemeWBFM implements ModulationScheme {
     private mode: Mode & { scheme: "WBFM" }
   ) {
     const maxF = 75000;
-    const interRate = Math.min(inRate, 336000);
     const pilotF = 19000;
     const deemphTc = 50;
+    this.interRate = Math.min(inRate, 336000);
     this.shifter = new FrequencyShifter(inRate);
-    if (interRate != inRate) {
-      this.downsampler = new ComplexDownsampler(inRate, interRate, 151);
+    if (this.interRate != inRate) {
+      this.downsampler = new ComplexDownsampler(inRate, this.interRate, 151);
     }
-    const kernel = makeLowPassKernel(interRate, maxF, 151);
+    const kernel = makeLowPassKernel(this.interRate, maxF, 151);
     this.filterI = new FIRFilter(kernel);
     this.filterQ = new FIRFilter(kernel);
-    this.demodulator = new FMDemodulator(maxF / interRate);
-    this.monoSampler = new RealDownsampler(interRate, outRate, 41);
-    this.stereoSampler = new RealDownsampler(interRate, outRate, 41);
-    this.stereoSeparator = new StereoSeparator(interRate, pilotF);
+    this.demodulator = new FMDemodulator(maxF / this.interRate);
+    this.monoSampler = new RealDownsampler(this.interRate, outRate, 41);
+    this.stereoSampler = new RealDownsampler(this.interRate, outRate, 41);
+    this.stereoSeparator = new StereoSeparator(this.interRate, pilotF);
     this.leftDeemph = new Deemphasizer(outRate, deemphTc);
     this.rightDeemph = new Deemphasizer(outRate, deemphTc);
   }
 
+  private interRate: number;
   private shifter: FrequencyShifter;
   private downsampler?: ComplexDownsampler;
   private filterI: FIRFilter;
@@ -85,8 +87,10 @@ export class SchemeWBFM implements ModulationScheme {
     let [I, Q] = this.downsampler
       ? this.downsampler.downsample(samplesI, samplesQ)
       : [samplesI, samplesQ];
+    let allPower = getPower(I, Q);
     this.filterI.inPlace(I);
     this.filterQ.inPlace(Q);
+    let signalPower = (getPower(I, Q) * this.interRate) / 150000;
     this.demodulator.demodulate(I, Q, I);
     const leftAudio = this.monoSampler.downsample(I);
     const rightAudio = new Float32Array(leftAudio);
@@ -110,6 +114,7 @@ export class SchemeWBFM implements ModulationScheme {
       left: leftAudio,
       right: rightAudio,
       stereo: stereoOut,
+      snr: signalPower / allPower,
     };
   }
 }

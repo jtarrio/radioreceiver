@@ -15,6 +15,7 @@
 import { makeLowPassKernel } from "../dsp/coefficients";
 import { FMDemodulator } from "../dsp/demodulators";
 import { FIRFilter, FrequencyShifter } from "../dsp/filters";
+import { getPower } from "../dsp/power";
 import { ComplexDownsampler } from "../dsp/resamplers";
 import { Demodulated, Mode, ModulationScheme } from "./scheme";
 
@@ -70,13 +71,16 @@ export class SchemeNBFM implements ModulationScheme {
   ): Demodulated {
     this.shifter.inPlace(samplesI, samplesQ, -freqOffset);
     const [I, Q] = this.downsampler.downsample(samplesI, samplesQ);
+    let allPower = getPower(I, Q);
     this.filterI.inPlace(I);
     this.filterQ.inPlace(Q);
+    let signalPower = (getPower(I, Q) * this.outRate) / (this.mode.maxF * 2);
     this.demodulator.demodulate(I, Q, I);
     return {
       left: I,
       right: new Float32Array(I),
       stereo: false,
+      snr: signalPower / allPower,
     };
   }
 }
