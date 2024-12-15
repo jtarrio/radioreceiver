@@ -64,7 +64,12 @@ function blankConfig(): RawConfig {
       ppm: 0,
       fftSize: 2048,
       biasTee: false,
-      lowFrequencyMethod: { name: "directSampling", channel: "Q" },
+      lowFrequencyMethod: {
+        name: "directSampling",
+        channel: "Q",
+        frequency: 100000000,
+        biasTee: false,
+      },
       minDecibels: -90,
       maxDecibels: -20,
     },
@@ -124,6 +129,8 @@ type ConfigV1Mode =
 
 /** This definition parallels the LowFrequencyMethod from settings.ts */
 type ConfigV1LowFrequencyMethod = {
-  name: "default" | "directSampling";
+  name: "default" | "directSampling" | "upconverter";
   channel: "Q" | "I";
+  frequency: number;
+  biasTee: boolean;
 };

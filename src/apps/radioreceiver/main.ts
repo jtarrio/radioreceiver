@@ -204,6 +204,8 @@ export class RadioReceiverMain extends LitElement {
   @state() private lowFrequencyMethod: LowFrequencyMethod = {
     name: "default",
     channel: "Q",
+    frequency: 100000000,
+    biasTee: false,
   };
   @state() private settingsVisible: boolean = false;
 
@@ -224,11 +226,6 @@ export class RadioReceiverMain extends LitElement {
     );
 
     this.applyConfig();
-
-    this.radio.setDirectSamplingMethod(DirectSampling.Q);
-    this.radio.setFrequencyCorrection(this.ppm);
-    this.radio.setFrequency(this.frequency.center);
-    this.radio.setGain(this.gain);
 
     this.demodulator.setVolume(1);
     this.demodulator.setMode(this.mode);
@@ -252,6 +249,7 @@ export class RadioReceiverMain extends LitElement {
       this.availableModes.set(modeName, mode);
       if (modeName == cfg.mode) this.setMode(mode);
     }
+    this.setLowFrequencyMethod(cfg.lowFrequencyMethod);
     this.setCenterFrequency(cfg.centerFrequency);
     this.setTunedFrequency(cfg.tunedFrequency);
     this.tuningStep = cfg.tuningStep;
@@ -261,7 +259,6 @@ export class RadioReceiverMain extends LitElement {
     this.setPpm(cfg.ppm);
     this.setFftSize(cfg.fftSize);
     this.enableBiasTee(cfg.biasTee);
-    this.setLowFrequencyMethod(cfg.lowFrequencyMethod);
     this.minDecibels = cfg.minDecibels;
     this.maxDecibels = cfg.maxDecibels;
   }
@@ -349,15 +346,22 @@ export class RadioReceiverMain extends LitElement {
     this.setFrequency(newFreq);
   }
 
-  private setFrequency(newFreq: Frequency) {
-    if (newFreq.center != this.frequency.center) {
+  private setFrequency(newFreq: Frequency, force?: boolean) {
+    if (newFreq.center != this.frequency.center || force) {
+      let upconverting =
+        newFreq.center < 28800000 &&
+        this.lowFrequencyMethod.name == "upconverter";
+      let deltaFrequency = upconverting ? this.lowFrequencyMethod.frequency : 0;
       if (newFreq.offset != this.frequency.offset) {
         this.demodulator.expectFrequencyAndSetOffset(
-          newFreq.center,
+          newFreq.center + deltaFrequency,
           newFreq.offset
         );
       }
-      this.radio.setFrequency(newFreq.center);
+      this.radio.setFrequency(newFreq.center + deltaFrequency);
+      this.radio.enableBiasTee(
+        this.biasTee || (upconverting && this.lowFrequencyMethod.biasTee)
+      );
     } else if (newFreq.offset != this.frequency.offset) {
       this.demodulator.setFrequencyOffset(newFreq.offset);
     }
@@ -468,17 +472,8 @@ export class RadioReceiverMain extends LitElement {
         center: newFreq.center + newFreq.offset,
         offset: 0,
       };
-      if (newFreq.center != this.frequency.center) {
-        this.demodulator.expectFrequencyAndSetOffset(
-          newFreq.center,
-          newFreq.offset
-        );
-        this.radio.setFrequency(newFreq.center);
-      } else {
-        this.demodulator.setFrequencyOffset(newFreq.offset);
-      }
     }
-    this.frequency = newFreq;
+    this.setFrequency(newFreq);
   }
 
   private onGainChange(e: Event) {
@@ -546,13 +541,14 @@ export class RadioReceiverMain extends LitElement {
 
   private setLowFrequencyMethod(method: LowFrequencyMethod) {
     let directSampling =
-      method.name == "default"
+      method.name != "directSampling"
         ? DirectSampling.Off
         : method.channel == "Q"
           ? DirectSampling.Q
           : DirectSampling.I;
     this.radio.setDirectSamplingMethod(directSampling);
-    this.lowFrequencyMethod = {...method};
+    this.lowFrequencyMethod = { ...method };
+    this.setFrequency({ ...this.frequency }, true);
     this.configProvider.update((cfg) => (cfg.lowFrequencyMethod = method));
   }
 

@@ -26,13 +26,16 @@ type LowFrequencyMethodName = LowFrequencyMethod["name"];
 type DirectSamplingChannel = LowFrequencyMethod["channel"];
 
 export type LowFrequencyMethod = {
-  name: "default" | "directSampling";
+  name: "default" | "directSampling" | "upconverter";
   channel: "I" | "Q";
+  frequency: number;
+  biasTee: boolean;
 };
 
 const LOW_FREQUENCY_METHODS: Map<LowFrequencyMethodName, string> = new Map([
   ["default", "Default method"],
   ["directSampling", "Direct sampling"],
+  ["upconverter", "External upconverter"],
 ]);
 
 const DIRECT_SAMPLING_CHANNELS: Map<DirectSamplingChannel, string> = new Map([
@@ -178,6 +181,27 @@ export class RrSettings extends LitElement {
           )}
         </select>
       </div>
+      <div .hidden=${this.lowFrequencyMethod.name != "upconverter"}>
+        <label for="upconverterFrequency">Upconverter frequency: </label
+        ><input
+          type="number"
+          id="upconverterFrequency"
+          min="1"
+          max="1800000000"
+          step="1"
+          .value=${String(this.lowFrequencyMethod.frequency)}
+          @change=${this.onUpconverterFrequencyChange}
+        />
+      </div>
+      <div .hidden=${this.lowFrequencyMethod.name != "upconverter"}>
+        <label for="upconverterBiasTee">Use bias T for upconverter: </label
+        ><input
+          type="checkbox"
+          id="upconverterBiasTee"
+          .checked=${this.lowFrequencyMethod.biasTee}
+          @change=${this.onUpconverterBiasTeeChange}
+        />
+      </div>
     </rr-window>`;
   }
 
@@ -191,6 +215,8 @@ export class RrSettings extends LitElement {
   @property({ attribute: false }) lowFrequencyMethod: LowFrequencyMethod = {
     name: "default",
     channel: "Q",
+    frequency: 100000000,
+    biasTee: false,
   };
 
   private onClose() {
@@ -239,6 +265,26 @@ export class RrSettings extends LitElement {
     let method = { ...this.lowFrequencyMethod };
     method.channel = (e.target as HTMLSelectElement).selectedOptions[0]
       .value as DirectSamplingChannel;
+    this.lowFrequencyMethod = method;
+    this.dispatchEvent(new LowFrequencyMethodChangedEvent());
+  }
+
+  private onUpconverterFrequencyChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let value = Number(target.value);
+    if (isNaN(value)) {
+      target.value = String(this.lowFrequencyMethod.frequency);
+      return;
+    }
+    let method = { ...this.lowFrequencyMethod };
+    method.frequency = value;
+    this.lowFrequencyMethod = method;
+    this.dispatchEvent(new LowFrequencyMethodChangedEvent());
+  }
+
+  private onUpconverterBiasTeeChange(e: Event) {
+    let method = { ...this.lowFrequencyMethod };
+    method.biasTee = (e.target as HTMLInputElement).checked;
     this.lowFrequencyMethod = method;
     this.dispatchEvent(new LowFrequencyMethodChangedEvent());
   }
