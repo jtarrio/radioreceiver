@@ -1,10 +1,12 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
+import { type Mode } from "../../demod/scheme";
 import * as Icons from "../../ui/icons";
 import { RrScope } from "../../ui/spectrum/scope";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
 import { type GridSelection } from "../../ui/spectrum/types";
 import { RrWaterfall } from "../../ui/spectrum/waterfall";
+import { RrMainControls } from "../radioreceiver/main-controls";
 import "../../ui/spectrum/scope";
 import "../../ui/spectrum/spectrum";
 import "../../ui/spectrum/waterfall";
@@ -194,6 +196,15 @@ export class RrDemoBottombar extends LitElement {
   }
 }
 
+const AvailableModes: Map<Mode["scheme"], Mode> = new Map([
+  ["WBFM", { scheme: "WBFM", stereo: true }],
+  ["NBFM", { scheme: "NBFM", maxF: 5000, squelch: 0 }],
+  ["AM", { scheme: "AM", bandwidth: 15000, squelch: 0 }],
+  ["LSB", { scheme: "LSB", bandwidth: 2800, squelch: 0 }],
+  ["USB", { scheme: "USB", bandwidth: 2800, squelch: 0 }],
+  ["CW", { scheme: "CW", bandwidth: 50 }],
+]);
+
 @customElement("rr-demo-controls")
 export class RrDemoControls extends LitElement {
   static get styles() {
@@ -221,10 +232,36 @@ export class RrDemoControls extends LitElement {
         .inline=${true}
         .showHelp=${false}
         .centerFrequency=${93900000}
-        .bandwidth=${150000}
         .frequencyScale=${1000000}
+        .mode=${this.mode}
+        .availableModes=${[...AvailableModes.keys()]}
+        .bandwidth=${((mode: Mode) => {
+          return mode.scheme == "WBFM"
+            ? 150000
+            : mode.scheme == "NBFM"
+              ? mode.maxF * 2
+              : mode.bandwidth;
+        })(AvailableModes.get(this.mode)!)}
+        .stereo=${((mode: Mode) => {
+          return mode.scheme == "WBFM" ? mode.stereo : false;
+        })(AvailableModes.get(this.mode)!)}
+        .stereoStatus=${true}
+        .squelch=${((mode: Mode) => {
+          return mode.scheme != "WBFM" && mode.scheme != "CW"
+            ? mode.squelch
+            : 0;
+        })(AvailableModes.get(this.mode)!)}
+        @rr-mode-changed=${this.onModeChanged}
       ></rr-main-controls>
     </div>`;
+  }
+
+  @property({ type: String, reflect: true }) mode: Mode["scheme"] = "WBFM";
+
+  private onModeChanged(e: Event) {
+    let modeName = (e.target as RrMainControls).mode as Mode["scheme"];
+    let mode = AvailableModes.get(modeName) || AvailableModes.get("WBFM")!;
+    this.mode = mode.scheme;
   }
 }
 
