@@ -64,6 +64,7 @@ function blankConfig(): RawConfig {
       ppm: 0,
       fftSize: 2048,
       biasTee: false,
+      lowFrequencyMethod: { name: "directSampling", channel: "Q" },
       minDecibels: -90,
       maxDecibels: -20,
     },
@@ -104,6 +105,8 @@ type ConfigV1 = {
   fftSize: number;
   /** Whether the bias tee is enabled. */
   biasTee: boolean;
+  /** The method for receiving 0-29 MHz signals. */
+  lowFrequencyMethod: ConfigV1LowFrequencyMethod;
   /** Minimum number of decibels for scope. */
   minDecibels: number;
   /** Maximum number of decibels for scope. */
@@ -118,3 +121,9 @@ type ConfigV1Mode =
   | { scheme: "USB"; bandwidth: number; squelch: number }
   | { scheme: "LSB"; bandwidth: number; squelch: number }
   | { scheme: "CW"; bandwidth: number };
+
+/** This definition parallels the LowFrequencyMethod from settings.ts */
+type ConfigV1LowFrequencyMethod = {
+  name: "default" | "directSampling";
+  channel: "Q" | "I";
+};

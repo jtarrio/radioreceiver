@@ -4,7 +4,6 @@ import { WindowClosedEvent } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
-import { DefaultFftSize } from "../../ui/spectrum/constants";
 
 const AVAILABLE_SAMPLE_RATES: number[] = (() => {
   let rateSet: Set<number> = new Set([256000]);
@@ -22,6 +21,24 @@ const AVAILABLE_FFT_SIZES: number[] = (() => {
   }
   return sizes;
 })();
+
+type LowFrequencyMethodName = LowFrequencyMethod["name"];
+type DirectSamplingChannel = LowFrequencyMethod["channel"];
+
+export type LowFrequencyMethod = {
+  name: "default" | "directSampling";
+  channel: "I" | "Q";
+};
+
+const LOW_FREQUENCY_METHODS: Map<LowFrequencyMethodName, string> = new Map([
+  ["default", "Default method"],
+  ["directSampling", "Direct sampling"],
+]);
+
+const DIRECT_SAMPLING_CHANNELS: Map<DirectSamplingChannel, string> = new Map([
+  ["Q", "Q"],
+  ["I", "I"],
+]);
 
 @customElement("rr-settings")
 export class RrSettings extends LitElement {
@@ -122,13 +139,44 @@ export class RrSettings extends LitElement {
         </select>
       </div>
       <div>
-        <label for="biasTee">Bias tee: </label
+        <label for="biasTee">Bias T: </label
         ><input
           type="checkbox"
           id="biasTee"
           .checked=${this.biasTee}
           @change=${this.onBiasTeeChange}
         />
+      </div>
+      <div>
+        <label for="lowFreqMethod">0-29MHz method: </label
+        ><select id="lowFreqMethod" @change=${this.onLowFrequencyMethodChange}>
+          ${LOW_FREQUENCY_METHODS.entries().map(
+            ([k, v]) =>
+              html`<option
+                value=${String(k)}
+                .selected=${this.lowFrequencyMethod.name == k}
+              >
+                ${v}
+              </option>`
+          )}
+        </select>
+      </div>
+      <div .hidden=${this.lowFrequencyMethod.name != "directSampling"}>
+        <label for="directSamplingChannel">Direct sampling channel: </label
+        ><select
+          id="directSamplingChannel"
+          @change=${this.onDirectSamplingChannelChange}
+        >
+          ${DIRECT_SAMPLING_CHANNELS.entries().map(
+            ([k, v]) =>
+              html`<option
+                value=${String(k)}
+                .selected=${this.lowFrequencyMethod.channel == k}
+              >
+                ${v}
+              </option>`
+          )}
+        </select>
       </div>
     </rr-window>`;
   }
@@ -140,14 +188,19 @@ export class RrSettings extends LitElement {
   @property({ attribute: false }) ppm: number = 0;
   @property({ attribute: false }) fftSize: number = 2048;
   @property({ attribute: false }) biasTee: boolean = false;
+  @property({ attribute: false }) lowFrequencyMethod: LowFrequencyMethod = {
+    name: "default",
+    channel: "Q",
+  };
 
   private onClose() {
     this.dispatchEvent(new WindowClosedEvent());
   }
 
   private onSampleRateChange(e: Event) {
-    let value = (e.target as HTMLSelectElement).selectedOptions[0].value;
-    this.sampleRate = Number(value);
+    this.sampleRate = Number(
+      (e.target as HTMLSelectElement).selectedOptions[0].value
+    );
     this.dispatchEvent(new SampleRateChangedEvent());
   }
 
@@ -163,15 +216,31 @@ export class RrSettings extends LitElement {
   }
 
   private onFftSizeChange(e: Event) {
-    let value = (e.target as HTMLSelectElement).selectedOptions[0].value;
-    this.fftSize = Number(value);
+    this.fftSize = Number(
+      (e.target as HTMLSelectElement).selectedOptions[0].value
+    );
     this.dispatchEvent(new FftSizeChangedEvent());
   }
 
   private onBiasTeeChange(e: Event) {
-    let value = (e.target as HTMLInputElement).checked;
-    this.biasTee = value;
+    this.biasTee = (e.target as HTMLInputElement).checked;
     this.dispatchEvent(new BiasTeeChangedEvent());
+  }
+
+  private onLowFrequencyMethodChange(e: Event) {
+    let method = { ...this.lowFrequencyMethod };
+    method.name = (e.target as HTMLSelectElement).selectedOptions[0]
+      .value as LowFrequencyMethodName;
+    this.lowFrequencyMethod = method;
+    this.dispatchEvent(new LowFrequencyMethodChangedEvent());
+  }
+
+  private onDirectSamplingChannelChange(e: Event) {
+    let method = { ...this.lowFrequencyMethod };
+    method.channel = (e.target as HTMLSelectElement).selectedOptions[0]
+      .value as DirectSamplingChannel;
+    this.lowFrequencyMethod = method;
+    this.dispatchEvent(new LowFrequencyMethodChangedEvent());
   }
 }
 
@@ -199,11 +268,18 @@ class BiasTeeChangedEvent extends Event {
   }
 }
 
+class LowFrequencyMethodChangedEvent extends Event {
+  constructor() {
+    super("rr-low-frequency-method-changed", { bubbles: true, composed: true });
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "rr-sample-rate-changed": SampleRateChangedEvent;
     "rr-ppm-changed": PpmChangedEvent;
     "rr-fft-size-changed": FftSizeChangedEvent;
     "rr-bias-tee-changed": BiasTeeChangedEvent;
+    "rr-low-frequency-method-changed": LowFrequencyMethodChangedEvent;
   }
 }

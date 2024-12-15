@@ -2,7 +2,7 @@ import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { ConfigProvider, loadConfig } from "./config";
 import { RrMainControls } from "./main-controls";
-import { RrSettings } from "./settings";
+import { type LowFrequencyMethod, RrSettings } from "./settings";
 import { Demodulator, StereoStatusEvent } from "../../demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../../demod/sample-counter";
 import { type Mode } from "../../demod/scheme";
@@ -159,10 +159,12 @@ export class RadioReceiverMain extends LitElement {
         .ppm=${this.ppm}
         .fftSize=${this.fftSize}
         .biasTee=${this.biasTee}
+        .lowFrequencyMethod=${this.lowFrequencyMethod}
         @rr-sample-rate-changed=${this.onSampleRateChange}
         @rr-ppm-changed=${this.onPpmChange}
         @rr-fft-size-changed=${this.onFftSizeChange}
         @rr-bias-tee-changed=${this.onBiasTeeChange}
+        @rr-low-frequency-method-changed=${this.onLowFrequencyMethodChange}
         @rr-window-closed=${this.onSettingsClosed}
       ></rr-settings>`;
   }
@@ -199,6 +201,10 @@ export class RadioReceiverMain extends LitElement {
   @state() private mode: Mode = this.availableModes.get("WBFM")!;
   @state() private gain: number | null = null;
   @state() private gainDisabled: boolean = false;
+  @state() private lowFrequencyMethod: LowFrequencyMethod = {
+    name: "default",
+    channel: "Q",
+  };
   @state() private settingsVisible: boolean = false;
 
   @query("#spectrum") private spectrumView?: RrSpectrum;
@@ -255,6 +261,7 @@ export class RadioReceiverMain extends LitElement {
     this.setPpm(cfg.ppm);
     this.setFftSize(cfg.fftSize);
     this.enableBiasTee(cfg.biasTee);
+    this.setLowFrequencyMethod(cfg.lowFrequencyMethod);
     this.minDecibels = cfg.minDecibels;
     this.maxDecibels = cfg.maxDecibels;
   }
@@ -530,6 +537,23 @@ export class RadioReceiverMain extends LitElement {
     this.radio.enableBiasTee(biasTee);
     this.biasTee = biasTee;
     this.configProvider.update((cfg) => (cfg.biasTee = biasTee));
+  }
+
+  private onLowFrequencyMethodChange(e: Event) {
+    let target = e.target as RrSettings;
+    this.setLowFrequencyMethod(target.lowFrequencyMethod);
+  }
+
+  private setLowFrequencyMethod(method: LowFrequencyMethod) {
+    let directSampling =
+      method.name == "default"
+        ? DirectSampling.Off
+        : method.channel == "Q"
+          ? DirectSampling.Q
+          : DirectSampling.I;
+    this.radio.setDirectSamplingMethod(directSampling);
+    this.lowFrequencyMethod = {...method};
+    this.configProvider.update((cfg) => (cfg.lowFrequencyMethod = method));
   }
 
   private onSpectrumTap(e: SpectrumTapEvent) {
