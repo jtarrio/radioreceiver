@@ -14,13 +14,7 @@ Radio Receiver was written to work with an RTL-2832U-based DVB-T (European digit
 
 ## Building
 
-For a development build:
-
-```shell
-$ npm run build
-```
-
-You can find the output in the directory `dist`.
+### During development
 
 For a development build served from your computer with live reload:
 
@@ -28,13 +22,29 @@ For a development build served from your computer with live reload:
 $ npm run watch
 ```
 
+This script should open Radio Receiver on your browser automatically. If it doesn't, check the output and open the URL that it gives you.
+
+Whenever you make changes, they will be compiled and the page will be reloaded automatically.
+
+If you want to build Radio Receiver manually for development, use this command:
+
+```shell
+$ npm run build
+```
+
+The compiled application is available in the `dist/apps/radioreceiver` directory.
+
+### For release
+
 For a release build:
 
 ```shell
 $ npm run dist
 ```
 
-You can find the output in the directory `dist`.
+The compiled application is available in the `dist/apps/radioreceiver` directory; you can copy its contents to your webserver.
+
+Note: your website must be served over HTTPS, not HTTP. This is required for WebUSB.
 
 ## Acknowledgements
 

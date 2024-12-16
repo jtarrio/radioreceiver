@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node ./build.mjs",
     "build-on-change": "onchange \"src\" \"tools\" \"apps\" -- npm run build",
-    "serve": "browser-sync start --server \"dist/\" --files \"dist/\"",
+    "serve": "browser-sync start --server \"dist/\" --files \"dist/\" --startPath \"apps/radioreceiver\"",
     "watch": "npm run build && run-p serve build-on-change",
     "dist": "node ./build.mjs --dist"
   },
