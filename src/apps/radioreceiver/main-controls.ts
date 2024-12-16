@@ -1,5 +1,12 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import {
+  getSchemes,
+  hasBandwidth,
+  hasSquelch,
+  hasStereo,
+  type Scheme,
+} from "../../demod/scheme";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input";
 import * as Icons from "../../ui/icons";
 import "../../ui/controls/frequency-input";
@@ -168,15 +175,15 @@ export class RrMainControls extends LitElement {
       <div>
         <label for="scheme">Modulation: </label>
         <select id="scheme" @change=${this.onModeChange}>
-          ${this.availableModes.map(
+          ${this.availableSchemes.map(
             (k) =>
-              html`<option value="${k}" .selected=${this.mode == k}>
+              html`<option value="${k}" .selected=${this.scheme == k}>
                 ${k}
               </option>`
           )}
         </select>
         <div class="cfgBlock">
-          <span .hidden=${this.mode == "WBFM"}
+          <span .hidden=${!hasBandwidth(this.scheme)}
             ><label for="bandwidth">Bandwidth: </label
             ><input
               type="number"
@@ -186,7 +193,7 @@ export class RrMainControls extends LitElement {
               step="1"
               .value=${String(this.bandwidth)}
               @change=${this.onBandwidthChange} /></span
-          ><span .hidden=${this.mode != "WBFM"}>
+          ><span .hidden=${!hasStereo(this.scheme)}>
             <label for="stereo">Stereo: </label
             ><input
               type="checkbox"
@@ -197,10 +204,10 @@ export class RrMainControls extends LitElement {
             <span
               id="stereoIcon"
               class=${this.stereoStatus ? "stereo" : "mono"}
-              .hidden=${this.mode != "WBFM" || !this.stereo}
+              .hidden=${!hasStereo(this.scheme) || !this.stereo}
               >${Icons.Stereo}</span
             ></span
-          ><span .hidden=${this.mode == "WBFM" || this.mode == "CW"}>
+          ><span .hidden=${!hasSquelch(this.scheme)}>
             <label for="squelch">Squelch: </label
             ><input
               type="range"
@@ -248,12 +255,12 @@ export class RrMainControls extends LitElement {
   @property({ attribute: false }) centerFrequency: number = 88500000;
   @property({ attribute: false }) tunedFrequency: number = 88500000;
   @property({ attribute: false }) tuningStep: number = 1000;
-  @property({ attribute: false }) availableModes: string[] = ["WBFM"];
-  @property({ attribute: false }) mode: string = "WBFM";
+  @property({ attribute: false }) availableSchemes: Scheme[] = getSchemes();
+  @property({ attribute: false }) scheme: Scheme = "WBFM";
   @property({ attribute: false }) bandwidth: number = 150000;
   @property({ attribute: false }) stereo: boolean = true;
-  @property({ attribute: false }) stereoStatus: boolean = false;
   @property({ attribute: false }) squelch: number = 0;
+  @property({ attribute: false }) stereoStatus: boolean = false;
   @property({ attribute: false }) gain: number | null = null;
   @property({ attribute: false }) gainDisabled: boolean = false;
   @state() private savedGain: number = 0;
@@ -300,8 +307,9 @@ export class RrMainControls extends LitElement {
   }
 
   private onModeChange(e: Event) {
-    this.mode = (e.target as HTMLSelectElement).selectedOptions[0].value;
-    this.dispatchEvent(new ModeChangedEvent());
+    this.scheme = (e.target as HTMLSelectElement).selectedOptions[0]
+      .value as Scheme;
+    this.dispatchEvent(new SchemeChangedEvent());
   }
 
   private onBandwidthChange(e: Event) {
@@ -401,9 +409,9 @@ class TuningStepChangedEvent extends Event {
   }
 }
 
-class ModeChangedEvent extends Event {
+class SchemeChangedEvent extends Event {
   constructor() {
-    super("rr-mode-changed", { bubbles: true, composed: true });
+    super("rr-scheme-changed", { bubbles: true, composed: true });
   }
 }
 
@@ -422,7 +430,7 @@ class StereoChangedEvent extends Event {
 class SquelchChangedEvent extends Event {
   constructor() {
     super("rr-squelch-changed", { bubbles: true, composed: true });
-  }  
+  }
 }
 
 class GainChangedEvent extends Event {
@@ -440,7 +448,7 @@ declare global {
     "rr-center-frequency-changed": CenterFrequencyChangedEvent;
     "rr-tuned-frequency-changed": TunedFrequencyChangedEvent;
     "rr-tuning-step-changed": TuningStepChangedEvent;
-    "rr-mode-changed": ModeChangedEvent;
+    "rr-scheme-changed": SchemeChangedEvent;
     "rr-bandwidth-changed": BandwidthChangedEvent;
     "rr-stereo-changed": StereoChangedEvent;
     "rr-squelch-changed": SquelchChangedEvent;

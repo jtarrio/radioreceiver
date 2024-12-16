@@ -5,7 +5,17 @@ import { RrMainControls } from "./main-controls";
 import { type LowFrequencyMethod, RrSettings } from "./settings";
 import { Demodulator, StereoStatusEvent } from "../../demod/demodulator";
 import { SampleClickEvent, SampleCounter } from "../../demod/sample-counter";
-import { type Mode } from "../../demod/scheme";
+import {
+  getBandwidth,
+  getMode,
+  getSchemes,
+  getSquelch,
+  getStereo,
+  withBandwidth,
+  withSquelch,
+  withStereo,
+  type Mode,
+} from "../../demod/scheme";
 import { Spectrum } from "../../demod/spectrum";
 import { Float32Buffer } from "../../dsp/buffers";
 import { RadioErrorType } from "../../errors";
@@ -36,15 +46,6 @@ type Frequency = {
   leftBand: number;
   rightBand: number;
 };
-
-const DefaultModes: Array<Mode> = [
-  { scheme: "WBFM", stereo: true },
-  { scheme: "NBFM", maxF: 5000, squelch: 0 },
-  { scheme: "AM", bandwidth: 15000, squelch: 0 },
-  { scheme: "LSB", bandwidth: 2800, squelch: 0 },
-  { scheme: "USB", bandwidth: 2800, squelch: 0 },
-  { scheme: "CW", bandwidth: 50 },
-];
 
 const FAKE_RTL = false;
 
@@ -124,18 +125,12 @@ export class RadioReceiverMain extends LitElement {
         .tunedFrequency=${this.frequency.center + this.frequency.offset}
         .tuningStep=${this.tuningStep}
         .scale=${this.scale}
-        .availableModes=${[...this.availableModes.keys()]}
-        .mode=${this.mode.scheme}
-        .bandwidth=${this.mode.scheme == "WBFM"
-          ? 150000
-          : this.mode.scheme == "NBFM"
-            ? this.mode.maxF * 2
-            : this.mode.bandwidth}
-        .stereo=${this.mode.scheme == "WBFM" ? this.mode.stereo : false}
+        .availableModes=${getSchemes()}
+        .scheme=${this.mode.scheme}
+        .bandwidth=${getBandwidth(this.mode)}
+        .stereo=${getStereo(this.mode)}
+        .squelch=${getSquelch(this.mode)}
         .stereoStatus=${this.stereoStatus}
-        .squelch=${this.mode.scheme != "WBFM" && this.mode.scheme != "CW"
-          ? this.mode.squelch
-          : 0}
         .gain=${this.gain}
         .gainDisabled=${this.gainDisabled}
         @rr-start=${this.onStart}
@@ -145,7 +140,7 @@ export class RadioReceiverMain extends LitElement {
         @rr-center-frequency-changed=${this.onCenterFrequencyChange}
         @rr-tuned-frequency-changed=${this.onTunedFrequencyChange}
         @rr-tuning-step-changed=${this.onTuningStepChange}
-        @rr-mode-changed=${this.onSchemeChange}
+        @rr-scheme-changed=${this.onSchemeChange}
         @rr-bandwidth-changed=${this.onBandwidthChange}
         @rr-stereo-changed=${this.onStereoChange}
         @rr-squelch-changed=${this.onSquelchChange}
@@ -175,9 +170,7 @@ export class RadioReceiverMain extends LitElement {
   private demodulator: Demodulator;
   private sampleCounter: SampleCounter;
   private radio: Radio;
-  private availableModes = new Map(
-    DefaultModes.map((s) => [s.scheme as string, { ...s } as Mode])
-  );
+  private availableModes = new Map(getSchemes().map((s) => [s, getMode(s)]));
   private centerFrequencyScroller?: CenterFrequencyScroller;
 
   @state() private sampleRate: number = 1024000;
@@ -374,7 +367,7 @@ export class RadioReceiverMain extends LitElement {
 
   private onSchemeChange(e: Event) {
     let target = e.target as RrMainControls;
-    let value = target.mode;
+    let value = target.scheme;
     let mode = this.availableModes.get(value);
     if (mode === undefined) return;
     this.setMode(mode);
@@ -383,57 +376,22 @@ export class RadioReceiverMain extends LitElement {
   private onBandwidthChange(e: Event) {
     let target = e.target as RrMainControls;
     let value = target.bandwidth;
-    let newMode = { ...this.mode };
-    switch (newMode.scheme) {
-      case "WBFM":
-        break;
-      case "NBFM":
-        newMode.maxF = value / 2;
-        break;
-      default:
-        newMode.bandwidth = value;
-        break;
-    }
-    this.setMode(newMode);
+    this.setMode(withBandwidth(value, this.mode));
   }
 
   private onStereoChange(e: Event) {
     let target = e.target as RrMainControls;
     let value = target.stereo;
-    let newMode = { ...this.mode };
-    if (newMode.scheme == "WBFM") {
-      newMode.stereo = value;
-    }
-    this.setMode(newMode);
+    this.setMode(withStereo(value, this.mode));
   }
 
   private onSquelchChange(e: Event) {
     let target = e.target as RrMainControls;
     let value = target.squelch;
-    let newMode = { ...this.mode };
-    if (newMode.scheme != "WBFM" && newMode.scheme != "CW") {
-      newMode.squelch = value;
-    }
-    this.setMode(newMode);
+    this.setMode(withSquelch(value, this.mode));
   }
 
   private setMode(mode: Mode) {
-    switch (mode.scheme) {
-      case "WBFM":
-        break;
-      case "NBFM":
-        mode.maxF = Math.max(250, Math.min(mode.maxF, 30000));
-        break;
-      case "AM":
-        mode.bandwidth = Math.max(250, Math.min(mode.bandwidth, 30000));
-        break;
-      case "CW":
-        mode.bandwidth = Math.max(5, Math.min(mode.bandwidth, 1000));
-        break;
-      default:
-        mode.bandwidth = Math.max(10, Math.min(mode.bandwidth, 15000));
-        break;
-    }
     this.demodulator.setMode(mode);
     this.mode = mode;
     this.availableModes.set(mode.scheme, mode);
@@ -447,24 +405,14 @@ export class RadioReceiverMain extends LitElement {
 
   private updateFrequencyBands() {
     let newFreq = { ...this.frequency };
-    switch (this.mode.scheme) {
-      case "WBFM":
-        newFreq.leftBand = newFreq.rightBand = 75000;
-        break;
-      case "NBFM":
-        newFreq.leftBand = newFreq.rightBand = this.mode.maxF;
-        break;
-      case "AM":
-      case "CW":
-        newFreq.leftBand = newFreq.rightBand = this.mode.bandwidth / 2;
-        break;
-      case "USB":
-        newFreq.leftBand = 0;
-        newFreq.rightBand = this.mode.bandwidth;
-        break;
-      case "LSB":
-        newFreq.leftBand = this.mode.bandwidth;
-        newFreq.rightBand = 0;
+    if (this.mode.scheme == "USB") {
+      newFreq.leftBand = 0;
+      newFreq.rightBand = getBandwidth(this.mode);
+    } else if (this.mode.scheme == "LSB") {
+      newFreq.leftBand = getBandwidth(this.mode);
+      newFreq.rightBand = 0;
+    } else {
+      newFreq.leftBand = newFreq.rightBand = getBandwidth(this.mode) / 2;
     }
     if (!this.isFrequencyValid(newFreq)) {
       newFreq = {
@@ -619,22 +567,25 @@ export class RadioReceiverMain extends LitElement {
     const size = Math.floor(
       Math.abs(this.frequency.offset - this.bandwidth * (fraction - 0.5))
     );
-    let newMode = { ...this.mode };
-    switch (newMode.scheme) {
+    let newMode;
+    switch (this.mode.scheme) {
       case "WBFM":
-        break;
+        return;
       case "NBFM":
-        newMode.maxF = Math.min(size, maxLeftSize, maxRightSize);
-        break;
       case "AM":
       case "CW":
-        newMode.bandwidth = Math.min(size, maxLeftSize, maxRightSize) * 2;
+        newMode = withBandwidth(
+          Math.min(size, maxLeftSize, maxRightSize) * 2,
+          this.mode
+        );
         break;
       case "LSB":
-        if (sideband == "left") newMode.bandwidth = Math.min(size, maxLeftSize);
+        if (sideband == "right") return;
+        newMode = withBandwidth(Math.min(size, maxLeftSize), this.mode);
+        break;
       case "USB":
-        if (sideband == "right")
-          newMode.bandwidth = Math.min(size, maxRightSize);
+        if (sideband == "left") return;
+        newMode = withBandwidth(Math.min(size, maxRightSize), this.mode);
         break;
     }
     this.setMode(newMode);

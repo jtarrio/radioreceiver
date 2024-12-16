@@ -1,20 +1,23 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { ModulationScheme, type Mode } from "../src/demod/scheme";
+import {
+  getBandwidth,
+  getMode,
+  getSchemes,
+  getStereo,
+  hasBandwidth,
+  hasStereo,
+  ModulationScheme,
+  withBandwidth,
+  withStereo,
+  type Mode,
+  type Scheme,
+} from "../src/demod/scheme";
 import { SchemeWBFM } from "../src/demod/scheme-wbfm";
 import { SchemeNBFM } from "../src/demod/scheme-nbfm";
 import { SchemeAM } from "../src/demod/scheme-am";
 import { SchemeSSB } from "../src/demod/scheme-ssb";
 import { SchemeCW } from "../src/demod/scheme-cw";
-
-const DefaultModes: Array<Mode> = [
-  { scheme: "WBFM", stereo: true },
-  { scheme: "NBFM", maxF: 5000 },
-  { scheme: "AM", bandwidth: 15000 },
-  { scheme: "LSB", bandwidth: 2800 },
-  { scheme: "USB", bandwidth: 2800 },
-  { scheme: "CW", bandwidth: 50 },
-];
 
 @customElement("demod-benchmark")
 class DemodBenchmark extends LitElement {
@@ -45,7 +48,7 @@ class DemodBenchmark extends LitElement {
               </option>`
           )}
       </select>
-      <label for="bandwidth" .hidden=${this.mode.scheme == "WBFM"}
+      <label for="bandwidth" .hidden=${!hasBandwidth(this.mode)}
         >Bandwidth: </label
       ><input
         type="number"
@@ -54,15 +57,15 @@ class DemodBenchmark extends LitElement {
         max="20000"
         step="1"
         .value=${String(getBandwidth(this.mode))}
-        .hidden=${this.mode.scheme == "WBFM"}
+        .hidden=${!hasBandwidth(this.mode)}
         @change=${this.onBandwidthChange}
       />
-      <label for="stereo" .hidden=${this.mode.scheme != "WBFM"}>Stereo: </label
+      <label for="stereo" .hidden=${!hasStereo(this.mode)}>Stereo: </label
       ><input
         type="checkbox"
         id="stereo"
-        .checked=${this.mode.scheme == "WBFM" && this.mode.stereo}
-        .hidden=${this.mode.scheme != "WBFM"}
+        .checked=${getStereo(this.mode)}
+        .hidden=${!hasStereo(this.mode)}
         @change=${this.onStereoChange}
       />
       <button id="run" .hidden=${this.running} @click=${this.onRun}>
@@ -78,7 +81,7 @@ class DemodBenchmark extends LitElement {
 
   @property({ attribute: false }) sampleRate: number = 1024000;
   @property({ attribute: false }) availableModes = new Map(
-    DefaultModes.map((s) => [s.scheme as string, { ...s } as Mode])
+    getSchemes().map((s) => [s, getMode(s)])
   );
   @property({ attribute: false }) mode: Mode = (this.availableModes
     .entries()
@@ -103,7 +106,7 @@ class DemodBenchmark extends LitElement {
 
   onModeChange(e: Event) {
     let input = e.target as HTMLSelectElement;
-    let value = input.selectedOptions[0].value;
+    let value = input.selectedOptions[0].value as Scheme;
     let mode = this.availableModes.get(value);
     if (mode) this.mode = mode;
   }
@@ -115,14 +118,12 @@ class DemodBenchmark extends LitElement {
       input.value = String(getBandwidth(this.mode));
       return;
     }
-    setBandwidth(this.mode, value);
+    this.mode = withBandwidth(value, this.mode);
   }
 
   onStereoChange(e: Event) {
     let input = e.target as HTMLInputElement;
-    if (this.mode.scheme == "WBFM") {
-      this.mode.stereo = input.checked;
-    }
+    this.mode = withStereo(input.checked, this.mode);
   }
 
   onRun() {
@@ -176,31 +177,7 @@ function makeScheme(mode: Mode, sampleRate: number): ModulationScheme {
       return new SchemeCW(sampleRate, outRate, mode);
   }
 }
-
-function getBandwidth(mode: Mode) {
-  switch (mode.scheme) {
-    case "WBFM":
-      return 150000;
-    case "NBFM":
-      return mode.maxF * 2;
-    default:
-      return mode.bandwidth;
-  }
-}
-
-function setBandwidth(mode: Mode, bandwidth: number) {
-  switch (mode.scheme) {
-    case "WBFM":
-      return;
-    case "NBFM":
-      mode.maxF = bandwidth / 2;
-      return;
-    default:
-      mode.bandwidth = bandwidth;
-      return;
-  }
-}
-
+this;
 function twoDig(n: number) {
   return Math.floor(n * 100) / 100;
 }

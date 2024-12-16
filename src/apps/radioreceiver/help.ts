@@ -1,6 +1,13 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { type Mode } from "../../demod/scheme";
+import {
+  getBandwidth,
+  getMode,
+  getSquelch,
+  getStereo,
+  type Mode,
+  type Scheme,
+} from "../../demod/scheme";
 import * as Icons from "../../ui/icons";
 import { RrScope } from "../../ui/spectrum/scope";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
@@ -196,15 +203,6 @@ export class RrDemoBottombar extends LitElement {
   }
 }
 
-const AvailableModes: Map<Mode["scheme"], Mode> = new Map([
-  ["WBFM", { scheme: "WBFM", stereo: true }],
-  ["NBFM", { scheme: "NBFM", maxF: 5000, squelch: 0 }],
-  ["AM", { scheme: "AM", bandwidth: 15000, squelch: 0 }],
-  ["LSB", { scheme: "LSB", bandwidth: 2800, squelch: 0 }],
-  ["USB", { scheme: "USB", bandwidth: 2800, squelch: 0 }],
-  ["CW", { scheme: "CW", bandwidth: 50 }],
-]);
-
 @customElement("rr-demo-controls")
 export class RrDemoControls extends LitElement {
   static get styles() {
@@ -233,35 +231,27 @@ export class RrDemoControls extends LitElement {
         .showHelp=${false}
         .centerFrequency=${93900000}
         .frequencyScale=${1000000}
-        .mode=${this.mode}
-        .availableModes=${[...AvailableModes.keys()]}
-        .bandwidth=${((mode: Mode) => {
-          return mode.scheme == "WBFM"
-            ? 150000
-            : mode.scheme == "NBFM"
-              ? mode.maxF * 2
-              : mode.bandwidth;
-        })(AvailableModes.get(this.mode)!)}
-        .stereo=${((mode: Mode) => {
-          return mode.scheme == "WBFM" ? mode.stereo : false;
-        })(AvailableModes.get(this.mode)!)}
+        .scheme=${this.mode.scheme}
+        .bandwidth=${getBandwidth(this.mode)}
+        .stereo=${getStereo(this.mode)}
         .stereoStatus=${true}
-        .squelch=${((mode: Mode) => {
-          return mode.scheme != "WBFM" && mode.scheme != "CW"
-            ? mode.squelch
-            : 0;
-        })(AvailableModes.get(this.mode)!)}
-        @rr-mode-changed=${this.onModeChanged}
+        .squelch=${getSquelch(this.mode)}
+        @rr-scheme-changed=${this.onSchemeChanged}
       ></rr-main-controls>
     </div>`;
   }
 
-  @property({ type: String, reflect: true }) mode: Mode["scheme"] = "WBFM";
+  @property({ type: String, reflect: true }) scheme: Scheme = "WBFM";
+  @state() mode: Mode = getMode(this.scheme);
 
-  private onModeChanged(e: Event) {
-    let modeName = (e.target as RrMainControls).mode as Mode["scheme"];
-    let mode = AvailableModes.get(modeName) || AvailableModes.get("WBFM")!;
-    this.mode = mode.scheme;
+  private onSchemeChanged(e: Event) {
+    this.scheme = (e.target as RrMainControls).scheme as Scheme;
+  }
+
+  protected willUpdate(changed: PropertyValues): void {
+    if (changed.has("scheme")) {
+      this.mode = getMode(this.scheme);
+    }
   }
 }
 
