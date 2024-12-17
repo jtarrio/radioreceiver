@@ -23,6 +23,10 @@ export class RrWindow extends LitElement {
           box-sizing: border-box;
         }
 
+        :host(.active) {
+          z-index: 1;
+        }
+
         .label {
           display: flex;
           flex-direction: row;
@@ -31,9 +35,14 @@ export class RrWindow extends LitElement {
           border-bottom: none;
           border-radius: 10px 10px 0 0;
           padding: 3px 8px;
-          background: var(--ips-label-background);
+          background: var(--ips-label-bg-idle);
           color: var(--ips-label-color);
           cursor: grab;
+        }
+
+        :host(.active) .label {
+          z-index: 1;
+          background: var(--ips-label-bg-active);
         }
 
         .label.moving {
@@ -70,7 +79,8 @@ export class RrWindow extends LitElement {
           --ips-border-color: var(--rr-window-border-color, black);
           --ips-background: var(--rr-window-background, white);
           --ips-color: var(--rr-window-color, black);
-          --ips-label-background: var(--rr-label-background, #4f5fff);
+          --ips-label-bg-idle: var(--rr-label-bg-idle, #53577f);
+          --ips-label-bg-active: var(--rr-label-bg-active, #4f5fff);
           --ips-label-color: var(--rr-label-color, white);
         }
 
@@ -79,7 +89,8 @@ export class RrWindow extends LitElement {
             --ips-border-color: var(--rr-window-border-color, #ddd);
             --ips-background: var(--rr-window-background, black);
             --ips-color: var(--rr-window-color, #ddd);
-            --ips-label-background: var(--rr-label-background, #1f2f7f);
+            --ips-label-bg-idle: var(--rr-label-bg-idle, #53577f);
+            --ips-label-bg-active: var(--rr-label-bg-active, #1f2f7f);
             --ips-label-color: var(--rr-label-color, white);
           }
         }
@@ -87,6 +98,11 @@ export class RrWindow extends LitElement {
         @media (max-width: 450px) {
           :host {
             position: initial;
+            max-height: 40vh;
+          }
+
+          :host(:not(.active)) .content {
+            display: none;
           }
 
           .label {
@@ -98,6 +114,7 @@ export class RrWindow extends LitElement {
           .content {
             border: 1px solid var(--ips-border-color);
             border-radius: 0;
+            overflow: scroll;
           }
         }
       `,
@@ -110,9 +127,13 @@ export class RrWindow extends LitElement {
         class="label${this.dragging ? " moving" : ""}"
         @pointerdown=${this.onPointerDown}
       >
-        <div class="label-left" @pointerdown=${this.noPointerDown}><slot name="label-left"></slot></div>
+        <div class="label-left" @pointerdown=${this.noPointerDown}>
+          <slot name="label-left"></slot>
+        </div>
         <div class="label-middle"><slot name="label">${this.label}</slot></div>
-        <div class="label-right" @pointerdown=${this.noPointerDown}><slot name="label-right"></slot></div>
+        <div class="label-right" @pointerdown=${this.noPointerDown}>
+          <slot name="label-right"></slot>
+        </div>
       </div>
       <div class="content"><slot></slot></div>`;
   }
@@ -125,16 +146,33 @@ export class RrWindow extends LitElement {
     super.connectedCallback();
     this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
     this.resizeObserver.observe(document.body);
+    this.addEventListener("pointerdown", (e) => this.onSelect(e));
+    registry.register(this);
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
     this.resizeObserver?.disconnect();
+    registry.unregister(this);
   }
 
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.dragController = new DragController(new WindowDragHandler(this), 0);
+    if (changed.has("hidden")) {
+      registry.show(!this.hidden, this);
+    }
+  }
+
+  protected updated(changed: PropertyValues): void {
+    super.updated(changed);
+    if (changed.has("hidden")) {
+      registry.show(!this.hidden, this);
+    }
+  }
+
+  private onSelect(e: PointerEvent) {
+    registry.select(this);
   }
 
   private noPointerDown(e: PointerEvent) {
@@ -218,6 +256,78 @@ export class WindowClosedEvent extends Event {
   constructor() {
     super("rr-window-closed", { bubbles: true, composed: true });
   }
+}
+
+class WindowRegistry {
+  private windows: RrWindow[] | null = [];
+
+  setAllActive() {
+    if (this.windows === null) return;
+    for (let window of this.windows) {
+      window.classList.add("active");
+    }
+    this.windows = null;
+  }
+
+  register(window: RrWindow) {
+    if (this.windows === null) {
+      window.classList.add("active");
+      return;
+    }
+    this.windows.push(window);
+    this.update();
+  }
+
+  unregister(window: RrWindow) {
+    if (this.windows === null) return;
+    let idx = this.windows.findIndex((v) => v === window);
+    if (idx < 0) return;
+    this.windows.splice(idx, 1);
+    this.update();
+  }
+
+  show(show: boolean, window: RrWindow) {
+    if (show) {
+      this.select(window);
+    } else {
+      this.hide(window);
+    }
+  }
+
+  select(window: RrWindow) {
+    if (this.windows === null) return;
+    if (this.windows[this.windows.length - 1] === window) return;
+    let idx = this.windows.findIndex((v) => v === window);
+    if (idx < 0) return;
+    this.windows.splice(idx, 1);
+    this.windows.push(window);
+    this.update();
+  }
+
+  hide(window: RrWindow) {
+    if (this.windows === null) return;
+    if (this.windows[0] === window) return;
+    let idx = this.windows.findIndex((v) => v === window);
+    if (idx < 0) return;
+    this.windows.splice(idx, 1);
+    this.windows.unshift(window);
+    this.update();
+  }
+
+  private update() {
+    if (this.windows === null) return;
+    if (this.windows.length == 0) return;
+    for (let i = 0; i < this.windows.length - 1; ++i) {
+      this.windows[i].classList.remove("active");
+    }
+    this.windows[this.windows.length - 1].classList.add("active");
+  }
+}
+
+let registry = new WindowRegistry();
+
+export function MakeAllWindowsActive() {
+  registry.setAllActive();
 }
 
 declare global {
