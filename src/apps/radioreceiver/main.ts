@@ -29,6 +29,7 @@ import {
 } from "../../rtlsdr/fakertl/generators";
 import { RTL2832U_Provider } from "../../rtlsdr/rtl2832u";
 import { DirectSampling, RtlDeviceProvider } from "../../rtlsdr/rtldevice";
+import { SetWindowPosition, WindowMovedEvent } from "../../ui/controls/window";
 import {
   SpectrumDecibelRangeChangedEvent,
   SpectrumDragEvent,
@@ -145,6 +146,7 @@ export class RadioReceiverMain extends LitElement {
         @rr-stereo-changed=${this.onStereoChange}
         @rr-squelch-changed=${this.onSquelchChange}
         @rr-gain-changed=${this.onGainChange}
+        @rr-window-moved=${this.onWindowMoved}
       ></rr-main-controls>
 
       <rr-settings
@@ -160,6 +162,7 @@ export class RadioReceiverMain extends LitElement {
         @rr-fft-size-changed=${this.onFftSizeChange}
         @rr-bias-tee-changed=${this.onBiasTeeChange}
         @rr-low-frequency-method-changed=${this.onLowFrequencyMethodChange}
+        @rr-window-moved=${this.onWindowMoved}
         @rr-window-closed=${this.onSettingsClosed}
       ></rr-settings>`;
   }
@@ -203,6 +206,8 @@ export class RadioReceiverMain extends LitElement {
   @state() private settingsVisible: boolean = false;
 
   @query("#spectrum") private spectrumView?: RrSpectrum;
+  @query("rr-main-controls") private mainControlsWindow?: RrMainControls;
+  @query("rr-settings") private settingsWindow?: RrSettings;
 
   constructor() {
     super();
@@ -254,6 +259,10 @@ export class RadioReceiverMain extends LitElement {
     this.enableBiasTee(cfg.biasTee);
     this.minDecibels = cfg.minDecibels;
     this.maxDecibels = cfg.maxDecibels;
+
+    SetWindowPosition("controls", cfg.windows.controls.position);
+    SetWindowPosition("settings", cfg.windows.settings.position);
+    if (cfg.windows.settings.open) this.settingsVisible = true;
   }
 
   private isFrequencyValid(freq: Frequency): boolean {
@@ -281,10 +290,29 @@ export class RadioReceiverMain extends LitElement {
 
   private onSettings() {
     this.settingsVisible = true;
+    this.settingsWindow?.activate();
+    this.configProvider.update((cfg) => (cfg.windows.settings.open = true));
   }
 
   private onSettingsClosed() {
     this.settingsVisible = false;
+    this.configProvider.update((cfg) => (cfg.windows.settings.open = false));
+  }
+
+  private onWindowMoved(e: WindowMovedEvent) {
+    const window =
+      e.target == this.mainControlsWindow
+        ? this.mainControlsWindow
+        : e.target == this.settingsWindow
+          ? this.settingsWindow
+          : undefined;
+    const position = window?.getPosition();
+    if (!position) return;
+    const windowName =
+      window == this.mainControlsWindow ? "controls" : "settings";
+    this.configProvider.update(
+      (cfg) => (cfg.windows[windowName].position = position)
+    );
   }
 
   private onScaleChange(e: Event) {

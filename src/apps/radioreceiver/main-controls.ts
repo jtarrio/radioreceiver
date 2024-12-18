@@ -1,5 +1,5 @@
 import { css, html, LitElement, nothing } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 import {
   getSchemes,
   hasBandwidth,
@@ -8,6 +8,7 @@ import {
   type Scheme,
 } from "../../demod/scheme";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input";
+import { RrWindow, type WindowPosition } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
@@ -264,6 +265,11 @@ export class RrMainControls extends LitElement {
   @property({ attribute: false }) gain: number | null = null;
   @property({ attribute: false }) gainDisabled: boolean = false;
   @state() private savedGain: number = 0;
+  @query("rr-window") private window?: RrWindow;
+
+  getPosition(): WindowPosition | undefined {
+    return this.window?.getPosition();
+  }
 
   private onStart() {
     this.dispatchEvent(new StartEvent());

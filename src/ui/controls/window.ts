@@ -23,10 +23,6 @@ export class RrWindow extends LitElement {
           box-sizing: border-box;
         }
 
-        :host(.active) {
-          z-index: 1;
-        }
-
         .label {
           display: flex;
           flex-direction: row;
@@ -41,7 +37,6 @@ export class RrWindow extends LitElement {
         }
 
         :host(.active) .label {
-          z-index: 1;
           background: var(--ips-label-bg-active);
         }
 
@@ -156,6 +151,53 @@ export class RrWindow extends LitElement {
     registry.unregister(this);
   }
 
+  activate() {
+    registry.select(this);
+  }
+
+  getPosition(): WindowPosition | undefined {
+    if (this.offsetWidth == 0 && this.offsetHeight == 0) return undefined;
+    return {
+      top: this.offsetTop,
+      left: this.offsetLeft,
+      bottom: visualViewport!.height - this.offsetTop - this.offsetHeight,
+      right: visualViewport!.width - this.offsetLeft - this.offsetWidth,
+    };
+  }
+
+  setPosition(position: WindowPosition) {
+    const width = visualViewport!.width;
+    const height = visualViewport!.height;
+    const fitsLeft = position.left + this.offsetWidth <= width;
+    const fitsRight = position.right + this.offsetWidth <= width;
+    const fitsTop = position.top + this.offsetHeight <= height;
+    const fitsBottom = position.bottom + this.offsetHeight <= height;
+    const preferLeft = position.left <= position.right;
+    const preferTop = position.top <= position.bottom;
+
+    if (preferLeft && fitsLeft) {
+      this.style.left = `${position.left}px`;
+      this.style.right = "auto";
+    } else if (!preferLeft && fitsRight) {
+      this.style.right = `${position.right}px`;
+      this.style.left = "auto";
+    } else {
+      this.style.left = `${Math.max(0, Math.floor((width - this.offsetWidth) / 2))}px`;
+      this.style.right = "auto";
+    }
+
+    if (preferTop && fitsTop) {
+      this.style.top = `${position.top}px`;
+      this.style.bottom = "auto";
+    } else if (!preferTop && fitsBottom) {
+      this.style.bottom = `${position.bottom}px`;
+      this.style.top = "auto";
+    } else {
+      this.style.top = `${Math.max(0, Math.floor((height - this.offsetHeight) / 2))}px`;
+      this.style.bottom = "auto";
+    }
+  }
+
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.dragController = new DragController(new WindowDragHandler(this), 0);
@@ -188,6 +230,14 @@ export class RrWindow extends LitElement {
     moveElementWithinViewport(this, this.offsetLeft, this.offsetTop);
   }
 }
+
+/** The position of a window, as pixel distances from the edges. */
+export type WindowPosition = {
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
+};
 
 function fixElement(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
@@ -242,6 +292,7 @@ class WindowDragHandler implements DragHandler {
 
   finishDrag(): void {
     this.window.dragging = false;
+    this.window.dispatchEvent(new WindowMovedEvent());
   }
 
   cancelDrag(): void {
@@ -252,6 +303,12 @@ class WindowDragHandler implements DragHandler {
   onClick(): void {}
 }
 
+export class WindowMovedEvent extends Event {
+  constructor() {
+    super("rr-window-moved", { bubbles: true, composed: true });
+  }
+}
+
 export class WindowClosedEvent extends Event {
   constructor() {
     super("rr-window-closed", { bubbles: true, composed: true });
@@ -260,6 +317,8 @@ export class WindowClosedEvent extends Event {
 
 class WindowRegistry {
   private windows: RrWindow[] | null = [];
+  private pendingPositions: [RrWindow | string, WindowPosition | undefined][] =
+    [];
 
   setAllActive() {
     if (this.windows === null) return;
@@ -274,7 +333,7 @@ class WindowRegistry {
       window.classList.add("active");
       return;
     }
-    this.windows.push(window);
+    this.windows.unshift(window);
     this.update();
   }
 
@@ -287,9 +346,8 @@ class WindowRegistry {
   }
 
   show(show: boolean, window: RrWindow) {
-    if (show) {
-      this.select(window);
-    } else {
+    this.applyPosition(window);
+    if (!show) {
       this.hide(window);
     }
   }
@@ -314,13 +372,37 @@ class WindowRegistry {
     this.update();
   }
 
+  setPosition(window: RrWindow | string, position: WindowPosition | undefined) {
+    if (this.windows != null) {
+      let idx = this.windows.findIndex((w) => w === window || w.id === window);
+      if (idx >= 0) {
+        if (position !== undefined) this.windows[idx].setPosition(position);
+        return;
+      }
+    }
+    this.pendingPositions.push([window, position]);
+  }
+
   private update() {
     if (this.windows === null) return;
     if (this.windows.length == 0) return;
-    for (let i = 0; i < this.windows.length - 1; ++i) {
+    const last = this.windows.length - 1;
+    for (let i = 0; i < last; ++i) {
       this.windows[i].classList.remove("active");
+      this.windows[i].style.zIndex = String(i);
     }
-    this.windows[this.windows.length - 1].classList.add("active");
+    this.windows[last].classList.add("active");
+    this.windows[last].style.zIndex = String(last);
+  }
+
+  private applyPosition(window: RrWindow) {
+    let idx = this.pendingPositions.findIndex(
+      (w) => w[0] === window || w[0] === window.id
+    );
+    if (idx < 0) return;
+    let w = this.pendingPositions[idx];
+    this.pendingPositions.splice(idx, 1);
+    if (w[1] !== undefined) window.setPosition(w[1]);
   }
 }
 
@@ -330,8 +412,16 @@ export function MakeAllWindowsActive() {
   registry.setAllActive();
 }
 
+export function SetWindowPosition(
+  window: RrWindow | string,
+  position: WindowPosition | undefined
+) {
+  registry.setPosition(window, position);
+}
+
 declare global {
   interface HTMLElementEventMap {
+    "rr-window-moved": WindowMovedEvent;
     "rr-window-closed": WindowClosedEvent;
   }
 }

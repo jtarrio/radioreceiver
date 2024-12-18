@@ -72,6 +72,10 @@ function blankConfig(): RawConfig {
       },
       minDecibels: -90,
       maxDecibels: -20,
+      windows: {
+        controls: {},
+        settings: {},
+      },
     },
   };
 }
@@ -116,6 +120,29 @@ type ConfigV1 = {
   minDecibels: number;
   /** Maximum number of decibels for scope. */
   maxDecibels: number;
+  /** Window configurations. */
+  windows: {
+    [k in ConfigV1WindowName]: ConfigV1Window;
+  };
+};
+
+/** Names of the windows whose configurations can be saved. */
+type ConfigV1WindowName = "controls" | "settings";
+
+/** Window configuration. */
+type ConfigV1Window = {
+  /** Whether the window is visible. */
+  open?: boolean;
+  /** Window's position on the screen. */
+  position?: ConfigV1WindowPosition;
+};
+
+/** Window position. */
+type ConfigV1WindowPosition = {
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
 };
 
 /** This definition parallels the Mode from scheme.ts */

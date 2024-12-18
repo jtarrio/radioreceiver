@@ -1,6 +1,10 @@
 import { css, html, LitElement } from "lit";
-import { customElement, property } from "lit/decorators.js";
-import { WindowClosedEvent } from "../../ui/controls/window";
+import { customElement, property, query } from "lit/decorators.js";
+import {
+  RrWindow,
+  WindowClosedEvent,
+  WindowPosition,
+} from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
@@ -218,6 +222,15 @@ export class RrSettings extends LitElement {
     frequency: 100000000,
     biasTee: false,
   };
+  @query('rr-window') private window?: RrWindow;
+
+  getPosition(): WindowPosition | undefined {
+    return this.window?.getPosition();
+  }
+
+  activate() {
+    this.window?.activate();
+  }
 
   private onClose() {
     this.dispatchEvent(new WindowClosedEvent());
