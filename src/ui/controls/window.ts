@@ -31,13 +31,13 @@ export class RrWindow extends LitElement {
           border-bottom: none;
           border-radius: 10px 10px 0 0;
           padding: 3px 8px;
-          background: var(--ips-label-bg-idle);
+          background: var(--ips-label-bg-active);
           color: var(--ips-label-color);
           cursor: grab;
         }
 
-        :host(.active) .label {
-          background: var(--ips-label-bg-active);
+        :host(.inactive) .label {
+          background: var(--ips-label-bg-idle);
         }
 
         .label.moving {
@@ -96,7 +96,7 @@ export class RrWindow extends LitElement {
             max-height: 40vh;
           }
 
-          :host(:not(.active)) .content {
+          :host(.inactive) .content {
             display: none;
           }
 
@@ -141,18 +141,18 @@ export class RrWindow extends LitElement {
     super.connectedCallback();
     this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
     this.resizeObserver.observe(document.body);
-    this.addEventListener("pointerdown", (e) => this.onSelect(e));
-    registry.register(this);
+    this.addEventListener("pointerdown", () => this.onSelect());
+    registry?.register(this);
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
     this.resizeObserver?.disconnect();
-    registry.unregister(this);
+    registry?.unregister(this);
   }
 
   activate() {
-    registry.select(this);
+    registry?.select(this);
   }
 
   getPosition(): WindowPosition | undefined {
@@ -202,19 +202,19 @@ export class RrWindow extends LitElement {
     super.firstUpdated(changed);
     this.dragController = new DragController(new WindowDragHandler(this), 0);
     if (changed.has("hidden")) {
-      registry.show(!this.hidden, this);
+      registry?.show(!this.hidden, this);
     }
   }
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
     if (changed.has("hidden")) {
-      registry.show(!this.hidden, this);
+      registry?.show(!this.hidden, this);
     }
   }
 
-  private onSelect(e: PointerEvent) {
-    registry.select(this);
+  private onSelect() {
+    registry?.select(this);
   }
 
   private noPointerDown(e: PointerEvent) {
@@ -316,29 +316,16 @@ export class WindowClosedEvent extends Event {
 }
 
 class WindowRegistry {
-  private windows: RrWindow[] | null = [];
+  private windows: RrWindow[] = [];
   private pendingPositions: [RrWindow | string, WindowPosition | undefined][] =
     [];
 
-  setAllActive() {
-    if (this.windows === null) return;
-    for (let window of this.windows) {
-      window.classList.add("active");
-    }
-    this.windows = null;
-  }
-
   register(window: RrWindow) {
-    if (this.windows === null) {
-      window.classList.add("active");
-      return;
-    }
     this.windows.unshift(window);
     this.update();
   }
 
   unregister(window: RrWindow) {
-    if (this.windows === null) return;
     let idx = this.windows.findIndex((v) => v === window);
     if (idx < 0) return;
     this.windows.splice(idx, 1);
@@ -353,7 +340,6 @@ class WindowRegistry {
   }
 
   select(window: RrWindow) {
-    if (this.windows === null) return;
     if (this.windows[this.windows.length - 1] === window) return;
     let idx = this.windows.findIndex((v) => v === window);
     if (idx < 0) return;
@@ -363,7 +349,6 @@ class WindowRegistry {
   }
 
   hide(window: RrWindow) {
-    if (this.windows === null) return;
     if (this.windows[0] === window) return;
     let idx = this.windows.findIndex((v) => v === window);
     if (idx < 0) return;
@@ -373,25 +358,22 @@ class WindowRegistry {
   }
 
   setPosition(window: RrWindow | string, position: WindowPosition | undefined) {
-    if (this.windows != null) {
-      let idx = this.windows.findIndex((w) => w === window || w.id === window);
-      if (idx >= 0) {
-        if (position !== undefined) this.windows[idx].setPosition(position);
-        return;
-      }
+    let idx = this.windows.findIndex((w) => w === window || w.id === window);
+    if (idx >= 0 && position !== undefined) {
+      this.windows[idx].setPosition(position);
+    } else {
+      this.pendingPositions.push([window, position]);
     }
-    this.pendingPositions.push([window, position]);
   }
 
   private update() {
-    if (this.windows === null) return;
     if (this.windows.length == 0) return;
     const last = this.windows.length - 1;
     for (let i = 0; i < last; ++i) {
-      this.windows[i].classList.remove("active");
+      this.windows[i].classList.add("inactive");
       this.windows[i].style.zIndex = String(i);
     }
-    this.windows[last].classList.add("active");
+    this.windows[last].classList.remove("inactive");
     this.windows[last].style.zIndex = String(last);
   }
 
@@ -406,17 +388,17 @@ class WindowRegistry {
   }
 }
 
-let registry = new WindowRegistry();
+let registry: WindowRegistry | undefined;
 
-export function MakeAllWindowsActive() {
-  registry.setAllActive();
+export function CreateWindowRegistry() {
+  if (!registry) registry = new WindowRegistry();
 }
 
 export function SetWindowPosition(
   window: RrWindow | string,
   position: WindowPosition | undefined
 ) {
-  registry.setPosition(window, position);
+  registry?.setPosition(window, position);
 }
 
 declare global {

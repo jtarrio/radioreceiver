@@ -29,7 +29,11 @@ import {
 } from "../../rtlsdr/fakertl/generators";
 import { RTL2832U_Provider } from "../../rtlsdr/rtl2832u";
 import { DirectSampling, RtlDeviceProvider } from "../../rtlsdr/rtldevice";
-import { SetWindowPosition, WindowMovedEvent } from "../../ui/controls/window";
+import {
+  CreateWindowRegistry,
+  SetWindowPosition,
+  WindowMovedEvent,
+} from "../../ui/controls/window";
 import {
   SpectrumDecibelRangeChangedEvent,
   SpectrumDragEvent,
@@ -721,3 +725,5 @@ class CenterFrequencyScroller {
     this.timeout = undefined;
   }
 }
+
+CreateWindowRegistry();

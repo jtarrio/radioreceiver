@@ -1,5 +1,4 @@
 import "../../src/apps/radioreceiver/help";
-import { MakeAllWindowsActive } from "../../src/ui/controls/window";
 
 /** Builds a table of contents. */
 function buildToc() {
@@ -36,5 +35,4 @@ function buildToc() {
   }
 }
 
-MakeAllWindowsActive();
 window.addEventListener("load", buildToc);
