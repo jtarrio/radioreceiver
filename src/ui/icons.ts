@@ -12,6 +12,11 @@ export const Close = icon(
   svg`<g><path d="M2 4v-2h2l4 4 4 -4h2v2l-4 4 4 4v2h-2l-4 -4 -4 4h-2v-2l4 -4z"></path></g>`
 );
 
+export const Resize = icon(
+  "Resize",
+  svg`<g><path d="M2,2V8L4.25,5.75 10.25,11.75 8,14 14,14 14,8 11.75,10.25 5.75,4.25 8,2Z"></path></g>`
+);
+
 export const Stop = icon(
   "Stop playing",
   svg`<g><path d="M3 3v10h10V3z"></path></g>`

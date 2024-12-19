@@ -1,11 +1,14 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 import { DragController, DragHandler } from "./drag-controller";
+import * as Icons from "../icons";
 
 @customElement("rr-window")
 export class RrWindow extends LitElement {
   @property({ type: String, reflect: true })
   label: string = "";
+  @property({ type: Boolean, reflect: true })
+  resizeable: boolean = false;
   @property({ type: Boolean, reflect: true })
   fixed: boolean = false;
   @property({ type: Boolean, reflect: true })
@@ -70,6 +73,22 @@ export class RrWindow extends LitElement {
           color: var(--ips-color);
         }
 
+        .content.resizeable {
+          overflow: auto;
+        }
+
+        .resizer {
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          width: 16px;
+          height: 16px;
+          background: var(--ips-background);
+          border: 2px solid black;
+          border-top: 0;
+          border-left: 0;
+        }
+
         :host {
           --ips-border-color: var(--rr-window-border-color, black);
           --ips-background: var(--rr-window-background, white);
@@ -119,8 +138,8 @@ export class RrWindow extends LitElement {
   render() {
     if (this.hidden) return nothing;
     return html`<div
-        class="label${this.dragging ? " moving" : ""}"
-        @pointerdown=${this.onPointerDown}
+        class="label${this.moving ? " moving" : ""}"
+        @pointerdown=${this.onLabelPointerDown}
       >
         <div class="label-left" @pointerdown=${this.noPointerDown}>
           <slot name="label-left"></slot>
@@ -130,11 +149,19 @@ export class RrWindow extends LitElement {
           <slot name="label-right"></slot>
         </div>
       </div>
-      <div class="content"><slot></slot></div>`;
+      <div class="content${this.resizeable ? " resizeable" : ""}">
+        <slot></slot>${this.resizeable
+          ? html`<div class="resizer" @pointerdown=${this.onResizePointerDown}>
+              ${Icons.Resize}
+            </div>`
+          : nothing}
+      </div>`;
   }
 
-  @state() dragging: boolean = false;
-  private dragController?: DragController;
+  @state() moving: boolean = false;
+  @query(".content") private content?: HTMLDivElement;
+  private moveController?: DragController;
+  private resizeController?: DragController;
   private resizeObserver?: ResizeObserver;
 
   connectedCallback(): void {
@@ -200,7 +227,11 @@ export class RrWindow extends LitElement {
 
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
-    this.dragController = new DragController(new WindowDragHandler(this), 0);
+    this.moveController = new DragController(new WindowMoveHandler(this), 0);
+    this.resizeController = new DragController(
+      new WindowResizeHandler(this, this.content!),
+      0
+    );
     if (changed.has("hidden")) {
       registry?.show(!this.hidden, this);
     }
@@ -221,9 +252,14 @@ export class RrWindow extends LitElement {
     e.stopPropagation();
   }
 
-  private onPointerDown(e: PointerEvent) {
+  private onLabelPointerDown(e: PointerEvent) {
     if (this.fixed) return;
-    this.dragController?.startDragging(e);
+    this.moveController?.startDragging(e);
+  }
+
+  private onResizePointerDown(e: PointerEvent) {
+    if (this.fixed) return;
+    this.resizeController?.startDragging(e);
   }
 
   private onWindowResize() {
@@ -261,12 +297,43 @@ function moveElementWithinViewport(element: HTMLElement, x: number, y: number) {
   }
 }
 
+function resizeElementWithinViewport(
+  element: HTMLElement,
+  width: number,
+  height: number
+) {
+  const elemX = element.offsetLeft;
+  const elemY = element.offsetTop;
+  if (elemX + width > visualViewport!.width)
+    width = visualViewport!.width - elemX;
+  if (elemY + width < visualViewport!.height) {
+    height = visualViewport!.height - elemY;
+  }
+  if (width < 200) width = 200;
+  if (height < 100) height = 100;
+  if (width != element.offsetWidth || height != element.offsetHeight) {
+    resizeElement(element, Math.floor(width), Math.floor(height));
+  }
+}
+
 function moveElement(element: HTMLElement, x: number, y: number) {
   element.style.left = x + "px";
   element.style.top = y + "px";
 }
 
-class WindowDragHandler implements DragHandler {
+function resizeElement(element: HTMLElement, width: number, height: number) {
+  element.style.width = width + "px";
+  element.style.height = height + "px";
+}
+
+function resizeWindowToFitContent(window: RrWindow, content: HTMLDivElement) {
+  const height = Math.min(window.offsetHeight, content.offsetTop + content.offsetHeight);
+  const width = Math.min(window.offsetWidth, content.offsetLeft + content.offsetWidth);
+  if (height != window.offsetHeight || width != window.offsetWidth)
+  resizeElement(window, width, height);
+}
+
+class WindowMoveHandler implements DragHandler {
   constructor(private window: RrWindow) {
     this.elemX = window.offsetLeft;
     this.elemY = window.offsetTop;
@@ -277,7 +344,7 @@ class WindowDragHandler implements DragHandler {
 
   startDrag(): void {
     fixElement(this.window);
-    this.window.dragging = true;
+    this.window.moving = true;
     this.elemX = this.window.offsetLeft;
     this.elemY = this.window.offsetTop;
   }
@@ -291,13 +358,52 @@ class WindowDragHandler implements DragHandler {
   }
 
   finishDrag(): void {
-    this.window.dragging = false;
+    this.window.moving = false;
     this.window.dispatchEvent(new WindowMovedEvent());
   }
 
   cancelDrag(): void {
-    this.window.dragging = false;
+    this.window.moving = false;
     moveElement(this.window, this.elemX, this.elemY);
+  }
+
+  onClick(): void {}
+}
+
+class WindowResizeHandler implements DragHandler {
+  constructor(
+    private window: RrWindow,
+    private content: HTMLDivElement
+  ) {
+    this.sizeX = window.offsetWidth;
+    this.sizeY = window.offsetHeight;
+  }
+
+  private sizeX: number;
+  private sizeY: number;
+
+  startDrag(): void {
+    fixElement(this.window);
+    this.sizeX = this.window.offsetWidth;
+    this.sizeY = this.window.offsetHeight;
+  }
+
+  drag(deltaX: number, deltaY: number): void {
+    resizeElementWithinViewport(
+      this.window,
+      this.sizeX + deltaX,
+      this.sizeY + deltaY
+    );
+    resizeWindowToFitContent(this.window, this.content);
+  }
+
+  finishDrag(): void {
+    this.window.dispatchEvent(new WindowResizedEvent());
+  }
+
+  cancelDrag(): void {
+    resizeElement(this.window, this.sizeX, this.sizeY);
+    resizeWindowToFitContent(this.window, this.content);
   }
 
   onClick(): void {}
@@ -306,6 +412,12 @@ class WindowDragHandler implements DragHandler {
 export class WindowMovedEvent extends Event {
   constructor() {
     super("rr-window-moved", { bubbles: true, composed: true });
+  }
+}
+
+export class WindowResizedEvent extends Event {
+  constructor() {
+    super("rr-window-resized", { bubbles: true, composed: true });
   }
 }
 
@@ -404,6 +516,7 @@ export function SetWindowPosition(
 declare global {
   interface HTMLElementEventMap {
     "rr-window-moved": WindowMovedEvent;
+    "rr-window-resized": WindowResizedEvent;
     "rr-window-closed": WindowClosedEvent;
   }
 }
