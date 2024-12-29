@@ -66,6 +66,7 @@ export class RrWindow extends LitElement {
         }
 
         .content {
+          box-sizing: border-box;
           border: 2px solid var(--ips-border-color);
           border-radius: 0 0 10px 10px;
           padding: 1ex;
@@ -263,7 +264,7 @@ export class RrWindow extends LitElement {
   }
 
   private onWindowResize() {
-    moveElementWithinViewport(this, this.offsetLeft, this.offsetTop);
+    moveWindowWithinViewport(this, this.offsetLeft, this.offsetTop);
   }
 }
 
@@ -283,7 +284,7 @@ function fixElement(element: HTMLElement) {
   element.style.bottom = "auto";
 }
 
-function moveElementWithinViewport(element: HTMLElement, x: number, y: number) {
+function moveWindowWithinViewport(element: HTMLElement, x: number, y: number) {
   const origX = element.offsetLeft;
   const origY = element.offsetTop;
   if (x > visualViewport!.width - element.offsetWidth)
@@ -297,22 +298,23 @@ function moveElementWithinViewport(element: HTMLElement, x: number, y: number) {
   }
 }
 
-function resizeElementWithinViewport(
-  element: HTMLElement,
+function resizeWindowWithinViewport(
+  window: HTMLElement,
+  content: HTMLElement,
   width: number,
   height: number
 ) {
-  const elemX = element.offsetLeft;
-  const elemY = element.offsetTop;
-  if (elemX + width > visualViewport!.width)
-    width = visualViewport!.width - elemX;
-  if (elemY + width < visualViewport!.height) {
-    height = visualViewport!.height - elemY;
+  const wndX = window.offsetLeft;
+  const wndY = window.offsetTop;
+  const cntTop = content.offsetTop;
+  if (wndX + width > visualViewport!.width)
+    width = visualViewport!.width - wndX;
+  if (wndY + cntTop + height > visualViewport!.height) {
+    height = visualViewport!.height - wndY - cntTop;
   }
-  if (width < 200) width = 200;
-  if (height < 100) height = 100;
-  if (width != element.offsetWidth || height != element.offsetHeight) {
-    resizeElement(element, Math.floor(width), Math.floor(height));
+  if (height < 32) height = 32;
+  if (width != content.offsetWidth || height != content.offsetHeight) {
+    resizeWindow(window, content, Math.floor(width), Math.floor(height));
   }
 }
 
@@ -321,16 +323,12 @@ function moveElement(element: HTMLElement, x: number, y: number) {
   element.style.top = y + "px";
 }
 
-function resizeElement(element: HTMLElement, width: number, height: number) {
-  element.style.width = width + "px";
-  element.style.height = height + "px";
-}
-
-function resizeWindowToFitContent(window: RrWindow, content: HTMLDivElement) {
-  const height = Math.min(window.offsetHeight, content.offsetTop + content.offsetHeight);
-  const width = Math.min(window.offsetWidth, content.offsetLeft + content.offsetWidth);
-  if (height != window.offsetHeight || width != window.offsetWidth)
-  resizeElement(window, width, height);
+function resizeWindow(window: HTMLElement, content: HTMLElement, width: number, height: number) {
+  content.style.width = width + "px";
+  content.style.height = height + "px";
+  if (content.offsetWidth < window.offsetWidth) {
+    content.style.width = window.offsetWidth + "px";
+  }
 }
 
 class WindowMoveHandler implements DragHandler {
@@ -350,7 +348,7 @@ class WindowMoveHandler implements DragHandler {
   }
 
   drag(deltaX: number, deltaY: number): void {
-    moveElementWithinViewport(
+    moveWindowWithinViewport(
       this.window,
       this.elemX + deltaX,
       this.elemY + deltaY
@@ -375,8 +373,8 @@ class WindowResizeHandler implements DragHandler {
     private window: RrWindow,
     private content: HTMLDivElement
   ) {
-    this.sizeX = window.offsetWidth;
-    this.sizeY = window.offsetHeight;
+    this.sizeX = content.offsetWidth;
+    this.sizeY = content.offsetHeight;
   }
 
   private sizeX: number;
@@ -384,17 +382,17 @@ class WindowResizeHandler implements DragHandler {
 
   startDrag(): void {
     fixElement(this.window);
-    this.sizeX = this.window.offsetWidth;
-    this.sizeY = this.window.offsetHeight;
+    this.sizeX = this.content.offsetWidth;
+    this.sizeY = this.content.offsetHeight;
   }
 
   drag(deltaX: number, deltaY: number): void {
-    resizeElementWithinViewport(
+    resizeWindowWithinViewport(
       this.window,
+      this.content,
       this.sizeX + deltaX,
       this.sizeY + deltaY
     );
-    resizeWindowToFitContent(this.window, this.content);
   }
 
   finishDrag(): void {
@@ -402,8 +400,7 @@ class WindowResizeHandler implements DragHandler {
   }
 
   cancelDrag(): void {
-    resizeElement(this.window, this.sizeX, this.sizeY);
-    resizeWindowToFitContent(this.window, this.content);
+    resizeWindow(this.window, this.content, this.sizeX, this.sizeY);
   }
 
   onClick(): void {}
