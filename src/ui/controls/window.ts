@@ -75,6 +75,7 @@ export class RrWindow extends LitElement implements Window {
         }
 
         .content {
+          position: relative;
           box-sizing: border-box;
           border: 2px solid var(--ips-border-color);
           border-radius: 0 0 10px 10px;
@@ -85,18 +86,42 @@ export class RrWindow extends LitElement implements Window {
 
         .content.resizeable {
           overflow: auto;
+          padding: 1ex max(1ex + 6px, 16px) max(1ex + 6px, 16px) 1ex;
+          border-bottom-right-radius: 0;
         }
 
-        .resizer {
+        .right-resizer {
           position: absolute;
+          top: 0;
           right: 0;
+          bottom: 16px;
+          width: 2px;
+          border: solid var(--ips-background);
+          border-width: 8px 4px 0 11px;
+          background: var(--ips-border-color);
+          cursor: ew-resize;
+        }
+
+        .bottom-resizer {
+          position: absolute;
+          left: 0;
           bottom: 0;
+          right: 16px;
+          height: 2px;
+          border: solid var(--ips-background);
+          border-width: 11px 0 4px 8px;
+          background: var(--ips-border-color);
+          cursor: ns-resize;
+        }
+
+        .corner-resizer {
+          position: absolute;
+          bottom: 0;
+          right: 0;
           width: 16px;
           height: 16px;
-          background: var(--ips-background);
-          border: 2px solid black;
-          border-top: 0;
-          border-left: 0;
+          fill: var(--ips-border-color);
+          cursor: nwse-resize;
         }
 
         :host {
@@ -165,9 +190,20 @@ export class RrWindow extends LitElement implements Window {
       </div>
       <div class="content${this.resizeable ? " resizeable" : ""}">
         <slot></slot>${this.resizeable
-          ? html`<div class="resizer" @pointerdown=${this.onResizePointerDown}>
-              ${Icons.Resize}
-            </div>`
+          ? html`<div
+                class="right-resizer"
+                @pointerdown=${this.onRightResizerPointerDown}
+              ></div>
+              <div
+                class="bottom-resizer"
+                @pointerdown=${this.onBottomResizerPointerDown}
+              ></div>
+              <div
+                class="corner-resizer"
+                @pointerdown=${this.onCornerResizerPointerDown}
+              >
+                ${Icons.Resize}
+              </div>`
           : nothing}
       </div>`;
   }
@@ -175,7 +211,9 @@ export class RrWindow extends LitElement implements Window {
   @state() moving: boolean = false;
   @query(".content") private content?: HTMLDivElement;
   private moveController?: DragController;
-  private resizeController?: DragController;
+  private rightResizeController?: DragController;
+  private bottomResizeController?: DragController;
+  private cornerResizeController?: DragController;
   private resizeObserver?: ResizeObserver;
 
   getPosition(): WindowPosition | undefined {
@@ -280,8 +318,16 @@ export class RrWindow extends LitElement implements Window {
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.moveController = new DragController(new WindowMoveHandler(this), 0);
-    this.resizeController = new DragController(
-      new WindowResizeHandler(this, this.content!),
+    this.rightResizeController = new DragController(
+      new WindowResizeHandler(this, this.content!, true, false),
+      0
+    );
+    this.bottomResizeController = new DragController(
+      new WindowResizeHandler(this, this.content!, false, true),
+      0
+    );
+    this.cornerResizeController = new DragController(
+      new WindowResizeHandler(this, this.content!, true, true),
       0
     );
     if (changed.has("closed")) {
@@ -314,9 +360,19 @@ export class RrWindow extends LitElement implements Window {
     this.moveController?.startDragging(e);
   }
 
-  private onResizePointerDown(e: PointerEvent) {
+  private onRightResizerPointerDown(e: PointerEvent) {
     if (this.fixed) return;
-    this.resizeController?.startDragging(e);
+    this.rightResizeController?.startDragging(e);
+  }
+
+  private onBottomResizerPointerDown(e: PointerEvent) {
+    if (this.fixed) return;
+    this.bottomResizeController?.startDragging(e);
+  }
+
+  private onCornerResizerPointerDown(e: PointerEvent) {
+    if (this.fixed) return;
+    this.cornerResizeController?.startDragging(e);
   }
 
   private onWindowResize() {
@@ -477,7 +533,9 @@ class WindowMoveHandler implements DragHandler {
 class WindowResizeHandler implements DragHandler {
   constructor(
     private window: RrWindow,
-    private content: HTMLDivElement
+    private content: HTMLDivElement,
+    private right: boolean,
+    private bottom: boolean
   ) {
     this.sizeX = content.offsetWidth;
     this.sizeY = content.offsetHeight;
@@ -496,8 +554,8 @@ class WindowResizeHandler implements DragHandler {
     resizeWindowWithinViewport(
       this.window,
       this.content,
-      this.sizeX + deltaX,
-      this.sizeY + deltaY
+      this.right ? this.sizeX + deltaX : this.sizeX,
+      this.bottom ? this.sizeY + deltaY : this.sizeY
     );
   }
 
