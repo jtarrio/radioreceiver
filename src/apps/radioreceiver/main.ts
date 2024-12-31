@@ -44,6 +44,7 @@ import { BaseStyle } from "../../ui/styles";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
 import "./main-controls";
 import "./settings";
+import "./frequency-manager";
 import "../../ui/spectrum/spectrum";
 
 type Frequency = {
@@ -169,7 +170,9 @@ export class RadioReceiverMain extends LitElement {
         @rr-low-frequency-method-changed=${this.onLowFrequencyMethodChange}
         @rr-window-moved=${this.onWindowMoved}
         @rr-window-closed=${this.onSettingsClosed}
-      ></rr-settings>`;
+      ></rr-settings>
+      
+      <rr-frequency-manager .hidden=${false}></rr-frequency-manager>`;
   }
 
   private configProvider: ConfigProvider;
