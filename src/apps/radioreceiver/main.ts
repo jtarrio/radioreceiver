@@ -40,6 +40,7 @@ import {
   SpectrumHighlightChangedEvent,
   SpectrumTapEvent,
 } from "../../ui/spectrum/events";
+import { BaseStyle } from "../../ui/styles";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
 import "./main-controls";
 import "./settings";
@@ -70,9 +71,9 @@ function getRtlProvider(): RtlDeviceProvider {
 export class RadioReceiverMain extends LitElement {
   static get styles() {
     return [
+      BaseStyle,
       css`
         :host {
-          font-family: Arial, Helvetica, sans-serif;
           height: 100%;
           display: flex;
           flex-direction: column;
@@ -154,7 +155,7 @@ export class RadioReceiverMain extends LitElement {
       ></rr-main-controls>
 
       <rr-settings
-        .hidden=${!this.settingsVisible}
+        .closed=${!this.settingsVisible}
         .playing=${this.playing}
         .sampleRate=${this.sampleRate}
         .ppm=${this.ppm}
@@ -294,7 +295,6 @@ export class RadioReceiverMain extends LitElement {
 
   private onSettings() {
     this.settingsVisible = true;
-    this.settingsWindow?.activate();
     this.configProvider.update((cfg) => (cfg.windows.settings.open = true));
   }
 

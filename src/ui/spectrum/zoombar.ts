@@ -4,6 +4,7 @@ import { SpectrumZoomEvent } from "./events";
 import { type GridSelection } from "./types";
 import { Zoom, DefaultZoom } from "../coordinates/zoom";
 import * as Icons from "../icons";
+import { BaseStyle } from "../styles";
 
 @customElement("rr-zoombar")
 export class RrZoombar extends LitElement {
@@ -14,23 +15,11 @@ export class RrZoombar extends LitElement {
 
   static get styles() {
     return [
+      BaseStyle,
       css`
         :host {
           display: flex;
           flex-direction: row;
-        }
-
-        button:has(svg) {
-          padding-inline: 0;
-          width: 24px;
-          height: 24px;
-        }
-
-        button > svg {
-          display: block;
-          width: 16px;
-          height: 16px;
-          margin: auto;
         }
 
         #zoomInput {

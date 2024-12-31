@@ -1,13 +1,9 @@
-import { css, html, LitElement } from "lit";
+import { html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import {
-  RrWindow,
-  WindowClosedEvent,
-  WindowPosition,
-} from "../../ui/controls/window";
-import * as Icons from "../../ui/icons";
+import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
+import { BaseStyle } from "../../ui/styles";
 
 const AVAILABLE_SAMPLE_RATES: number[] = (() => {
   let rateSet: Set<number> = new Set([256000]);
@@ -48,65 +44,19 @@ const DIRECT_SAMPLING_CHANNELS: Map<DirectSamplingChannel, string> = new Map([
 ]);
 
 @customElement("rr-settings")
-export class RrSettings extends LitElement {
+export class RrSettings extends WindowDelegate(LitElement) {
   static get styles() {
-    return [
-      css`
-        :host {
-          font-family: Arial, Helvetica, sans-serif;
-        }
-
-        @media (prefers-color-scheme: dark) {
-          input,
-          select {
-            background: #222;
-            color: #ddd;
-          }
-        }
-
-        rr-window {
-          bottom: calc(1em + 24px);
-          right: 1em;
-        }
-
-        rr-window.inline {
-          position: initial;
-          display: inline-block;
-        }
-
-        @media (max-width: 778px) {
-          rr-window {
-            bottom: calc(1em + 48px);
-          }
-        }
-
-        button:has(svg) {
-          padding-inline: 0;
-          width: 24px;
-          height: 24px;
-        }
-
-        button > svg {
-          display: block;
-          width: 16px;
-          height: 16px;
-          margin: auto;
-        }
-      `,
-    ];
+    return [BaseStyle];
   }
 
   render() {
     return html`<rr-window
       label="Settings"
       id="settings"
+      closeable
       class=${this.inline ? "inline" : ""}
-      .hidden=${this.hidden}
       .fixed=${this.inline}
     >
-      <button slot="label-right" id="close" @click=${this.onClose}>
-        ${Icons.Close}
-      </button>
       <div>
         <label for="sampleRate">Sample rate: </label
         ><select
@@ -210,7 +160,6 @@ export class RrSettings extends LitElement {
   }
 
   @property({ attribute: false }) inline: boolean = false;
-  @property({ attribute: false }) hidden: boolean = false;
   @property({ attribute: false }) playing: boolean = false;
   @property({ attribute: false }) sampleRate: number = 1024000;
   @property({ attribute: false }) ppm: number = 0;
@@ -222,19 +171,7 @@ export class RrSettings extends LitElement {
     frequency: 100000000,
     biasTee: false,
   };
-  @query('rr-window') private window?: RrWindow;
-
-  getPosition(): WindowPosition | undefined {
-    return this.window?.getPosition();
-  }
-
-  activate() {
-    this.window?.activate();
-  }
-
-  private onClose() {
-    this.dispatchEvent(new WindowClosedEvent());
-  }
+  @query("rr-window") protected window?: RrWindow;
 
   private onSampleRateChange(e: Event) {
     this.sampleRate = Number(

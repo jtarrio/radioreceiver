@@ -5,6 +5,7 @@ import { DragController, DragHandler } from "../controls/drag-controller";
 import * as Icons from "../icons";
 import { WidthFraction } from "../coordinates/types";
 import { Zoom, DefaultZoom } from "../coordinates/zoom";
+import { BaseStyle } from "../styles";
 
 @customElement("rr-scrollbar")
 export class RrScrollbar extends LitElement {
@@ -13,24 +14,12 @@ export class RrScrollbar extends LitElement {
 
   static get styles() {
     return [
+      BaseStyle,
       css`
         :host {
           display: flex;
           flex-direction: row;
           width: 100%;
-        }
-
-        button:has(svg) {
-          padding-inline: 0;
-          width: 24px;
-          height: 24px;
-        }
-
-        button > svg {
-          display: block;
-          width: 16px;
-          height: 16px;
-          margin: auto;
         }
 
         #scroll {

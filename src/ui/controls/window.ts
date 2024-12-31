@@ -2,20 +2,24 @@ import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { DragController, DragHandler } from "./drag-controller";
 import * as Icons from "../icons";
+import { BaseStyle } from "../styles";
 
 @customElement("rr-window")
-export class RrWindow extends LitElement {
+export class RrWindow extends LitElement implements Window {
   @property({ type: String, reflect: true })
   label: string = "";
   @property({ type: Boolean, reflect: true })
   resizeable: boolean = false;
   @property({ type: Boolean, reflect: true })
+  closeable: boolean = false;
+  @property({ type: Boolean, reflect: true })
   fixed: boolean = false;
   @property({ type: Boolean, reflect: true })
-  hidden: boolean = false;
+  closed: boolean = false;
 
   static get styles() {
     return [
+      BaseStyle,
       css`
         :host {
           position: absolute;
@@ -24,6 +28,11 @@ export class RrWindow extends LitElement {
           display: flex;
           flex-direction: column;
           box-sizing: border-box;
+        }
+
+        :host(.inline) {
+          position: initial;
+          display: inline-block;
         }
 
         .label {
@@ -137,7 +146,7 @@ export class RrWindow extends LitElement {
   }
 
   render() {
-    if (this.hidden) return nothing;
+    if (this.closed) return nothing;
     return html`<div
         class="label${this.moving ? " moving" : ""}"
         @pointerdown=${this.onLabelPointerDown}
@@ -147,7 +156,11 @@ export class RrWindow extends LitElement {
         </div>
         <div class="label-middle"><slot name="label">${this.label}</slot></div>
         <div class="label-right" @pointerdown=${this.noPointerDown}>
-          <slot name="label-right"></slot>
+          <slot name="label-right"></slot>${this.closeable
+            ? html`<button id="close" @click=${this.onClosePressed}>
+                ${Icons.Close}
+              </button>`
+            : nothing}
         </div>
       </div>
       <div class="content${this.resizeable ? " resizeable" : ""}">
@@ -164,24 +177,6 @@ export class RrWindow extends LitElement {
   private moveController?: DragController;
   private resizeController?: DragController;
   private resizeObserver?: ResizeObserver;
-
-  connectedCallback(): void {
-    super.connectedCallback();
-    this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
-    this.resizeObserver.observe(document.body);
-    this.addEventListener("pointerdown", () => this.onSelect());
-    registry?.register(this);
-  }
-
-  disconnectedCallback(): void {
-    super.disconnectedCallback();
-    this.resizeObserver?.disconnect();
-    registry?.unregister(this);
-  }
-
-  activate() {
-    registry?.select(this);
-  }
 
   getPosition(): WindowPosition | undefined {
     if (this.offsetWidth == 0 && this.offsetHeight == 0) return undefined;
@@ -226,6 +221,20 @@ export class RrWindow extends LitElement {
     }
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
+    this.resizeObserver.observe(document.body);
+    this.addEventListener("pointerdown", () => this.onSelect());
+    registry?.register(this);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.resizeObserver?.disconnect();
+    registry?.unregister(this);
+  }
+
   protected firstUpdated(changed: PropertyValues): void {
     super.firstUpdated(changed);
     this.moveController = new DragController(new WindowMoveHandler(this), 0);
@@ -233,16 +242,21 @@ export class RrWindow extends LitElement {
       new WindowResizeHandler(this, this.content!),
       0
     );
-    if (changed.has("hidden")) {
-      registry?.show(!this.hidden, this);
+    if (changed.has("closed")) {
+      registry?.show(!this.closed, this);
     }
   }
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
-    if (changed.has("hidden")) {
-      registry?.show(!this.hidden, this);
+    if (changed.has("closed")) {
+      registry?.show(!this.closed, this);
     }
+  }
+
+  private onClosePressed() {
+    this.closed = true;
+    this.dispatchEvent(new WindowClosedEvent());
   }
 
   private onSelect() {
@@ -275,6 +289,41 @@ export type WindowPosition = {
   bottom: number;
   right: number;
 };
+
+/** Functions that all windows implement. */
+export interface Window {
+  closed: boolean;
+
+  getPosition(): WindowPosition | undefined;
+}
+
+/** Mixin for an element that acts as a window that it contains. */
+export function WindowDelegate<
+  TBase extends new (...args: any[]) => LitElement,
+>(Base: TBase) {
+  abstract class Mixin extends Base implements Window {
+    @property({ type: Boolean, reflect: true })
+    closed: boolean = false;
+    protected abstract window?: Window;
+
+    protected firstUpdated(changed: PropertyValues) {
+      super.firstUpdated(changed);
+      if (changed.has("closed") && this.window) {
+        this.window.closed = this.closed;
+      }
+    }
+    protected updated(changed: PropertyValues) {
+      super.updated(changed);
+      if (changed.has("closed") && this.window) {
+        this.window.closed = this.closed;
+      }
+    }
+    getPosition(): WindowPosition | undefined {
+      return this.window?.getPosition();
+    }
+  }
+  return Mixin;
+}
 
 function fixElement(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
@@ -323,7 +372,12 @@ function moveElement(element: HTMLElement, x: number, y: number) {
   element.style.top = y + "px";
 }
 
-function resizeWindow(window: HTMLElement, content: HTMLElement, width: number, height: number) {
+function resizeWindow(
+  window: HTMLElement,
+  content: HTMLElement,
+  width: number,
+  height: number
+) {
   content.style.width = width + "px";
   content.style.height = height + "px";
   if (content.offsetWidth < window.offsetWidth) {

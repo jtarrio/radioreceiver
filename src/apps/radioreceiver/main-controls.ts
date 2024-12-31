@@ -8,57 +8,18 @@ import {
   type Scheme,
 } from "../../demod/scheme";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input";
-import { RrWindow, type WindowPosition } from "../../ui/controls/window";
+import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
+import { BaseStyle } from "../../ui/styles";
 import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
 
 @customElement("rr-main-controls")
-export class RrMainControls extends LitElement {
+export class RrMainControls extends WindowDelegate(LitElement) {
   static get styles() {
     return [
+      BaseStyle,
       css`
-        :host {
-          font-family: Arial, Helvetica, sans-serif;
-        }
-
-        @media (prefers-color-scheme: dark) {
-          input,
-          select {
-            background: #222;
-            color: #ddd;
-          }
-        }
-
-        rr-window {
-          bottom: calc(1em + 24px);
-          left: 1em;
-        }
-
-        rr-window.inline {
-          position: initial;
-          display: inline-block;
-        }
-
-        @media (max-width: 778px) {
-          rr-window {
-            bottom: calc(1em + 48px);
-          }
-        }
-
-        button:has(svg) {
-          padding-inline: 0;
-          width: 24px;
-          height: 24px;
-        }
-
-        button > svg {
-          display: block;
-          width: 16px;
-          height: 16px;
-          margin: auto;
-        }
-
         .cfgBlock {
           display: inline-flex;
           flex-direction: column;
@@ -265,11 +226,7 @@ export class RrMainControls extends LitElement {
   @property({ attribute: false }) gain: number | null = null;
   @property({ attribute: false }) gainDisabled: boolean = false;
   @state() private savedGain: number = 0;
-  @query("rr-window") private window?: RrWindow;
-
-  getPosition(): WindowPosition | undefined {
-    return this.window?.getPosition();
-  }
+  @query("rr-window") protected window?: RrWindow;
 
   private onStart() {
     this.dispatchEvent(new StartEvent());
