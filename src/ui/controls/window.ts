@@ -96,6 +96,8 @@ export class RrWindow extends LitElement implements Window {
 
         .content.resizeable .contentView {
           overflow: auto;
+          padding: 1ex max(1ex + 6px, 16px) max(1ex + 6px, 16px) 1ex;
+          border-bottom-right-radius: 0;
         }
 
         .right-resizer {
