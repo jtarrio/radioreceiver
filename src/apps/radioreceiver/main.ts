@@ -1,6 +1,7 @@
 import { css, html, LitElement } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { ConfigProvider, loadConfig } from "./config";
+import { PresetSelectedEvent, RrFrequencyManager } from "./frequency-manager";
 import { RrMainControls } from "./main-controls";
 import { type LowFrequencyMethod, RrSettings } from "./settings";
 import { Demodulator, StereoStatusEvent } from "../../demod/demodulator";
@@ -31,8 +32,11 @@ import { RTL2832U_Provider } from "../../rtlsdr/rtl2832u";
 import { DirectSampling, RtlDeviceProvider } from "../../rtlsdr/rtldevice";
 import {
   CreateWindowRegistry,
+  RrWindow,
   SetWindowPosition,
+  SetWindowSize,
   WindowMovedEvent,
+  WindowResizedEvent,
 } from "../../ui/controls/window";
 import {
   SpectrumDecibelRangeChangedEvent,
@@ -156,7 +160,7 @@ export class RadioReceiverMain extends LitElement {
       ></rr-main-controls>
 
       <rr-settings
-        .closed=${!this.settingsVisible}
+        .closed=${!this.settingsWindowOpen}
         .playing=${this.playing}
         .sampleRate=${this.sampleRate}
         .ppm=${this.ppm}
@@ -171,8 +175,23 @@ export class RadioReceiverMain extends LitElement {
         @rr-window-moved=${this.onWindowMoved}
         @rr-window-closed=${this.onSettingsClosed}
       ></rr-settings>
-      
-      <rr-frequency-manager .hidden=${false}></rr-frequency-manager>`;
+
+      <rr-frequency-manager
+        .closed=${!this.frequencyManagerWindowOpen}
+        .tunedFrequency=${this.frequency.center + this.frequency.offset}
+        .tuningStep=${this.tuningStep}
+        .scale=${this.scale}
+        .availableModes=${getSchemes()}
+        .scheme=${this.mode.scheme}
+        .bandwidth=${getBandwidth(this.mode)}
+        .stereo=${getStereo(this.mode)}
+        .squelch=${getSquelch(this.mode)}
+        .gain=${this.gain}
+        @rr-preset-selected=${this.onPresetSelected}
+        @rr-window-moved=${this.onWindowMoved}
+        @rr-window-resized=${this.onWindowResized}
+        @rr-window-closed=${this.onFrequencyManagerClosed}
+      ></rr-frequency-manager>`;
   }
 
   private configProvider: ConfigProvider;
@@ -211,11 +230,14 @@ export class RadioReceiverMain extends LitElement {
     frequency: 100000000,
     biasTee: false,
   };
-  @state() private settingsVisible: boolean = false;
+  @state() private settingsWindowOpen: boolean = false;
+  @state() private frequencyManagerWindowOpen: boolean = false;
 
   @query("#spectrum") private spectrumView?: RrSpectrum;
   @query("rr-main-controls") private mainControlsWindow?: RrMainControls;
   @query("rr-settings") private settingsWindow?: RrSettings;
+  @query("rr-frequency-manager")
+  private frequencyManagerWindow?: RrFrequencyManager;
 
   constructor() {
     super();
@@ -270,7 +292,13 @@ export class RadioReceiverMain extends LitElement {
 
     SetWindowPosition("controls", cfg.windows.controls.position);
     SetWindowPosition("settings", cfg.windows.settings.position);
-    if (cfg.windows.settings.open) this.settingsVisible = true;
+    SetWindowSize("frequencyManager", cfg.windows.frequencyManager.size);
+    SetWindowPosition(
+      "frequencyManager",
+      cfg.windows.frequencyManager.position
+    );
+    if (cfg.windows.settings.open) this.settingsWindowOpen = true;
+    if (cfg.windows.frequencyManager.open) this.frequencyManagerWindowOpen = true;
   }
 
   private isFrequencyValid(freq: Frequency): boolean {
@@ -297,29 +325,53 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onSettings() {
-    this.settingsVisible = true;
+    this.settingsWindowOpen = true;
     this.configProvider.update((cfg) => (cfg.windows.settings.open = true));
   }
 
   private onSettingsClosed() {
-    this.settingsVisible = false;
+    this.settingsWindowOpen = false;
     this.configProvider.update((cfg) => (cfg.windows.settings.open = false));
   }
 
-  private onWindowMoved(e: WindowMovedEvent) {
-    const window =
-      e.target == this.mainControlsWindow
-        ? this.mainControlsWindow
-        : e.target == this.settingsWindow
-          ? this.settingsWindow
+  private onFrequencyManager() {
+    this.frequencyManagerWindowOpen = true;
+    this.configProvider.update((cfg) => (cfg.windows.frequencyManager.open = false));
+  }
+
+  private onFrequencyManagerClosed() {
+    this.frequencyManagerWindowOpen = false;
+    this.configProvider.update((cfg) => (cfg.windows.frequencyManager.open = false));
+  }
+
+  private getWindowName(e: EventTarget | null) {
+    return e === this.mainControlsWindow
+      ? "controls"
+      : e === this.settingsWindow
+        ? "settings"
+        : e === this.frequencyManagerWindow
+          ? "frequencyManager"
           : undefined;
+  }
+
+  private onWindowMoved(e: WindowMovedEvent) {
+    const windowName = this.getWindowName(e.target);
+    if (windowName === undefined) return;
+    const window = e.target as RrWindow;
     const position = window?.getPosition();
     if (!position) return;
-    const windowName =
-      window == this.mainControlsWindow ? "controls" : "settings";
     this.configProvider.update(
       (cfg) => (cfg.windows[windowName].position = position)
     );
+  }
+
+  private onWindowResized(e: WindowResizedEvent) {
+    const windowName = this.getWindowName(e.target);
+    if (windowName === undefined) return;
+    const window = e.target as RrWindow;
+    const size = window?.getSize();
+    if (!size) return;
+    this.configProvider.update((cfg) => (cfg.windows[windowName].size = size));
   }
 
   private onScaleChange(e: Event) {
@@ -533,6 +585,17 @@ export class RadioReceiverMain extends LitElement {
     this.lowFrequencyMethod = { ...method };
     this.setFrequency({ ...this.frequency }, true);
     this.configProvider.update((cfg) => (cfg.lowFrequencyMethod = method));
+  }
+
+  private onPresetSelected(e: PresetSelectedEvent) {
+    const target = e.target as RrFrequencyManager;
+    const preset = target.activePreset;
+    if (preset === undefined) return;
+    this.setTunedFrequency(preset.tunedFrequency);
+    this.scale = preset.scale;
+    this.tuningStep = preset.tuningStep;
+    this.setMode(withBandwidth(preset.bandwidth, withStereo(preset.stereo, withSquelch(preset.squelch, getMode(preset.scheme)))));
+    this.setGain(preset.gain);
   }
 
   private onSpectrumTap(e: SpectrumTapEvent) {

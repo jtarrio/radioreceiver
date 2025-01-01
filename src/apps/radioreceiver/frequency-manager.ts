@@ -1,15 +1,12 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import {
-  RrWindow,
-  WindowPosition,
-  WindowClosedEvent,
-} from "../../ui/controls/window";
+import { type Scheme } from "../../demod/scheme";
+import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import "../../ui/controls/window";
 
 @customElement("rr-frequency-manager")
-export class RrFrequencyManager extends LitElement {
+export class RrFrequencyManager extends WindowDelegate(LitElement) {
   static get styles() {
     return [
       css`
@@ -63,12 +60,26 @@ export class RrFrequencyManager extends LitElement {
           background: #ddd;
         }
 
+        tr.active {
+          background: #dd7;
+        }
+
         td {
           text-wrap: nowrap;
         }
 
         a svg {
-            fill: #22e;
+          fill: #22e;
+        }
+
+        @media (prefers-color-scheme: dark) {
+          tr:nth-child(even) {
+            background: #333;
+          }
+
+          a svg {
+            fill: #33f;
+          }
         }
       `,
     ];
@@ -79,14 +90,23 @@ export class RrFrequencyManager extends LitElement {
       label="Frequency Manager"
       id="frequencyManager"
       class=${this.inline ? "inline" : ""}
-      .hidden=${this.hidden}
+      closeable
+      .closed=${this.closed}
       .fixed=${this.inline}
       .resizeable=${true}
     >
-      <button slot="label-right" id="close" @click=${this.onClose}>
-        ${Icons.Close}
-      </button>
-      <div><input type="text" /><button>Save</button></div>
+      <div><button>Save new preset</button></div>
+        ${
+          this.activePreset
+            ? html`<div>
+                Current preset:
+                ${this.activePreset.name}${this.modified
+                  ? html` <button>Update</button>`
+                  : nothing}
+              </div>`
+            : nothing
+        }
+      </div>
       <table>
         <tr>
           <th>Name</th>
@@ -94,35 +114,116 @@ export class RrFrequencyManager extends LitElement {
           <th>Mode</th>
           <th></th>
         </tr>
-        <tr>
-          <td>WNYC</td>
-          <td>93.9 MHz</td>
-          <td>WBFM</td>
-          <td><a href="javascript:0">${Icons.Edit}</a><a href="javascript:0">${Icons.Delete}</a></td>
-        </tr>
-        <tr>
-          <td>Weather</td>
-          <td>162550 kHz</td>
-          <td>NBFM</td>
-          <td><a href="javascript:0">${Icons.Edit}</a><a href="javascript:0">${Icons.Delete}</a></td>
-        </tr>
+        ${this.presets.map(
+          (preset, index) =>
+            html`<tr
+              .index=${index}
+              class=${this.activePreset === preset ? "active" : ""}
+              @click=${this.onRowClick}
+            >
+              <td>${preset.name}</td>
+              <td>${humanFrequency(preset.tunedFrequency, preset.scale)}</td>
+              <td>${preset.scheme}</td>
+              <td>
+                <a href="javascript:0">${Icons.Edit}</a
+                ><a href="javascript:0">${Icons.Delete}</a>
+              </td>
+            </tr>`
+        )}
       </table>
     </rr-window>`;
   }
 
   @property({ attribute: false }) inline: boolean = false;
   @property({ attribute: false }) hidden: boolean = false;
-  @query("rr-window") private window?: RrWindow;
+  @property({ attribute: false }) tunedFrequency: number = 88500000;
+  @property({ attribute: false }) scale: number = 1000;
+  @property({ attribute: false }) tuningStep: number = 1000;
+  @property({ attribute: false }) scheme: Scheme = "WBFM";
+  @property({ attribute: false }) bandwidth: number = 150000;
+  @property({ attribute: false }) stereo: boolean = true;
+  @property({ attribute: false }) squelch: number = 0;
+  @property({ attribute: false }) gain: number | null = null;
+  @property({ attribute: false }) activePreset?: Preset;
+  @property({ attribute: false }) modified: boolean = false;
+  @property({ attribute: false }) presets: Preset[] = [
+    {
+      name: "WNYC",
+      tunedFrequency: 93900000,
+      scale: 1000000,
+      tuningStep: 100000,
+      scheme: "WBFM",
+      bandwidth: 150000,
+      stereo: true,
+      squelch: 0,
+      gain: null,
+    },
+    {
+      name: "Weather",
+      tunedFrequency: 162550000,
+      scale: 1000,
+      tuningStep: 25000,
+      scheme: "NBFM",
+      bandwidth: 10000,
+      stereo: false,
+      squelch: 0,
+      gain: 30,
+    },
+  ];
+  @query("rr-window") protected window?: RrWindow;
 
-  getPosition(): WindowPosition | undefined {
-    return this.window?.getPosition();
+  protected willUpdate(changed: PropertyValues): void {
+    super.willUpdate(changed);
+    this.modified =
+      this.activePreset !== undefined &&
+      (this.tunedFrequency != this.activePreset.tunedFrequency ||
+        this.scale != this.activePreset.scale ||
+        this.tuningStep != this.activePreset.tuningStep ||
+        this.scheme != this.activePreset.scheme ||
+        this.bandwidth != this.activePreset.bandwidth ||
+        this.stereo != this.activePreset.stereo ||
+        this.squelch != this.activePreset.squelch ||
+        this.gain != this.activePreset.gain);
   }
 
-  activate() {
-    this.window?.activate();
+  private onRowClick(e: PointerEvent) {
+    const row = e.currentTarget as HTMLTableRowElement & { index: number };
+    this.activePreset = this.presets[row.index];
+    this.dispatchEvent(new PresetSelectedEvent());
   }
+}
 
-  private onClose() {
-    this.dispatchEvent(new WindowClosedEvent());
+export type Preset = {
+  name: string;
+  tunedFrequency: number;
+  scale: number;
+  tuningStep: number;
+  scheme: Scheme;
+  bandwidth: number;
+  stereo: boolean;
+  squelch: number;
+  gain: number | null;
+};
+
+export class PresetSelectedEvent extends Event {
+  constructor() {
+    super("rr-preset-selected", { bubbles: true, composed: true });
+  }
+}
+
+declare global {
+  interface HTMLElementEventMap {
+    "rr-preset-selected": PresetSelectedEvent;
+  }
+}
+
+function humanFrequency(freq: number, scale: number): string {
+  switch (scale) {
+    case 1000:
+      return `${String(freq / 1000)} kHz`;
+    case 1000000:
+      return `${String(freq / 1000000)} MHz`;
+    default:
+      return `${String(freq)} Hz`;
   }
 }
