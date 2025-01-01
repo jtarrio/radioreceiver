@@ -84,10 +84,18 @@ export class RrWindow extends LitElement implements Window {
           color: var(--ips-color);
         }
 
+        .contentView {
+          width: 100%;
+          height: 100%;
+        }
+
         .content.resizeable {
-          overflow: auto;
           padding: 1ex max(1ex + 6px, 16px) max(1ex + 6px, 16px) 1ex;
           border-bottom-right-radius: 0;
+        }
+
+        .content.resizeable .contentView {
+          overflow: auto;
         }
 
         .right-resizer {
@@ -189,7 +197,8 @@ export class RrWindow extends LitElement implements Window {
         </div>
       </div>
       <div class="content${this.resizeable ? " resizeable" : ""}">
-        <slot></slot>${this.resizeable
+        <div class="contentView"><slot></slot></div>
+        ${this.resizeable
           ? html`<div
                 class="right-resizer"
                 @pointerdown=${this.onRightResizerPointerDown}
@@ -292,13 +301,12 @@ export class RrWindow extends LitElement implements Window {
       this.style.left = `${newLeft}px`;
       this.style.right = "auto";
     }
-    this.style.width = `${size.width}px`;
     if (!fitsHeight) {
       const newTop = Math.floor(height - size.height - this.content.offsetTop);
       this.style.top = `${newTop}px`;
       this.style.bottom = "auto";
     }
-    this.style.height = `${size.height}px`;
+    resizeWindow(this, this.content, size.width, size.height);
   }
 
   connectedCallback(): void {
@@ -434,9 +442,8 @@ export function WindowDelegate<
 }
 
 function fixElement(element: HTMLElement) {
-  const rect = element.getBoundingClientRect();
-  element.style.left = rect.left + "px";
-  element.style.top = rect.top + "px";
+  element.style.left = element.offsetLeft + "px";
+  element.style.top = element.offsetTop + "px";
   element.style.right = "auto";
   element.style.bottom = "auto";
 }
@@ -663,7 +670,7 @@ class WindowRegistry {
 
   private applySettings(window: RrWindow) {
     let settings: WindowSettings = {};
-    for (let i = 0; i < this.pendingSettings.length;) {
+    for (let i = 0; i < this.pendingSettings.length; ) {
       const w = this.pendingSettings[i];
       if (w[0] === window || w[0] === window.id) {
         if (w[1].position !== undefined) settings.position = w[1].position;
