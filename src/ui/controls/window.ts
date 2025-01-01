@@ -179,12 +179,27 @@ export class RrWindow extends LitElement implements Window {
   private resizeObserver?: ResizeObserver;
 
   getPosition(): WindowPosition | undefined {
-    if (this.offsetWidth == 0 && this.offsetHeight == 0) return undefined;
+    if (this.closed || (this.offsetWidth == 0 && this.offsetHeight == 0))
+      return undefined;
     return {
       top: this.offsetTop,
       left: this.offsetLeft,
       bottom: visualViewport!.height - this.offsetTop - this.offsetHeight,
       right: visualViewport!.width - this.offsetLeft - this.offsetWidth,
+    };
+  }
+
+  getSize(): WindowSize | undefined {
+    if (
+      !this.resizeable ||
+      !this.content ||
+      this.closed ||
+      (this.offsetWidth == 0 && this.offsetWidth == 0)
+    )
+      return undefined;
+    return {
+      width: this.offsetWidth,
+      height: this.content.offsetHeight,
     };
   }
 
@@ -219,6 +234,33 @@ export class RrWindow extends LitElement implements Window {
       this.style.top = `${Math.max(0, Math.floor((height - this.offsetHeight) / 2))}px`;
       this.style.bottom = "auto";
     }
+  }
+
+  setSize(size: WindowSize) {
+    if (this.content === undefined) return;
+    const width = visualViewport!.width;
+    const height = visualViewport!.height;
+    const top = this.offsetTop + this.content.offsetTop;
+    const left = this.offsetLeft + this.content.offsetLeft;
+
+    if (size.width >= width) size.width = Math.floor(width);
+    if (size.height + this.content.offsetTop >= height)
+      size.height = Math.floor(height - this.content.offsetTop);
+
+    const fitsWidth = left + this.content.offsetWidth <= width;
+    const fitsHeight = top + this.content.offsetHeight <= height;
+    if (!fitsWidth) {
+      const newLeft = Math.floor(width - size.width - this.content.offsetLeft);
+      this.style.left = `${newLeft}px`;
+      this.style.right = "auto";
+    }
+    this.style.width = `${size.width}px`;
+    if (!fitsHeight) {
+      const newTop = Math.floor(height - size.height - this.content.offsetTop);
+      this.style.top = `${newTop}px`;
+      this.style.bottom = "auto";
+    }
+    this.style.height = `${size.height}px`;
   }
 
   connectedCallback(): void {
@@ -290,11 +332,18 @@ export type WindowPosition = {
   right: number;
 };
 
+/** The size of a window, in pixels. */
+export type WindowSize = {
+  width: number;
+  height: number;
+};
+
 /** Functions that all windows implement. */
 export interface Window {
   closed: boolean;
 
   getPosition(): WindowPosition | undefined;
+  getSize(): WindowSize | undefined;
 }
 
 /** Mixin for an element that acts as a window that it contains. */
@@ -320,6 +369,9 @@ export function WindowDelegate<
     }
     getPosition(): WindowPosition | undefined {
       return this.window?.getPosition();
+    }
+    getSize(): WindowSize | undefined {
+      return this.window?.getSize();
     }
   }
   return Mixin;
@@ -478,10 +530,10 @@ export class WindowClosedEvent extends Event {
   }
 }
 
+type WindowSettings = { position?: WindowPosition; size?: WindowSize };
 class WindowRegistry {
   private windows: RrWindow[] = [];
-  private pendingPositions: [RrWindow | string, WindowPosition | undefined][] =
-    [];
+  private pendingSettings: [RrWindow | string, WindowSettings][] = [];
 
   register(window: RrWindow) {
     this.windows.unshift(window);
@@ -496,7 +548,7 @@ class WindowRegistry {
   }
 
   show(show: boolean, window: RrWindow) {
-    this.applyPosition(window);
+    this.applySettings(window);
     if (!show) {
       this.hide(window);
     }
@@ -521,11 +573,22 @@ class WindowRegistry {
   }
 
   setPosition(window: RrWindow | string, position: WindowPosition | undefined) {
+    if (position === undefined) return;
     let idx = this.windows.findIndex((w) => w === window || w.id === window);
-    if (idx >= 0 && position !== undefined) {
+    if (idx >= 0) {
       this.windows[idx].setPosition(position);
     } else {
-      this.pendingPositions.push([window, position]);
+      this.pendingSettings.push([window, { position }]);
+    }
+  }
+
+  setSize(window: RrWindow | string, size: WindowSize | undefined) {
+    if (size === undefined) return;
+    let idx = this.windows.findIndex((w) => w === window || w.id === window);
+    if (idx >= 0) {
+      this.windows[idx].setSize(size);
+    } else {
+      this.pendingSettings.push([window, { size }]);
     }
   }
 
@@ -540,14 +603,20 @@ class WindowRegistry {
     this.windows[last].style.zIndex = String(last);
   }
 
-  private applyPosition(window: RrWindow) {
-    let idx = this.pendingPositions.findIndex(
-      (w) => w[0] === window || w[0] === window.id
-    );
-    if (idx < 0) return;
-    let w = this.pendingPositions[idx];
-    this.pendingPositions.splice(idx, 1);
-    if (w[1] !== undefined) window.setPosition(w[1]);
+  private applySettings(window: RrWindow) {
+    let settings: WindowSettings = {};
+    for (let i = 0; i < this.pendingSettings.length;) {
+      const w = this.pendingSettings[i];
+      if (w[0] === window || w[0] === window.id) {
+        if (w[1].position !== undefined) settings.position = w[1].position;
+        if (w[1].size !== undefined) settings.size = w[1].size;
+        this.pendingSettings.splice(i, 1);
+      } else {
+        i++;
+      }
+    }
+    if (settings.size !== undefined) window.setSize(settings.size);
+    if (settings.position !== undefined) window.setPosition(settings.position);
   }
 }
 
@@ -562,6 +631,13 @@ export function SetWindowPosition(
   position: WindowPosition | undefined
 ) {
   registry?.setPosition(window, position);
+}
+
+export function SetWindowSize(
+  window: RrWindow | string,
+  size: WindowSize | undefined
+) {
+  registry?.setSize(window, size);
 }
 
 declare global {

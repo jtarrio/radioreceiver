@@ -135,6 +135,8 @@ type ConfigV1Window = {
   open?: boolean;
   /** Window's position on the screen. */
   position?: ConfigV1WindowPosition;
+  /** Window's size. */
+  size?: ConfigV1WindowSize;
 };
 
 /** Window position. */
@@ -144,6 +146,12 @@ type ConfigV1WindowPosition = {
   bottom: number;
   right: number;
 };
+
+/** Window size. */
+type ConfigV1WindowSize = {
+  width: number;
+  height: number;
+}
 
 /** This definition parallels the Mode from scheme.ts */
 type ConfigV1Mode =
