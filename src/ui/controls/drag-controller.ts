@@ -30,6 +30,9 @@ export class DragController {
 
   /** This function should be called when a "pointerdown" event is received. */
   startDragging(e: PointerEvent) {
+    if (e.button != 0) {
+      return;
+    }
     if (this.dragData) {
       this.handler.cancelDrag();
       this.dragData.release();

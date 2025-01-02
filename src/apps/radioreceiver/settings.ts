@@ -1,9 +1,12 @@
 import { html, LitElement } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { RrWindow, WindowDelegate } from "../../ui/controls/window";
+import { BaseStyle } from "../../ui/styles";
+import {
+  RrWindow,
+  WindowDelegate,
+} from "../../ui/controls/window";
 import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
-import { BaseStyle } from "../../ui/styles";
 
 const AVAILABLE_SAMPLE_RATES: number[] = (() => {
   let rateSet: Set<number> = new Set([256000]);
@@ -55,6 +58,7 @@ export class RrSettings extends WindowDelegate(LitElement) {
       id="settings"
       closeable
       class=${this.inline ? "inline" : ""}
+      .position=${this.position}
       .fixed=${this.inline}
     >
       <div>

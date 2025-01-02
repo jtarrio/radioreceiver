@@ -16,6 +16,20 @@ export class RrWindow extends LitElement implements Window {
   fixed: boolean = false;
   @property({ type: Boolean, reflect: true })
   closed: boolean = false;
+  @property({ attribute: false })
+  set position(position: WindowPosition) {
+    this.pendingPosition = position;
+  }
+  get position(): WindowPosition | undefined {
+    return this.pendingPosition || this.getPosition();
+  }
+  @property({ attribute: false })
+  set size(size: WindowSize) {
+    this.pendingSize = size;
+  }
+  get size(): WindowSize | undefined {
+    return this.pendingSize || this.getSize();
+  }
 
   static get styles() {
     return [
@@ -226,8 +240,68 @@ export class RrWindow extends LitElement implements Window {
   private bottomResizeController?: DragController;
   private cornerResizeController?: DragController;
   private resizeObserver?: ResizeObserver;
+  private pendingPosition?: WindowPosition;
+  private pendingSize?: WindowSize;
 
-  getPosition(): WindowPosition | undefined {
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
+    this.resizeObserver.observe(document.body);
+    this.addEventListener("pointerdown", () => this.onSelect());
+    registry?.register(this);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.resizeObserver?.disconnect();
+    registry?.unregister(this);
+  }
+
+  protected firstUpdated(changed: PropertyValues): void {
+    super.firstUpdated(changed);
+    this.doUpdates(changed);
+  }
+
+  protected updated(changed: PropertyValues): void {
+    super.updated(changed);
+    this.doUpdates(changed);
+  }
+
+  private doUpdates(changed: PropertyValues) {
+    if (changed.has("closed")) {
+      registry?.show(!this.closed, this);
+      if (!this.closed) {
+        this.moveController = new DragController(
+          new WindowMoveHandler(this),
+          0
+        );
+        this.rightResizeController = new DragController(
+          new WindowResizeHandler(this, this.content!, true, false),
+          0
+        );
+        this.bottomResizeController = new DragController(
+          new WindowResizeHandler(this, this.content!, false, true),
+          0
+        );
+        this.cornerResizeController = new DragController(
+          new WindowResizeHandler(this, this.content!, true, true),
+          0
+        );
+      }
+    }
+    if (!this.closed) {
+      if (this.pendingSize) {
+        this.setSize(this.pendingSize);
+        this.pendingSize = undefined;
+      }
+      if (this.pendingPosition) {
+        this.setPosition(this.pendingPosition);
+        this.pendingPosition = undefined;
+      }
+    }
+  }
+
+  private getPosition(): WindowPosition | undefined {
     if (this.closed || (this.offsetWidth == 0 && this.offsetHeight == 0))
       return undefined;
     return {
@@ -238,7 +312,7 @@ export class RrWindow extends LitElement implements Window {
     };
   }
 
-  getSize(): WindowSize | undefined {
+  private getSize(): WindowSize | undefined {
     if (
       !this.resizeable ||
       !this.content ||
@@ -252,7 +326,7 @@ export class RrWindow extends LitElement implements Window {
     };
   }
 
-  setPosition(position: WindowPosition) {
+  private setPosition(position: WindowPosition) {
     const width = visualViewport!.width;
     const height = visualViewport!.height;
     const fitsLeft = position.left + this.offsetWidth <= width;
@@ -285,7 +359,7 @@ export class RrWindow extends LitElement implements Window {
     }
   }
 
-  setSize(size: WindowSize) {
+  private setSize(size: WindowSize) {
     if (this.content === undefined) return;
     const width = visualViewport!.width;
     const height = visualViewport!.height;
@@ -309,47 +383,6 @@ export class RrWindow extends LitElement implements Window {
       this.style.bottom = "auto";
     }
     resizeWindow(this, this.content, size.width, size.height);
-  }
-
-  connectedCallback(): void {
-    super.connectedCallback();
-    this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
-    this.resizeObserver.observe(document.body);
-    this.addEventListener("pointerdown", () => this.onSelect());
-    registry?.register(this);
-  }
-
-  disconnectedCallback(): void {
-    super.disconnectedCallback();
-    this.resizeObserver?.disconnect();
-    registry?.unregister(this);
-  }
-
-  protected firstUpdated(changed: PropertyValues): void {
-    super.firstUpdated(changed);
-    this.moveController = new DragController(new WindowMoveHandler(this), 0);
-    this.rightResizeController = new DragController(
-      new WindowResizeHandler(this, this.content!, true, false),
-      0
-    );
-    this.bottomResizeController = new DragController(
-      new WindowResizeHandler(this, this.content!, false, true),
-      0
-    );
-    this.cornerResizeController = new DragController(
-      new WindowResizeHandler(this, this.content!, true, true),
-      0
-    );
-    if (changed.has("closed")) {
-      registry?.show(!this.closed, this);
-    }
-  }
-
-  protected updated(changed: PropertyValues): void {
-    super.updated(changed);
-    if (changed.has("closed")) {
-      registry?.show(!this.closed, this);
-    }
   }
 
   private onClosePressed() {
@@ -407,9 +440,8 @@ export type WindowSize = {
 /** Functions that all windows implement. */
 export interface Window {
   closed: boolean;
-
-  getPosition(): WindowPosition | undefined;
-  getSize(): WindowSize | undefined;
+  position?: WindowPosition;
+  size?: WindowSize;
 }
 
 /** Mixin for an element that acts as a window that it contains. */
@@ -418,34 +450,68 @@ export function WindowDelegate<
 >(Base: TBase) {
   abstract class Mixin extends Base implements Window {
     @property({ type: Boolean, reflect: true })
-    closed: boolean = false;
+    set closed(closed: boolean) {
+      this.pendingClosed = closed;
+    }
+    get closed(): boolean {
+      return this.pendingClosed !== undefined
+        ? this.pendingClosed
+        : this.window?.closed || false;
+    }
+    private pendingClosed?: boolean;
+    @property({ attribute: false })
+    set position(position: WindowPosition) {
+      this.pendingPosition = position;
+    }
+    get position(): WindowPosition | undefined {
+      return this.pendingPosition || this.window?.position;
+    }
+    private pendingPosition?: WindowPosition;
+    @property({ attribute: false })
+    set size(size: WindowSize) {
+      this.pendingSize = size;
+    }
+    get size(): WindowSize | undefined {
+      return this.pendingSize || this.window?.size;
+    }
+    private pendingSize?: WindowSize;
+
     protected abstract window?: Window;
 
     protected firstUpdated(changed: PropertyValues) {
       super.firstUpdated(changed);
-      if (changed.has("closed") && this.window) {
-        this.window.closed = this.closed;
-      }
+      this.doUpdate();
     }
+
     protected updated(changed: PropertyValues) {
       super.updated(changed);
-      if (changed.has("closed") && this.window) {
-        this.window.closed = this.closed;
+      this.doUpdate();
+    }
+
+    private doUpdate() {
+      if (this.pendingClosed !== undefined && this.window) {
+        this.window.closed = this.pendingClosed;
+        this.pendingClosed = undefined;
       }
-    }
-    getPosition(): WindowPosition | undefined {
-      return this.window?.getPosition();
-    }
-    getSize(): WindowSize | undefined {
-      return this.window?.getSize();
+      if (this.pendingSize !== undefined && this.window) {
+        this.window.size = this.pendingSize;
+        this.pendingSize = undefined;
+      }
+      if (this.pendingPosition !== undefined && this.window) {
+        this.window.position = this.pendingPosition;
+        this.pendingPosition = undefined;
+      }
     }
   }
   return Mixin;
 }
 
 function fixElement(element: HTMLElement) {
-  element.style.left = element.offsetLeft + "px";
-  element.style.top = element.offsetTop + "px";
+  const rect = element.getBoundingClientRect();
+  const left = rect.left + window.scrollX;
+  const top = rect.top + window.scrollY;
+  element.style.left = `${left}px`;
+  element.style.top = `${top}px`;
   element.style.right = "auto";
   element.style.bottom = "auto";
 }
@@ -579,28 +645,8 @@ class WindowResizeHandler implements DragHandler {
   onClick(): void {}
 }
 
-export class WindowMovedEvent extends Event {
-  constructor() {
-    super("rr-window-moved", { bubbles: true, composed: true });
-  }
-}
-
-export class WindowResizedEvent extends Event {
-  constructor() {
-    super("rr-window-resized", { bubbles: true, composed: true });
-  }
-}
-
-export class WindowClosedEvent extends Event {
-  constructor() {
-    super("rr-window-closed", { bubbles: true, composed: true });
-  }
-}
-
-type WindowSettings = { position?: WindowPosition; size?: WindowSize };
 class WindowRegistry {
   private windows: RrWindow[] = [];
-  private pendingSettings: [RrWindow | string, WindowSettings][] = [];
 
   register(window: RrWindow) {
     this.windows.unshift(window);
@@ -615,7 +661,6 @@ class WindowRegistry {
   }
 
   show(show: boolean, window: RrWindow) {
-    this.applySettings(window);
     if (!show) {
       this.hide(window);
     }
@@ -639,26 +684,6 @@ class WindowRegistry {
     this.update();
   }
 
-  setPosition(window: RrWindow | string, position: WindowPosition | undefined) {
-    if (position === undefined) return;
-    let idx = this.windows.findIndex((w) => w === window || w.id === window);
-    if (idx >= 0) {
-      this.windows[idx].setPosition(position);
-    } else {
-      this.pendingSettings.push([window, { position }]);
-    }
-  }
-
-  setSize(window: RrWindow | string, size: WindowSize | undefined) {
-    if (size === undefined) return;
-    let idx = this.windows.findIndex((w) => w === window || w.id === window);
-    if (idx >= 0) {
-      this.windows[idx].setSize(size);
-    } else {
-      this.pendingSettings.push([window, { size }]);
-    }
-  }
-
   private update() {
     if (this.windows.length == 0) return;
     const last = this.windows.length - 1;
@@ -669,22 +694,6 @@ class WindowRegistry {
     this.windows[last].classList.remove("inactive");
     this.windows[last].style.zIndex = String(last);
   }
-
-  private applySettings(window: RrWindow) {
-    let settings: WindowSettings = {};
-    for (let i = 0; i < this.pendingSettings.length; ) {
-      const w = this.pendingSettings[i];
-      if (w[0] === window || w[0] === window.id) {
-        if (w[1].position !== undefined) settings.position = w[1].position;
-        if (w[1].size !== undefined) settings.size = w[1].size;
-        this.pendingSettings.splice(i, 1);
-      } else {
-        i++;
-      }
-    }
-    if (settings.size !== undefined) window.setSize(settings.size);
-    if (settings.position !== undefined) window.setPosition(settings.position);
-  }
 }
 
 let registry: WindowRegistry | undefined;
@@ -693,18 +702,22 @@ export function CreateWindowRegistry() {
   if (!registry) registry = new WindowRegistry();
 }
 
-export function SetWindowPosition(
-  window: RrWindow | string,
-  position: WindowPosition | undefined
-) {
-  registry?.setPosition(window, position);
+export class WindowMovedEvent extends Event {
+  constructor() {
+    super("rr-window-moved", { bubbles: true, composed: true });
+  }
 }
 
-export function SetWindowSize(
-  window: RrWindow | string,
-  size: WindowSize | undefined
-) {
-  registry?.setSize(window, size);
+export class WindowResizedEvent extends Event {
+  constructor() {
+    super("rr-window-resized", { bubbles: true, composed: true });
+  }
+}
+
+export class WindowClosedEvent extends Event {
+  constructor() {
+    super("rr-window-closed", { bubbles: true, composed: true });
+  }
 }
 
 declare global {

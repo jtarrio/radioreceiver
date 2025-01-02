@@ -1,4 +1,4 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { ConfigProvider, loadConfig } from "./config";
 import { PresetSelectedEvent, RrFrequencyManager } from "./frequency-manager";
@@ -33,10 +33,10 @@ import { DirectSampling, RtlDeviceProvider } from "../../rtlsdr/rtldevice";
 import {
   CreateWindowRegistry,
   RrWindow,
-  SetWindowPosition,
-  SetWindowSize,
   WindowMovedEvent,
+  WindowPosition,
   WindowResizedEvent,
+  WindowSize,
 } from "../../ui/controls/window";
 import {
   SpectrumDecibelRangeChangedEvent,
@@ -56,6 +56,14 @@ type Frequency = {
   offset: number;
   leftBand: number;
   rightBand: number;
+};
+
+type WindowState = {
+  [k in "controls" | "settings" | "frequencyManager"]: {
+    open?: boolean;
+    position?: WindowPosition;
+    size?: WindowSize;
+  };
 };
 
 const FAKE_RTL = false;
@@ -130,6 +138,7 @@ export class RadioReceiverMain extends LitElement {
       ></rr-spectrum>
 
       <rr-main-controls
+        .position=${this.windowState.controls.position}
         .playing=${this.playing}
         .errorState=${this.errorState}
         .centerFrequency=${this.frequency.center}
@@ -160,7 +169,8 @@ export class RadioReceiverMain extends LitElement {
       ></rr-main-controls>
 
       <rr-settings
-        .closed=${!this.settingsWindowOpen}
+        .closed=${!this.windowState.settings.open}
+        .position=${this.windowState.settings.position}
         .playing=${this.playing}
         .sampleRate=${this.sampleRate}
         .ppm=${this.ppm}
@@ -177,7 +187,9 @@ export class RadioReceiverMain extends LitElement {
       ></rr-settings>
 
       <rr-frequency-manager
-        .closed=${!this.frequencyManagerWindowOpen}
+        .closed=${!this.windowState.frequencyManager.open}
+        .size=${this.windowState.frequencyManager.size}
+        .position=${this.windowState.frequencyManager.position}
         .tunedFrequency=${this.frequency.center + this.frequency.offset}
         .tuningStep=${this.tuningStep}
         .scale=${this.scale}
@@ -230,8 +242,11 @@ export class RadioReceiverMain extends LitElement {
     frequency: 100000000,
     biasTee: false,
   };
-  @state() private settingsWindowOpen: boolean = false;
-  @state() private frequencyManagerWindowOpen: boolean = false;
+  @state() private windowState: WindowState = {
+    controls: { position: undefined },
+    settings: { open: false, position: undefined },
+    frequencyManager: { open: false, position: undefined, size: undefined },
+  };
 
   @query("#spectrum") private spectrumView?: RrSpectrum;
   @query("rr-main-controls") private mainControlsWindow?: RrMainControls;
@@ -253,8 +268,6 @@ export class RadioReceiverMain extends LitElement {
       this.sampleRate
     );
 
-    this.applyConfig();
-
     this.demodulator.setVolume(1);
     this.demodulator.setMode(this.mode);
     this.demodulator.addEventListener("stereo-status", (e) =>
@@ -265,6 +278,11 @@ export class RadioReceiverMain extends LitElement {
     this.sampleCounter.addEventListener("sample-click", (e) =>
       this.onSampleClickEvent(e)
     );
+  }
+
+  protected firstUpdated(changed: PropertyValues): void {
+    super.firstUpdated(changed);
+    this.applyConfig();
   }
 
   private applyConfig() {
@@ -290,15 +308,7 @@ export class RadioReceiverMain extends LitElement {
     this.minDecibels = cfg.minDecibels;
     this.maxDecibels = cfg.maxDecibels;
 
-    SetWindowPosition("controls", cfg.windows.controls.position);
-    SetWindowPosition("settings", cfg.windows.settings.position);
-    SetWindowSize("frequencyManager", cfg.windows.frequencyManager.size);
-    SetWindowPosition(
-      "frequencyManager",
-      cfg.windows.frequencyManager.position
-    );
-    if (cfg.windows.settings.open) this.settingsWindowOpen = true;
-    if (cfg.windows.frequencyManager.open) this.frequencyManagerWindowOpen = true;
+    this.windowState = cfg.windows;
   }
 
   private isFrequencyValid(freq: Frequency): boolean {
@@ -325,23 +335,26 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onSettings() {
-    this.settingsWindowOpen = true;
-    this.configProvider.update((cfg) => (cfg.windows.settings.open = true));
+    this.changeWindowState((s) => (s.settings.open = true));
   }
 
   private onSettingsClosed() {
-    this.settingsWindowOpen = false;
-    this.configProvider.update((cfg) => (cfg.windows.settings.open = false));
+    this.changeWindowState((s) => (s.settings.open = false));
   }
 
   private onFrequencyManager() {
-    this.frequencyManagerWindowOpen = true;
-    this.configProvider.update((cfg) => (cfg.windows.frequencyManager.open = false));
+    this.changeWindowState((s) => (s.frequencyManager.open = true));
   }
 
   private onFrequencyManagerClosed() {
-    this.frequencyManagerWindowOpen = false;
-    this.configProvider.update((cfg) => (cfg.windows.frequencyManager.open = false));
+    this.changeWindowState((s) => (s.frequencyManager.open = false));
+  }
+
+  private changeWindowState(delta: (state: WindowState) => void) {
+    let newState = { ...this.windowState };
+    delta(newState);
+    this.windowState = newState;
+    this.configProvider.update((cfg) => (cfg.windows = this.windowState));
   }
 
   private getWindowName(e: EventTarget | null) {
@@ -358,20 +371,18 @@ export class RadioReceiverMain extends LitElement {
     const windowName = this.getWindowName(e.target);
     if (windowName === undefined) return;
     const window = e.target as RrWindow;
-    const position = window?.getPosition();
+    const position = window?.position;
     if (!position) return;
-    this.configProvider.update(
-      (cfg) => (cfg.windows[windowName].position = position)
-    );
+    this.changeWindowState(s => s[windowName].position = position);
   }
 
   private onWindowResized(e: WindowResizedEvent) {
     const windowName = this.getWindowName(e.target);
     if (windowName === undefined) return;
     const window = e.target as RrWindow;
-    const size = window?.getSize();
+    const size = window?.size;
     if (!size) return;
-    this.configProvider.update((cfg) => (cfg.windows[windowName].size = size));
+    this.changeWindowState(s => s[windowName].size = size);
   }
 
   private onScaleChange(e: Event) {
@@ -594,7 +605,15 @@ export class RadioReceiverMain extends LitElement {
     this.setTunedFrequency(preset.tunedFrequency);
     this.scale = preset.scale;
     this.tuningStep = preset.tuningStep;
-    this.setMode(withBandwidth(preset.bandwidth, withStereo(preset.stereo, withSquelch(preset.squelch, getMode(preset.scheme)))));
+    this.setMode(
+      withBandwidth(
+        preset.bandwidth,
+        withStereo(
+          preset.stereo,
+          withSquelch(preset.squelch, getMode(preset.scheme))
+        )
+      )
+    );
     this.setGain(preset.gain);
   }
 

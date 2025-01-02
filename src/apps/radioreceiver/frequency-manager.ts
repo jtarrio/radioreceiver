@@ -1,7 +1,10 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { type Scheme } from "../../demod/scheme";
-import { RrWindow, WindowDelegate } from "../../ui/controls/window";
+import {
+  RrWindow,
+  WindowDelegate,
+} from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import "../../ui/controls/window";
 
@@ -92,6 +95,8 @@ export class RrFrequencyManager extends WindowDelegate(LitElement) {
       class=${this.inline ? "inline" : ""}
       closeable
       .closed=${this.closed}
+      .position=${this.position}
+      .size=${this.size}
       .fixed=${this.inline}
       .resizeable=${true}
     >

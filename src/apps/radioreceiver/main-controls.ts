@@ -8,7 +8,10 @@ import {
   type Scheme,
 } from "../../demod/scheme";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input";
-import { RrWindow, WindowDelegate } from "../../ui/controls/window";
+import {
+  RrWindow,
+  WindowDelegate,
+} from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import { BaseStyle } from "../../ui/styles";
 import "../../ui/controls/frequency-input";
@@ -69,6 +72,7 @@ export class RrMainControls extends WindowDelegate(LitElement) {
       label="Controls"
       id="controls"
       class=${this.inline ? "inline" : ""}
+      .position=${this.position}
       .fixed=${this.inline}
     >
       ${this.errorState
