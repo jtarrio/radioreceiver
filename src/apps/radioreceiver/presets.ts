@@ -147,9 +147,6 @@ export class RrPresets extends WindowDelegate(LitElement) {
             @change=${this.onEditorNameChange}
           />
         </div>
-        ${this.editorCanCopyPreset
-          ? html`<div><button></button></div>`
-          : nothing}
         <div>
           Frequency:
           <b
@@ -188,7 +185,16 @@ export class RrPresets extends WindowDelegate(LitElement) {
               </button>
             </div>`
           : nothing}
-        <div><button @click=${this.onEditorSaveClick}>Save</button></div>
+        <div>
+          <button
+            .disabled=${this.editorValidationError !== undefined}
+            @click=${this.onEditorSaveClick}
+          >
+            Save</button
+          >${this.editorValidationError !== undefined
+            ? html`<i>${this.editorValidationError}</i>`
+            : nothing}
+        </div>
       </rr-window>`;
   }
 
@@ -232,7 +238,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
   @state() private editorTitle?: string;
   @state() private editorOpen: boolean = false;
   @state() private editorIndex?: number;
-  @state() private editorCanCopyPreset: boolean = false;
+  @state() private editorValidationError?: string;
   @state() private editorContent: Preset = {
     name: "",
     tunedFrequency: this.tunedFrequency,
@@ -274,6 +280,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
       squelch: this.squelch,
       gain: this.gain,
     };
+    this.editorValidationError = undefined;
     this.editorOpen = true;
   }
 
@@ -281,6 +288,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
     let target = e.target as HTMLInputElement;
     let value = target.value;
     this.editorContent.name = value;
+    this.checkValidEditor();
   }
 
   private onEditorReplaceClick() {
@@ -295,6 +303,21 @@ export class RrPresets extends WindowDelegate(LitElement) {
       squelch: this.squelch,
       gain: this.gain,
     };
+    this.checkValidEditor();
+  }
+
+  private checkValidEditor() {
+    let idx = this.presets.findIndex((p) => p.name == this.editorContent.name);
+    if (idx >= 0 && idx != this.editorIndex) {
+      this.editorValidationError = "There is another preset with that name";
+      return;
+    }
+    idx = this.presets.findIndex((p) => arePresetsEqual(p, this.editorContent));
+    if (idx >= 0 && idx != this.editorIndex) {
+      this.editorValidationError = `There is an identical preset: ${this.presets[idx].name}`;
+      return;
+    }
+    this.editorValidationError = undefined;
   }
 
   private onEditorSaveClick() {
@@ -306,6 +329,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
     }
     this.presets = presets;
     this.editorOpen = false;
+    this.dispatchEvent(new PresetsChangedEvent());
   }
 
   private onEditorClosed() {
@@ -327,6 +351,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
     this.editorTitle = `Editing Preset "${preset.name}"`;
     this.editorIndex = index;
     this.editorContent = preset;
+    this.editorValidationError = undefined;
     this.editorOpen = true;
   }
 
@@ -422,9 +447,16 @@ export class PresetSelectedEvent extends Event {
   }
 }
 
+export class PresetsChangedEvent extends Event {
+  constructor() {
+    super("rr-presets-changed", { bubbles: true, composed: true });
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "rr-preset-selected": PresetSelectedEvent;
+    "rr-presets-changed": PresetsChangedEvent;
   }
 }
 
