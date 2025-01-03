@@ -286,7 +286,6 @@ export class RrWindow extends LitElement implements Window {
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    this.resizeObserver?.disconnect();
     registry?.unregister(this);
   }
 
@@ -329,7 +328,7 @@ export class RrWindow extends LitElement implements Window {
         this.pendingSize = undefined;
         this.pendingPosition = undefined;
         this.setCenterPosition();
-        registry?.select(this);
+        setTimeout(() => registry?.select(this), 0);
       }
       if (this.pendingSize) {
         this.setSize(this.pendingSize);
@@ -719,7 +718,7 @@ class WindowRegistry {
 
   select(window: RrWindow) {
     if (this.windows[this.windows.length - 1] === window) return false;
-    let idx = this.windows.findIndex((v) => v === window);
+    let idx = this.windows.findIndex((v) => v === window && !v.closed);
     if (idx < 0) return false;
     this.windows.splice(idx, 1);
     this.windows.push(window);
