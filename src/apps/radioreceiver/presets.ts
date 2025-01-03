@@ -1,8 +1,14 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { type Scheme } from "../../demod/scheme";
+import {
+  hasBandwidth,
+  hasSquelch,
+  hasStereo,
+  type Scheme,
+} from "../../demod/scheme";
 import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
+import { BaseStyle } from "../../ui/styles";
 import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
 
@@ -10,62 +16,26 @@ import "../../ui/controls/window";
 export class RrPresets extends WindowDelegate(LitElement) {
   static get styles() {
     return [
+      BaseStyle,
       css`
-        :host {
-          font-family: Arial, Helvetica, sans-serif;
-        }
-
-        @media (prefers-color-scheme: dark) {
-          input,
-          select {
-            background: #222;
-            color: #ddd;
-          }
-        }
-
-        rr-window {
-          bottom: calc(1em + 24px);
-          right: 1em;
-        }
-
-        rr-window.inline {
-          position: initial;
-          display: inline-block;
-        }
-
-        @media (max-width: 778px) {
-          rr-window {
-            bottom: calc(1em + 48px);
-          }
-        }
-
-        button:has(svg) {
-          padding-inline: 0;
-          width: 24px;
-          height: 24px;
-        }
-
-        button > svg {
-          display: block;
-          width: 16px;
-          height: 16px;
-          margin: auto;
-        }
-
         table {
           border-collapse: collapse;
           width: 100%;
           cursor: default;
         }
 
-        tr:nth-child(even) {
-          background: #ddd;
-        }
-
         tr.active {
           background: #dd7;
         }
 
+        tr:nth-child(even) {
+          background: #ddd;
+          &.active {
+            background: #bb5;
+          }
+        }
+
+        th,
         td {
           text-wrap: nowrap;
         }
@@ -81,12 +51,19 @@ export class RrPresets extends WindowDelegate(LitElement) {
         }
 
         @media (prefers-color-scheme: dark) {
+          tr.active {
+            background: #550;
+          }
+
           tr:nth-child(even) {
             background: #333;
+            &.active {
+              background: #662;
+            }
           }
 
           a svg {
-            fill: #33f;
+            fill: #55e;
           }
         }
       `,
@@ -130,7 +107,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
           ${this.sortedIndices.map(
             (index) =>
               html`<tr
-                .index=${index}
+                data-index=${index}
                 class=${index == this.selectedIndex ? "active" : ""}
                 @click=${this.onRowClick}
               >
@@ -143,8 +120,11 @@ export class RrPresets extends WindowDelegate(LitElement) {
                 </td>
                 <td>${this.presets[index].scheme}</td>
                 <td>
-                  <a href="javascript:0">${Icons.Edit}</a
-                  ><a href="javascript:0">${Icons.Delete}</a>
+                  <a href="javascript:0" @click=${this.onRowEditClick}
+                    >${Icons.Edit}</a
+                  ><a href="javascript:0" @click=${this.onRowDeleteClick}
+                    >${Icons.Delete}</a
+                  >
                 </td>
               </tr>`
           )}
@@ -172,25 +152,42 @@ export class RrPresets extends WindowDelegate(LitElement) {
           : nothing}
         <div>
           Frequency:
-          ${humanFrequency(
-            this.editorContent.tunedFrequency,
-            this.editorContent.scale
-          )},
-          Tuning step: ${humanFrequency(this.editorContent.tuningStep, 1)}
+          <b
+            >${humanFrequency(
+              this.editorContent.tunedFrequency,
+              this.editorContent.scale
+            )}</b
+          >, Tuning step:
+          <b>${humanFrequency(this.editorContent.tuningStep, 1)}</b>
         </div>
         <div>
           Modulation:
-          ${this.editorContent.scheme}${this.editorContent.scheme == "WBFM"
-            ? this.editorContent.stereo
-              ? " Stereo"
-              : " Mono"
-            : nothing},
-          Bandwidth: ${humanFrequency(this.editorContent.bandwidth, 1)}
+          <b
+            >${this.editorContent.scheme}${hasStereo(this.editorContent.scheme)
+              ? this.editorContent.stereo
+                ? " Stereo"
+                : " Mono"
+              : nothing}</b
+          >${hasBandwidth(this.editorContent.scheme)
+            ? html`, Bandwidth:
+                <b>${humanFrequency(this.editorContent.bandwidth, 1)}</b>`
+            : nothing}
         </div>
         <div>
-          Gain: ${this.gain === null ? "Auto" : this.gain}, Squelch:
-          ${this.squelch}
+          Gain:
+          <b>${this.gain === null ? "Auto" : this.gain}</b>${hasSquelch(
+            this.editorContent.scheme
+          )
+            ? html`, Squelch: <b>${this.squelch}</b>`
+            : nothing}
         </div>
+        ${this.editorIndex !== undefined
+          ? html`<div>
+              <button @click=${this.onEditorReplaceClick}>
+                Replace with current settings
+              </button>
+            </div>`
+          : nothing}
         <div><button @click=${this.onEditorSaveClick}>Save</button></div>
       </rr-window>`;
   }
@@ -249,8 +246,8 @@ export class RrPresets extends WindowDelegate(LitElement) {
   };
   @query("#presets") protected window?: RrWindow;
 
-  protected updated(changed: PropertyValues): void {
-    super.updated(changed);
+  protected willUpdate(changed: PropertyValues): void {
+    super.willUpdate(changed);
     if (changed.has("presets") || changed.has("sortColumn")) {
       this.updatePresetLists();
     }
@@ -286,6 +283,20 @@ export class RrPresets extends WindowDelegate(LitElement) {
     this.editorContent.name = value;
   }
 
+  private onEditorReplaceClick() {
+    this.editorContent = {
+      name: this.editorContent.name,
+      tunedFrequency: this.tunedFrequency,
+      scale: this.scale,
+      tuningStep: this.tuningStep,
+      scheme: this.scheme,
+      bandwidth: this.bandwidth,
+      stereo: this.stereo,
+      squelch: this.squelch,
+      gain: this.gain,
+    };
+  }
+
   private onEditorSaveClick() {
     let presets = [...this.presets];
     if (this.editorIndex === undefined || this.editorIndex >= presets.length) {
@@ -302,9 +313,42 @@ export class RrPresets extends WindowDelegate(LitElement) {
   }
 
   private onRowClick(e: PointerEvent) {
-    const row = e.currentTarget as HTMLTableRowElement & { index: number };
-    this.selectedIndex = row.index;
+    let index = this.getIndex(e);
+    if (index === undefined) return;
+    this.selectedIndex = index;
     this.dispatchEvent(new PresetSelectedEvent());
+  }
+
+  private onRowEditClick(e: PointerEvent) {
+    e.stopPropagation();
+    const index = this.getIndex(e);
+    if (index === undefined) return;
+    let preset = { ...this.presets[index] };
+    this.editorTitle = `Editing Preset "${preset.name}"`;
+    this.editorIndex = index;
+    this.editorContent = preset;
+    this.editorOpen = true;
+  }
+
+  private onRowDeleteClick(e: PointerEvent) {
+    e.stopPropagation();
+    const index = this.getIndex(e);
+    if (index === undefined) return;
+    let presets = [...this.presets];
+    presets.splice(index, 1);
+    this.selectedIndex = undefined;
+    this.presets = presets;
+  }
+
+  private getIndex(e: PointerEvent): number | undefined {
+    let target = e.target as HTMLElement | null;
+    while (target != null && target.tagName != "TR") {
+      target = target.parentElement;
+    }
+    if (target == null) return;
+    let index = Number(target.dataset["index"]);
+    if (isNaN(index)) return;
+    return index;
   }
 
   private onHeaderClick(e: PointerEvent) {

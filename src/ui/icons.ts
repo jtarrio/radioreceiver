@@ -104,6 +104,11 @@ export const Delete = icon(
   svg`<g><path d="M2 2h1l5 5 5 -5h1v1l-5 5 5 5v1h-1l-5 -5 -5 5h-1v-1l5 -5l-5 -5z"></path></g>`
 );
 
+export const Update = icon(
+  "Update",
+  svg`<g><path d="M1 1L3 3A7 7 0 0 0 1 8A7 7 0 0 0 8 15v-2A5 5 0 0 1 3 8A5 5 0 0 1 4.5 4.5L7 7v-6h-6zM8 1v2A5 5 0 0 1 13 8A5 5 0 0 1 11.5 11.5L9 9v6h6L13 13A7 7 0 0 0 15 8A7 7 0 0 0 8 1z"></path></g>`
+)
+
 export const SortUp = html`<svg version="1.1" width="10" height="9">
   <g><path d="M1,8h8l-4,-6z"></path></g>
 </svg>`;

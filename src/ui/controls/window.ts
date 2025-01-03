@@ -116,7 +116,6 @@ export class RrWindow extends LitElement implements Window {
 
         .content.resizeable .contentView {
           overflow: auto;
-          border-bottom-right-radius: 0;
         }
 
         .right-resizer {
@@ -193,6 +192,13 @@ export class RrWindow extends LitElement implements Window {
             display: none;
           }
 
+          :host:has(.modalbg) {
+            position: absolute;
+            .content {
+              display: block;
+            }
+          }
+
           .label {
             border: 1px solid var(--ips-border-color);
             border-bottom: none;
@@ -203,6 +209,18 @@ export class RrWindow extends LitElement implements Window {
             border: 1px solid var(--ips-border-color);
             border-radius: 0;
             overflow: scroll;
+          }
+
+          .content.resizeable {
+            padding: 1ex;
+            width: 100% !important;
+            height: 100% !important;
+          }
+
+          .right-resizer,
+          .bottom-resizer,
+          .corner-resizer {
+            display: none;
           }
         }
       `,
@@ -257,15 +275,12 @@ export class RrWindow extends LitElement implements Window {
   private rightResizeController?: DragController;
   private bottomResizeController?: DragController;
   private cornerResizeController?: DragController;
-  private resizeObserver?: ResizeObserver;
   private pendingPosition?: WindowPosition;
   private pendingSize?: WindowSize;
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
-    this.resizeObserver.observe(document.body);
-    this.addEventListener("pointerdown", () => this.onSelect());
+    this.addEventListener("click", (e) => this.onSelect(e));
     registry?.register(this);
   }
 
@@ -330,6 +345,7 @@ export class RrWindow extends LitElement implements Window {
   private getPosition(): WindowPosition | undefined {
     if (this.closed || (this.offsetWidth == 0 && this.offsetHeight == 0))
       return undefined;
+    if (getComputedStyle(this).position != "absolute") return undefined;
     return {
       top: this.offsetTop,
       left: this.offsetLeft,
@@ -346,6 +362,7 @@ export class RrWindow extends LitElement implements Window {
       (this.offsetWidth == 0 && this.offsetWidth == 0)
     )
       return undefined;
+    if (getComputedStyle(this).position != "absolute") return undefined;
     return {
       width: this.offsetWidth,
       height: this.content.offsetHeight,
@@ -425,8 +442,10 @@ export class RrWindow extends LitElement implements Window {
     this.dispatchEvent(new WindowClosedEvent());
   }
 
-  private onSelect() {
-    registry?.select(this);
+  private onSelect(e: Event) {
+    if (registry?.select(this)) {
+      e.stopPropagation();
+    }
   }
 
   private noPointerDown(e: PointerEvent) {
@@ -451,10 +470,6 @@ export class RrWindow extends LitElement implements Window {
   private onCornerResizerPointerDown(e: PointerEvent) {
     if (this.fixed) return;
     this.cornerResizeController?.startDragging(e);
-  }
-
-  private onWindowResize() {
-    moveWindowWithinViewport(this, this.offsetLeft, this.offsetTop);
   }
 }
 
@@ -703,12 +718,13 @@ class WindowRegistry {
   }
 
   select(window: RrWindow) {
-    if (this.windows[this.windows.length - 1] === window) return;
+    if (this.windows[this.windows.length - 1] === window) return false;
     let idx = this.windows.findIndex((v) => v === window);
-    if (idx < 0) return;
+    if (idx < 0) return false;
     this.windows.splice(idx, 1);
     this.windows.push(window);
     this.update();
+    return true;
   }
 
   hide(window: RrWindow) {

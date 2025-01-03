@@ -252,8 +252,8 @@ export class RadioReceiverMain extends LitElement {
   @query("#spectrum") private spectrumView?: RrSpectrum;
   @query("rr-main-controls") private mainControlsWindow?: RrMainControls;
   @query("rr-settings") private settingsWindow?: RrSettings;
-  @query("rr-presets")
-  private presetsWindow?: RrPresets;
+  @query("rr-presets") private presetsWindow?: RrPresets;
+  private resizeObserver?: ResizeObserver;
 
   constructor() {
     super();
@@ -279,6 +279,17 @@ export class RadioReceiverMain extends LitElement {
     this.sampleCounter.addEventListener("sample-click", (e) =>
       this.onSampleClickEvent(e)
     );
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.resizeObserver = new ResizeObserver(() => this.onScreenResize());
+    this.resizeObserver.observe(document.body);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.resizeObserver?.disconnect();
   }
 
   protected firstUpdated(changed: PropertyValues): void {
@@ -335,6 +346,10 @@ export class RadioReceiverMain extends LitElement {
     e.preventDefault();
   }
 
+  private onScreenResize() {
+    this.requestUpdate();
+  }
+
   private onSettings() {
     this.changeWindowState((s) => (s.settings.open = true));
   }
@@ -366,7 +381,7 @@ export class RadioReceiverMain extends LitElement {
     const window = e.target as RrWindow;
     const closed = window?.closed;
     if (closed === undefined) return;
-    this.changeWindowState(s => s[windowName].open = !closed);
+    this.changeWindowState((s) => (s[windowName].open = !closed));
   }
 
   private onWindowMoved(e: WindowMovedEvent) {
@@ -375,7 +390,7 @@ export class RadioReceiverMain extends LitElement {
     const window = e.target as RrWindow;
     const position = window?.position;
     if (!position) return;
-    this.changeWindowState(s => s[windowName].position = position);
+    this.changeWindowState((s) => (s[windowName].position = position));
   }
 
   private onWindowResized(e: WindowResizedEvent) {
@@ -384,7 +399,7 @@ export class RadioReceiverMain extends LitElement {
     const window = e.target as RrWindow;
     const size = window?.size;
     if (!size) return;
-    this.changeWindowState(s => s[windowName].size = size);
+    this.changeWindowState((s) => (s[windowName].size = size));
   }
 
   private onScaleChange(e: Event) {
