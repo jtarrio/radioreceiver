@@ -75,7 +75,7 @@ function blankConfig(): RawConfig {
       windows: {
         controls: {},
         settings: {},
-        frequencyManager: {},
+        presets: {},
       },
     },
   };
@@ -128,7 +128,7 @@ type ConfigV1 = {
 };
 
 /** Names of the windows whose configurations can be saved. */
-type ConfigV1WindowName = "controls" | "settings" | "frequencyManager";
+type ConfigV1WindowName = "controls" | "settings" | "presets";
 
 /** Window configuration. */
 type ConfigV1Window = {

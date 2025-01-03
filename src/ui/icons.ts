@@ -89,6 +89,11 @@ export const ErrorState = icon(
   </g>`
 );
 
+export const Add = icon(
+  "Add",
+  svg`<g><path d="M2,7h5v-5h2v5h5v2h-5v5h-2v-5h-5z"></path></g>`
+)
+
 export const Edit = icon(
   "Edit",
   svg`<g><path d="M1.9,15.37A1,1 0 0 1 0.63,14.1L2,10 12,0 16,4 6,14ZM2,14 5,13 3,11ZM6,12 14,4 12,2 4,10Z"></path></g>`
@@ -96,18 +101,5 @@ export const Edit = icon(
 
 export const Delete = icon(
   "Delete",
-  svg`<g><path d="M 2 2
-h 1
-l 5 5 5 -5
-h 1
-v 1
-l -5 5 5 5
-v 1
-h -1
-l -5 -5 -5 5
-h -1
-v -1
-l 5 -5
-l -5 -5
-z"></path></g>`
+  svg`<g><path d="M2 2h1l5 5 5 -5h1v1l-5 5 5 5v1h-1l-5 -5 -5 5h-1v-1l5 -5l-5 -5z"></path></g>`
 )

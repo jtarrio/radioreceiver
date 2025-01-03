@@ -1,7 +1,7 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { ConfigProvider, loadConfig } from "./config";
-import { PresetSelectedEvent, RrFrequencyManager } from "./frequency-manager";
+import { PresetSelectedEvent, RrPresets } from "./presets";
 import { RrMainControls } from "./main-controls";
 import { type LowFrequencyMethod, RrSettings } from "./settings";
 import { Demodulator, StereoStatusEvent } from "../../demod/demodulator";
@@ -33,6 +33,7 @@ import { DirectSampling, RtlDeviceProvider } from "../../rtlsdr/rtldevice";
 import {
   CreateWindowRegistry,
   RrWindow,
+  WindowClosedEvent,
   WindowMovedEvent,
   WindowPosition,
   WindowResizedEvent,
@@ -48,7 +49,7 @@ import { BaseStyle } from "../../ui/styles";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";
 import "./main-controls";
 import "./settings";
-import "./frequency-manager";
+import "./presets";
 import "../../ui/spectrum/spectrum";
 
 type Frequency = {
@@ -59,7 +60,7 @@ type Frequency = {
 };
 
 type WindowState = {
-  [k in "controls" | "settings" | "frequencyManager"]: {
+  [k in "controls" | "settings" | "presets"]: {
     open?: boolean;
     position?: WindowPosition;
     size?: WindowSize;
@@ -183,13 +184,13 @@ export class RadioReceiverMain extends LitElement {
         @rr-bias-tee-changed=${this.onBiasTeeChange}
         @rr-low-frequency-method-changed=${this.onLowFrequencyMethodChange}
         @rr-window-moved=${this.onWindowMoved}
-        @rr-window-closed=${this.onSettingsClosed}
+        @rr-window-closed=${this.onWindowClosed}
       ></rr-settings>
 
-      <rr-frequency-manager
-        .closed=${!this.windowState.frequencyManager.open}
-        .size=${this.windowState.frequencyManager.size}
-        .position=${this.windowState.frequencyManager.position}
+      <rr-presets
+        .closed=${!this.windowState.presets.open}
+        .size=${this.windowState.presets.size}
+        .position=${this.windowState.presets.position}
         .tunedFrequency=${this.frequency.center + this.frequency.offset}
         .tuningStep=${this.tuningStep}
         .scale=${this.scale}
@@ -202,8 +203,8 @@ export class RadioReceiverMain extends LitElement {
         @rr-preset-selected=${this.onPresetSelected}
         @rr-window-moved=${this.onWindowMoved}
         @rr-window-resized=${this.onWindowResized}
-        @rr-window-closed=${this.onFrequencyManagerClosed}
-      ></rr-frequency-manager>`;
+        @rr-window-closed=${this.onWindowClosed}
+      ></rr-presets>`;
   }
 
   private configProvider: ConfigProvider;
@@ -245,14 +246,14 @@ export class RadioReceiverMain extends LitElement {
   @state() private windowState: WindowState = {
     controls: { position: undefined },
     settings: { open: false, position: undefined },
-    frequencyManager: { open: false, position: undefined, size: undefined },
+    presets: { open: false, position: undefined, size: undefined },
   };
 
   @query("#spectrum") private spectrumView?: RrSpectrum;
   @query("rr-main-controls") private mainControlsWindow?: RrMainControls;
   @query("rr-settings") private settingsWindow?: RrSettings;
-  @query("rr-frequency-manager")
-  private frequencyManagerWindow?: RrFrequencyManager;
+  @query("rr-presets")
+  private presetsWindow?: RrPresets;
 
   constructor() {
     super();
@@ -338,16 +339,8 @@ export class RadioReceiverMain extends LitElement {
     this.changeWindowState((s) => (s.settings.open = true));
   }
 
-  private onSettingsClosed() {
-    this.changeWindowState((s) => (s.settings.open = false));
-  }
-
   private onFrequencyManager() {
-    this.changeWindowState((s) => (s.frequencyManager.open = true));
-  }
-
-  private onFrequencyManagerClosed() {
-    this.changeWindowState((s) => (s.frequencyManager.open = false));
+    this.changeWindowState((s) => (s.presets.open = true));
   }
 
   private changeWindowState(delta: (state: WindowState) => void) {
@@ -362,9 +355,18 @@ export class RadioReceiverMain extends LitElement {
       ? "controls"
       : e === this.settingsWindow
         ? "settings"
-        : e === this.frequencyManagerWindow
-          ? "frequencyManager"
+        : e === this.presetsWindow
+          ? "presets"
           : undefined;
+  }
+
+  private onWindowClosed(e: WindowClosedEvent) {
+    const windowName = this.getWindowName(e.target);
+    if (windowName === undefined) return;
+    const window = e.target as RrWindow;
+    const closed = window?.closed;
+    if (closed === undefined) return;
+    this.changeWindowState(s => s[windowName].open = !closed);
   }
 
   private onWindowMoved(e: WindowMovedEvent) {
@@ -599,7 +601,7 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onPresetSelected(e: PresetSelectedEvent) {
-    const target = e.target as RrFrequencyManager;
+    const target = e.target as RrPresets;
     const preset = target.activePreset;
     if (preset === undefined) return;
     this.setTunedFrequency(preset.tunedFrequency);

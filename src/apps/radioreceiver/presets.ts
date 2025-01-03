@@ -1,15 +1,12 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { type Scheme } from "../../demod/scheme";
-import {
-  RrWindow,
-  WindowDelegate,
-} from "../../ui/controls/window";
+import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import "../../ui/controls/window";
 
-@customElement("rr-frequency-manager")
-export class RrFrequencyManager extends WindowDelegate(LitElement) {
+@customElement("rr-presets")
+export class RrPresets extends WindowDelegate(LitElement) {
   static get styles() {
     return [
       css`
@@ -90,8 +87,8 @@ export class RrFrequencyManager extends WindowDelegate(LitElement) {
 
   render() {
     return html`<rr-window
-      label="Frequency Manager"
-      id="frequencyManager"
+      label=${this.activePreset && !this.modified ? `Current preset: ${this.activePreset.name}` : "Presets"}
+      id="presets"
       class=${this.inline ? "inline" : ""}
       closeable
       .closed=${this.closed}
@@ -100,17 +97,7 @@ export class RrFrequencyManager extends WindowDelegate(LitElement) {
       .fixed=${this.inline}
       .resizeable=${true}
     >
-      <div><button>Save new preset</button></div>
-        ${
-          this.activePreset
-            ? html`<div>
-                Current preset:
-                ${this.activePreset.name}${this.modified
-                  ? html` <button>Update</button>`
-                  : nothing}
-              </div>`
-            : nothing
-        }
+      <button slot="label-left">${Icons.Add}</button>
       </div>
       <table>
         <tr>
@@ -123,7 +110,7 @@ export class RrFrequencyManager extends WindowDelegate(LitElement) {
           (preset, index) =>
             html`<tr
               .index=${index}
-              class=${this.activePreset === preset ? "active" : ""}
+              class=${!this.modified && this.activePreset === preset ? "active" : ""}
               @click=${this.onRowClick}
             >
               <td>${preset.name}</td>
