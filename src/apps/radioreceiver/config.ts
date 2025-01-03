@@ -72,6 +72,10 @@ function blankConfig(): RawConfig {
       },
       minDecibels: -90,
       maxDecibels: -20,
+      presets: {
+        sortColumn: "frequency",
+        list: [],
+      },
       windows: {
         controls: {},
         settings: {},
@@ -121,6 +125,8 @@ type ConfigV1 = {
   minDecibels: number;
   /** Maximum number of decibels for scope. */
   maxDecibels: number;
+  /** Presets. */
+  presets: ConfigV1Presets;
   /** Window configurations. */
   windows: {
     [k in ConfigV1WindowName]: ConfigV1Window;
@@ -152,7 +158,7 @@ type ConfigV1WindowPosition = {
 type ConfigV1WindowSize = {
   width: number;
   height: number;
-}
+};
 
 /** This definition parallels the Mode from scheme.ts */
 type ConfigV1Mode =
@@ -163,10 +169,31 @@ type ConfigV1Mode =
   | { scheme: "LSB"; bandwidth: number; squelch: number }
   | { scheme: "CW"; bandwidth: number };
 
+type ConfigV1Scheme = ConfigV1Mode["scheme"];
+
 /** This definition parallels the LowFrequencyMethod from settings.ts */
 type ConfigV1LowFrequencyMethod = {
   name: "default" | "directSampling" | "upconverter";
   channel: "Q" | "I";
   frequency: number;
   biasTee: boolean;
+};
+
+/** Configuration and content of the presets. */
+type ConfigV1Presets = {
+  sortColumn: string;
+  list: ConfigV1Preset[];
+};
+
+/** This definition parallels the Preset from presets.ts */
+type ConfigV1Preset = {
+  name: string;
+  tunedFrequency: number;
+  scale: number;
+  tuningStep: number;
+  scheme: ConfigV1Scheme;
+  bandwidth: number;
+  stereo: boolean;
+  squelch: number;
+  gain: number | null;
 };

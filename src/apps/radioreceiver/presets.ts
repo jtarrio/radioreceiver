@@ -35,9 +35,24 @@ export class RrPresets extends WindowDelegate(LitElement) {
           }
         }
 
+        td:nth-child(n + 2) {
+          width: 0;
+        }
+
         th,
         td {
           text-wrap: nowrap;
+          padding: 0.4ex 0.8ex;
+        }
+
+        td:first-child {
+          max-width: 15ex;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+
+        svg {
+          vertical-align: text-top;
         }
 
         a svg {
@@ -137,14 +152,17 @@ export class RrPresets extends WindowDelegate(LitElement) {
         closeable
         modal
         .closed=${!this.editorOpen}
+        @rr-window-open=${this.onEditorOpen}
         @rr-window-closed=${this.onEditorClosed}
       >
         <div>
           <label for="presetName">Name: </label
           ><input
+            id="presetName"
             type="text"
             .value=${this.editorContent.name}
-            @change=${this.onEditorNameChange}
+            @keydown=${this.onEditorNameKeydown}
+            @input=${this.onEditorNameChange}
           />
         </div>
         <div>
@@ -210,30 +228,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
   @property({ attribute: false }) gain: number | null = null;
   @property({ attribute: false }) selectedIndex?: number;
   @property({ attribute: false }) sortColumn: string = "frequency";
-  @property({ attribute: false }) presets: Preset[] = [
-    {
-      name: "WNYC",
-      tunedFrequency: 93900000,
-      scale: 1000000,
-      tuningStep: 100000,
-      scheme: "WBFM",
-      bandwidth: 150000,
-      stereo: true,
-      squelch: 0,
-      gain: null,
-    },
-    {
-      name: "Weather",
-      tunedFrequency: 162550000,
-      scale: 1000,
-      tuningStep: 25000,
-      scheme: "NBFM",
-      bandwidth: 10000,
-      stereo: false,
-      squelch: 0,
-      gain: 30,
-    },
-  ];
+  @property({ attribute: false }) presets: Preset[] = [];
   @state() private sortedIndices: number[] = [];
   @state() private editorTitle?: string;
   @state() private editorOpen: boolean = false;
@@ -251,6 +246,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
     gain: this.gain,
   };
   @query("#presets") protected window?: RrWindow;
+  @query("#presetName") protected presetName?: HTMLInputElement;
 
   protected willUpdate(changed: PropertyValues): void {
     super.willUpdate(changed);
@@ -280,8 +276,18 @@ export class RrPresets extends WindowDelegate(LitElement) {
       squelch: this.squelch,
       gain: this.gain,
     };
-    this.editorValidationError = undefined;
+    this.checkValidEditor();
     this.editorOpen = true;
+  }
+
+  private onEditorNameKeydown(e: KeyboardEvent) {
+    if (e.key == "Enter") {
+      e.preventDefault();
+      this.onEditorSaveClick();
+    } else if (e.key == "Escape") {
+      e.preventDefault();
+      this.onEditorClosed();
+    }
   }
 
   private onEditorNameChange(e: Event) {
@@ -307,6 +313,10 @@ export class RrPresets extends WindowDelegate(LitElement) {
   }
 
   private checkValidEditor() {
+    if (this.editorContent.name == "") {
+      this.editorValidationError = "Preset name is empty";
+      return;
+    }
     let idx = this.presets.findIndex((p) => p.name == this.editorContent.name);
     if (idx >= 0 && idx != this.editorIndex) {
       this.editorValidationError = "There is another preset with that name";
@@ -332,6 +342,10 @@ export class RrPresets extends WindowDelegate(LitElement) {
     this.dispatchEvent(new PresetsChangedEvent());
   }
 
+  private onEditorOpen() {
+    if (this.presetName) this.presetName.focus();
+  }
+
   private onEditorClosed() {
     this.editorOpen = false;
   }
@@ -351,7 +365,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
     this.editorTitle = `Editing Preset "${preset.name}"`;
     this.editorIndex = index;
     this.editorContent = preset;
-    this.editorValidationError = undefined;
+    this.checkValidEditor();
     this.editorOpen = true;
   }
 
@@ -384,6 +398,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
     } else {
       this.sortColumn = id;
     }
+    this.dispatchEvent(new PresetsSortedEvent());
   }
 
   private getSortArrow(name: string) {
@@ -453,10 +468,17 @@ export class PresetsChangedEvent extends Event {
   }
 }
 
+export class PresetsSortedEvent extends Event {
+  constructor() {
+    super("rr-presets-sorted", { bubbles: true, composed: true });
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "rr-preset-selected": PresetSelectedEvent;
     "rr-presets-changed": PresetsChangedEvent;
+    "rr-presets-sorted": PresetsSortedEvent;
   }
 }
 

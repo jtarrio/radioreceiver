@@ -1,7 +1,13 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { ConfigProvider, loadConfig } from "./config";
-import { PresetSelectedEvent, RrPresets } from "./presets";
+import {
+  Preset,
+  PresetsChangedEvent,
+  PresetSelectedEvent,
+  PresetsSortedEvent,
+  RrPresets,
+} from "./presets";
 import { RrMainControls } from "./main-controls";
 import { type LowFrequencyMethod, RrSettings } from "./settings";
 import { Demodulator, StereoStatusEvent } from "../../demod/demodulator";
@@ -200,7 +206,11 @@ export class RadioReceiverMain extends LitElement {
         .stereo=${getStereo(this.mode)}
         .squelch=${getSquelch(this.mode)}
         .gain=${this.gain}
+        .presets=${this.presets}
+        .sortColumn=${this.presetSortColumn}
         @rr-preset-selected=${this.onPresetSelected}
+        @rr-presets-changed=${this.onPresetsChanged}
+        @rr-presets-sorted=${this.onPresetsSorted}
         @rr-window-moved=${this.onWindowMoved}
         @rr-window-resized=${this.onWindowResized}
         @rr-window-closed=${this.onWindowClosed}
@@ -248,6 +258,8 @@ export class RadioReceiverMain extends LitElement {
     settings: { open: false, position: undefined },
     presets: { open: false, position: undefined, size: undefined },
   };
+  @state() private presetSortColumn: string = "frequency";
+  @state() private presets: Preset[] = [];
 
   @query("#spectrum") private spectrumView?: RrSpectrum;
   @query("rr-main-controls") private mainControlsWindow?: RrMainControls;
@@ -319,7 +331,8 @@ export class RadioReceiverMain extends LitElement {
     this.enableBiasTee(cfg.biasTee);
     this.minDecibels = cfg.minDecibels;
     this.maxDecibels = cfg.maxDecibels;
-
+    this.presetSortColumn = cfg.presets.sortColumn;
+    this.presets = cfg.presets.list;
     this.windowState = cfg.windows;
   }
 
@@ -633,6 +646,20 @@ export class RadioReceiverMain extends LitElement {
       )
     );
     this.setGain(preset.gain);
+  }
+
+  private onPresetsChanged(e: PresetsChangedEvent) {
+    const target = e.target as RrPresets;
+    let presets = [...target.presets];
+    this.presets = presets;
+    this.configProvider.update((cfg) => (cfg.presets.list = presets));
+  }
+
+  private onPresetsSorted(e: PresetsSortedEvent) {
+    const target = e.target as RrPresets;
+    let sortColumn = target.sortColumn;
+    this.presetSortColumn = sortColumn;
+    this.configProvider.update((cfg) => (cfg.presets.sortColumn = sortColumn));
   }
 
   private onSpectrumTap(e: SpectrumTapEvent) {

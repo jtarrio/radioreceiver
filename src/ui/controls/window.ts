@@ -321,6 +321,7 @@ export class RrWindow extends LitElement implements Window {
           new WindowResizeHandler(this, this.content!, true, true),
           0
         );
+        this.dispatchEvent(new WindowOpenEvent());
       }
     }
     if (!this.closed) {
@@ -771,10 +772,17 @@ export class WindowClosedEvent extends Event {
   }
 }
 
+export class WindowOpenEvent extends Event {
+  constructor() {
+    super("rr-window-open", { bubbles: true, composed: true });
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "rr-window-moved": WindowMovedEvent;
     "rr-window-resized": WindowResizedEvent;
+    "rr-window-open": WindowOpenEvent;
     "rr-window-closed": WindowClosedEvent;
   }
 }
