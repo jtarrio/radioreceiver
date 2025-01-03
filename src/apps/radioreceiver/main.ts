@@ -602,8 +602,9 @@ export class RadioReceiverMain extends LitElement {
 
   private onPresetSelected(e: PresetSelectedEvent) {
     const target = e.target as RrPresets;
-    const preset = target.activePreset;
-    if (preset === undefined) return;
+    const presetIndex = target.selectedIndex;
+    if (presetIndex === undefined) return;
+    const preset = target.presets[presetIndex];
     this.setTunedFrequency(preset.tunedFrequency);
     this.scale = preset.scale;
     this.tuningStep = preset.tuningStep;

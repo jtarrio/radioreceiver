@@ -16,6 +16,8 @@ export class RrWindow extends LitElement implements Window {
   fixed: boolean = false;
   @property({ type: Boolean, reflect: true })
   closed: boolean = false;
+  @property({ type: Boolean, reflect: true })
+  modal: boolean = false;
   @property({ attribute: false })
   set position(position: WindowPosition) {
     this.pendingPosition = position;
@@ -60,6 +62,10 @@ export class RrWindow extends LitElement implements Window {
           background: var(--ips-label-bg-active);
           color: var(--ips-label-color);
           cursor: grab;
+        }
+
+        .label.modal {
+          cursor: default;
         }
 
         :host(.inactive) .label {
@@ -147,6 +153,16 @@ export class RrWindow extends LitElement implements Window {
           cursor: nwse-resize;
         }
 
+        .modalbg {
+          position: fixed;
+          top: 0;
+          left: 0;
+          bottom: 0;
+          right: 0;
+          background: rgba(255, 255, 255, 0.5);
+          z-index: -1;
+        }
+
         :host {
           --ips-border-color: var(--rr-window-border-color, black);
           --ips-background: var(--rr-window-background, white);
@@ -195,8 +211,11 @@ export class RrWindow extends LitElement implements Window {
 
   render() {
     if (this.closed) return nothing;
-    return html`<div
-        class="label${this.moving ? " moving" : ""}"
+    return html`${this.modal ? html`<div class="modalbg"></div>` : nothing}
+      <div
+        class="label${this.moving ? " moving" : ""}${this.modal
+          ? " modal"
+          : ""}"
         @pointerdown=${this.onLabelPointerDown}
       >
         <div class="label-left" @pointerdown=${this.noPointerDown}>
@@ -270,10 +289,12 @@ export class RrWindow extends LitElement implements Window {
     if (changed.has("closed")) {
       registry?.show(!this.closed, this);
       if (!this.closed) {
-        this.moveController = new DragController(
-          new WindowMoveHandler(this),
-          0
-        );
+        if (!this.modal) {
+          this.moveController = new DragController(
+            new WindowMoveHandler(this),
+            0
+          );
+        }
         this.rightResizeController = new DragController(
           new WindowResizeHandler(this, this.content!, true, false),
           0
@@ -289,6 +310,12 @@ export class RrWindow extends LitElement implements Window {
       }
     }
     if (!this.closed) {
+      if (this.modal) {
+        this.pendingSize = undefined;
+        this.pendingPosition = undefined;
+        this.setCenterPosition();
+        registry?.select(this);
+      }
       if (this.pendingSize) {
         this.setSize(this.pendingSize);
         this.pendingSize = undefined;
@@ -323,6 +350,15 @@ export class RrWindow extends LitElement implements Window {
       width: this.offsetWidth,
       height: this.content.offsetHeight,
     };
+  }
+
+  private setCenterPosition() {
+    const width = this.offsetWidth;
+    const height = this.offsetHeight;
+    this.style.left = `calc(50vw - ${width / 2}px)`;
+    this.style.top = `calc(50vh - ${height / 2}px)`;
+    this.style.right = "auto";
+    this.style.bottom = "auto";
   }
 
   private setPosition(position: WindowPosition) {

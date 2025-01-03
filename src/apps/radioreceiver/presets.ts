@@ -1,8 +1,9 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
-import { customElement, property, query } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 import { type Scheme } from "../../demod/scheme";
 import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
+import "../../ui/controls/frequency-input";
 import "../../ui/controls/window";
 
 @customElement("rr-presets")
@@ -54,6 +55,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
         table {
           border-collapse: collapse;
           width: 100%;
+          cursor: default;
         }
 
         tr:nth-child(even) {
@@ -72,6 +74,12 @@ export class RrPresets extends WindowDelegate(LitElement) {
           fill: #22e;
         }
 
+        #preset-editor {
+          bottom: inherit;
+          right: inherit;
+          margin: auto;
+        }
+
         @media (prefers-color-scheme: dark) {
           tr:nth-child(even) {
             background: #333;
@@ -87,43 +95,104 @@ export class RrPresets extends WindowDelegate(LitElement) {
 
   render() {
     return html`<rr-window
-      label=${this.activePreset && !this.modified ? `Current preset: ${this.activePreset.name}` : "Presets"}
-      id="presets"
-      class=${this.inline ? "inline" : ""}
-      closeable
-      .closed=${this.closed}
-      .position=${this.position}
-      .size=${this.size}
-      .fixed=${this.inline}
-      .resizeable=${true}
-    >
-      <button slot="label-left">${Icons.Add}</button>
-      </div>
-      <table>
-        <tr>
-          <th>Name</th>
-          <th>Frequency</th>
-          <th>Mode</th>
-          <th></th>
-        </tr>
-        ${this.presets.map(
-          (preset, index) =>
-            html`<tr
-              .index=${index}
-              class=${!this.modified && this.activePreset === preset ? "active" : ""}
-              @click=${this.onRowClick}
-            >
-              <td>${preset.name}</td>
-              <td>${humanFrequency(preset.tunedFrequency, preset.scale)}</td>
-              <td>${preset.scheme}</td>
-              <td>
-                <a href="javascript:0">${Icons.Edit}</a
-                ><a href="javascript:0">${Icons.Delete}</a>
-              </td>
-            </tr>`
-        )}
-      </table>
-    </rr-window>`;
+        label=${this.selectedIndex === undefined
+          ? "Presets"
+          : `Current preset: ${this.presets[this.selectedIndex].name}`}
+        id="presets"
+        class=${this.inline ? "inline" : ""}
+        closeable
+        .closed=${this.closed}
+        .position=${this.position}
+        .size=${this.size}
+        .fixed=${this.inline}
+        .resizeable=${true}
+      >
+        <button
+          slot="label-left"
+          .disabled=${this.selectedIndex !== undefined}
+          @click=${this.onAddClick}
+        >
+          ${Icons.Add}
+        </button>
+        <table>
+          <tr>
+            <th id="name" @click=${this.onHeaderClick}>
+              Name${this.getSortArrow("name")}
+            </th>
+            <th id="frequency" @click=${this.onHeaderClick}>
+              Frequency${this.getSortArrow("frequency")}
+            </th>
+            <th id="mode" @click=${this.onHeaderClick}>
+              Mode${this.getSortArrow("mode")}
+            </th>
+            <th></th>
+          </tr>
+          ${this.sortedIndices.map(
+            (index) =>
+              html`<tr
+                .index=${index}
+                class=${index == this.selectedIndex ? "active" : ""}
+                @click=${this.onRowClick}
+              >
+                <td>${this.presets[index].name}</td>
+                <td>
+                  ${humanFrequency(
+                    this.presets[index].tunedFrequency,
+                    this.presets[index].scale
+                  )}
+                </td>
+                <td>${this.presets[index].scheme}</td>
+                <td>
+                  <a href="javascript:0">${Icons.Edit}</a
+                  ><a href="javascript:0">${Icons.Delete}</a>
+                </td>
+              </tr>`
+          )}
+        </table>
+      </rr-window>
+
+      <rr-window
+        id="preset-editor"
+        .label=${this.editorTitle || ""}
+        closeable
+        modal
+        .closed=${!this.editorOpen}
+        @rr-window-closed=${this.onEditorClosed}
+      >
+        <div>
+          <label for="presetName">Name: </label
+          ><input
+            type="text"
+            .value=${this.editorContent.name}
+            @change=${this.onEditorNameChange}
+          />
+        </div>
+        ${this.editorCanCopyPreset
+          ? html`<div><button></button></div>`
+          : nothing}
+        <div>
+          Frequency:
+          ${humanFrequency(
+            this.editorContent.tunedFrequency,
+            this.editorContent.scale
+          )},
+          Tuning step: ${humanFrequency(this.editorContent.tuningStep, 1)}
+        </div>
+        <div>
+          Modulation:
+          ${this.editorContent.scheme}${this.editorContent.scheme == "WBFM"
+            ? this.editorContent.stereo
+              ? " Stereo"
+              : " Mono"
+            : nothing},
+          Bandwidth: ${humanFrequency(this.editorContent.bandwidth, 1)}
+        </div>
+        <div>
+          Gain: ${this.gain === null ? "Auto" : this.gain}, Squelch:
+          ${this.squelch}
+        </div>
+        <div><button @click=${this.onEditorSaveClick}>Save</button></div>
+      </rr-window>`;
   }
 
   @property({ attribute: false }) inline: boolean = false;
@@ -136,8 +205,8 @@ export class RrPresets extends WindowDelegate(LitElement) {
   @property({ attribute: false }) stereo: boolean = true;
   @property({ attribute: false }) squelch: number = 0;
   @property({ attribute: false }) gain: number | null = null;
-  @property({ attribute: false }) activePreset?: Preset;
-  @property({ attribute: false }) modified: boolean = false;
+  @property({ attribute: false }) selectedIndex?: number;
+  @property({ attribute: false }) sortColumn: string = "frequency";
   @property({ attribute: false }) presets: Preset[] = [
     {
       name: "WNYC",
@@ -162,26 +231,132 @@ export class RrPresets extends WindowDelegate(LitElement) {
       gain: 30,
     },
   ];
-  @query("rr-window") protected window?: RrWindow;
+  @state() private sortedIndices: number[] = [];
+  @state() private editorTitle?: string;
+  @state() private editorOpen: boolean = false;
+  @state() private editorIndex?: number;
+  @state() private editorCanCopyPreset: boolean = false;
+  @state() private editorContent: Preset = {
+    name: "",
+    tunedFrequency: this.tunedFrequency,
+    scale: this.scale,
+    tuningStep: this.tuningStep,
+    scheme: this.scheme,
+    bandwidth: this.bandwidth,
+    stereo: this.stereo,
+    squelch: this.squelch,
+    gain: this.gain,
+  };
+  @query("#presets") protected window?: RrWindow;
 
-  protected willUpdate(changed: PropertyValues): void {
-    super.willUpdate(changed);
-    this.modified =
-      this.activePreset !== undefined &&
-      (this.tunedFrequency != this.activePreset.tunedFrequency ||
-        this.scale != this.activePreset.scale ||
-        this.tuningStep != this.activePreset.tuningStep ||
-        this.scheme != this.activePreset.scheme ||
-        this.bandwidth != this.activePreset.bandwidth ||
-        this.stereo != this.activePreset.stereo ||
-        this.squelch != this.activePreset.squelch ||
-        this.gain != this.activePreset.gain);
+  protected updated(changed: PropertyValues): void {
+    super.updated(changed);
+    if (changed.has("presets") || changed.has("sortColumn")) {
+      this.updatePresetLists();
+    }
+    this.findSelectedIndex();
+  }
+
+  private updatePresetLists() {
+    let sortedIndices = [...this.presets.keys()];
+    sortedIndices.sort(this.getSortFormula());
+    this.sortedIndices = sortedIndices;
+  }
+
+  private onAddClick(e: PointerEvent) {
+    this.editorTitle = "New Preset";
+    this.editorIndex = undefined;
+    this.editorContent = {
+      name: "",
+      tunedFrequency: this.tunedFrequency,
+      scale: this.scale,
+      tuningStep: this.tuningStep,
+      scheme: this.scheme,
+      bandwidth: this.bandwidth,
+      stereo: this.stereo,
+      squelch: this.squelch,
+      gain: this.gain,
+    };
+    this.editorOpen = true;
+  }
+
+  private onEditorNameChange(e: Event) {
+    let target = e.target as HTMLInputElement;
+    let value = target.value;
+    this.editorContent.name = value;
+  }
+
+  private onEditorSaveClick() {
+    let presets = [...this.presets];
+    if (this.editorIndex === undefined || this.editorIndex >= presets.length) {
+      presets.push({ ...this.editorContent });
+    } else {
+      presets[this.editorIndex] = { ...this.editorContent };
+    }
+    this.presets = presets;
+    this.editorOpen = false;
+  }
+
+  private onEditorClosed() {
+    this.editorOpen = false;
   }
 
   private onRowClick(e: PointerEvent) {
     const row = e.currentTarget as HTMLTableRowElement & { index: number };
-    this.activePreset = this.presets[row.index];
+    this.selectedIndex = row.index;
     this.dispatchEvent(new PresetSelectedEvent());
+  }
+
+  private onHeaderClick(e: PointerEvent) {
+    const id = (e.currentTarget as HTMLTableCellElement).id;
+    const minusid = `-${id}`;
+    if (this.sortColumn === id) {
+      this.sortColumn = minusid;
+    } else {
+      this.sortColumn = id;
+    }
+  }
+
+  private getSortArrow(name: string) {
+    if (this.sortColumn === name) {
+      return Icons.SortDown;
+    } else if (this.sortColumn === `-${name}`) {
+      return Icons.SortUp;
+    }
+    return nothing;
+  }
+
+  private getSortFormula(): (a: number, b: number) => number {
+    let sortColumn = this.sortColumn || "frequency";
+    let desc = sortColumn[0] == "-";
+    if (desc) sortColumn = sortColumn.substring(1);
+
+    let sortFormula: (a: number, b: number) => number;
+    switch (sortColumn) {
+      case "name":
+        sortFormula = (a, b) =>
+          this.presets[a].name.localeCompare(this.presets[b].name);
+        break;
+      case "mode":
+        sortFormula = (a, b) =>
+          this.presets[a].scheme.localeCompare(this.presets[b].scheme);
+        break;
+      default:
+        sortFormula = (a, b) =>
+          this.presets[a].tunedFrequency - this.presets[b].tunedFrequency;
+        break;
+    }
+    if (desc) return (a, b) => sortFormula(b, a);
+    return sortFormula;
+  }
+
+  private findSelectedIndex() {
+    let idx = this.presets.findIndex((p) => arePresetsEqual(p, this));
+    if (idx < 0) {
+      this.selectedIndex = undefined;
+    } else {
+      this.selectedIndex = idx;
+    }
   }
 }
 
@@ -207,6 +382,20 @@ declare global {
   interface HTMLElementEventMap {
     "rr-preset-selected": PresetSelectedEvent;
   }
+}
+
+type PresetData = Omit<Preset, "name">;
+
+function arePresetsEqual(a: PresetData, b: PresetData): boolean {
+  return (
+    a.tunedFrequency === b.tunedFrequency &&
+    a.scale === b.scale &&
+    a.tuningStep === b.tuningStep &&
+    a.bandwidth === b.bandwidth &&
+    a.stereo === b.stereo &&
+    a.squelch === b.squelch &&
+    a.gain === b.gain
+  );
 }
 
 function humanFrequency(freq: number, scale: number): string {

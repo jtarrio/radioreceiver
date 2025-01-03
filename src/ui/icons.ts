@@ -92,14 +92,22 @@ export const ErrorState = icon(
 export const Add = icon(
   "Add",
   svg`<g><path d="M2,7h5v-5h2v5h5v2h-5v5h-2v-5h-5z"></path></g>`
-)
+);
 
 export const Edit = icon(
   "Edit",
   svg`<g><path d="M1.9,15.37A1,1 0 0 1 0.63,14.1L2,10 12,0 16,4 6,14ZM2,14 5,13 3,11ZM6,12 14,4 12,2 4,10Z"></path></g>`
-)
+);
 
 export const Delete = icon(
   "Delete",
   svg`<g><path d="M2 2h1l5 5 5 -5h1v1l-5 5 5 5v1h-1l-5 -5 -5 5h-1v-1l5 -5l-5 -5z"></path></g>`
-)
+);
+
+export const SortUp = html`<svg version="1.1" width="10" height="9">
+  <g><path d="M1,8h8l-4,-6z"></path></g>
+</svg>`;
+
+export const SortDown = html`<svg version="1.1" width="10" height="9">
+  <g><path d="M1,1h8l-4,6z"></path></g>
+</svg>`;
