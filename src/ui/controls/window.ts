@@ -634,6 +634,7 @@ class WindowResizeHandler implements DragHandler {
   }
 
   finishDrag(): void {
+    this.window.dispatchEvent(new WindowMovedEvent());
     this.window.dispatchEvent(new WindowResizedEvent());
   }
 
