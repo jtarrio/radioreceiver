@@ -8,10 +8,7 @@ import {
   type Scheme,
 } from "../../demod/scheme";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input";
-import {
-  RrWindow,
-  WindowDelegate,
-} from "../../ui/controls/window";
+import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import { BaseStyle } from "../../ui/styles";
 import "../../ui/controls/frequency-input";
@@ -86,6 +83,9 @@ export class RrMainControls extends WindowDelegate(LitElement) {
           : html`<button slot="label-left" id="start" @click=${this.onStart}>
               ${Icons.Play}
             </button>`}
+      <button slot="label-right" id="presets" @click=${this.onPresets}>
+        ${Icons.Presets}
+      </button>
       ${this.showSettings
         ? html`<button
             slot="label-right"
@@ -240,6 +240,10 @@ export class RrMainControls extends WindowDelegate(LitElement) {
     this.dispatchEvent(new StopEvent());
   }
 
+  private onPresets() {
+    this.dispatchEvent(new PresetsEvent());
+  }
+
   private onSettings() {
     this.dispatchEvent(new SettingsEvent());
   }
@@ -346,6 +350,12 @@ class StopEvent extends Event {
   }
 }
 
+class PresetsEvent extends Event {
+  constructor() {
+    super("rr-presets", { bubbles: true, composed: true });
+  }
+}
+
 class SettingsEvent extends Event {
   constructor() {
     super("rr-settings", { bubbles: true, composed: true });
@@ -410,6 +420,7 @@ declare global {
   interface HTMLElementEventMap {
     "rr-start": StartEvent;
     "rr-stop": StopEvent;
+    "rr-presets": PresetsEvent;
     "rr-settings": SettingsEvent;
     "rr-scale-changed": ScaleChangedEvent;
     "rr-center-frequency-changed": CenterFrequencyChangedEvent;

@@ -138,6 +138,7 @@ export class RrWindow extends LitElement implements Window {
           height: 2px;
           border: solid var(--ips-background);
           border-width: 11px 0 4px 8px;
+          border-bottom-left-radius: 10px;
           background: var(--ips-border-color);
           cursor: ns-resize;
         }

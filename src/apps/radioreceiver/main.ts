@@ -162,6 +162,7 @@ export class RadioReceiverMain extends LitElement {
         .gainDisabled=${this.gainDisabled}
         @rr-start=${this.onStart}
         @rr-stop=${this.onStop}
+        @rr-presets=${this.onPresets}
         @rr-settings=${this.onSettings}
         @rr-scale-changed=${this.onScaleChange}
         @rr-center-frequency-changed=${this.onCenterFrequencyChange}
@@ -363,12 +364,12 @@ export class RadioReceiverMain extends LitElement {
     this.requestUpdate();
   }
 
-  private onSettings() {
-    this.changeWindowState((s) => (s.settings.open = true));
+  private onPresets() {
+    this.changeWindowState((s) => (s.presets.open = true));
   }
 
-  private onFrequencyManager() {
-    this.changeWindowState((s) => (s.presets.open = true));
+  private onSettings() {
+    this.changeWindowState((s) => (s.settings.open = true));
   }
 
   private changeWindowState(delta: (state: WindowState) => void) {

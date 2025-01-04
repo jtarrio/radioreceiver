@@ -25,13 +25,13 @@ export class RrPresets extends WindowDelegate(LitElement) {
         }
 
         tr.active {
-          background: #dd7;
+          background: #7bd;
         }
 
         tr:nth-child(even) {
-          background: #ddd;
+          background: #eee;
           &.active {
-            background: #bb5;
+            background: #6bd;
           }
         }
 
@@ -43,6 +43,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
         td {
           text-wrap: nowrap;
           padding: 0.4ex 0.8ex;
+          cursor: pointer;
         }
 
         td:first-child {
@@ -59,26 +60,40 @@ export class RrPresets extends WindowDelegate(LitElement) {
           fill: #22e;
         }
 
+        .buttonIllustration {
+          position: relative;
+          top: 0.5ex;
+          margin-top: -2ex;
+          z-index: 0;
+        }
+
         #preset-editor {
           bottom: inherit;
           right: inherit;
           margin: auto;
+
+          div:first-child {
+            margin-bottom: 1ex;
+          }
+          div:last-child {
+            margin-top: 1ex;
+          }
         }
 
         @media (prefers-color-scheme: dark) {
           tr.active {
-            background: #550;
+            background: #135;
           }
 
           tr:nth-child(even) {
             background: #333;
             &.active {
-              background: #662;
+              background: #147;
             }
           }
 
           a svg {
-            fill: #55e;
+            fill: #55f;
           }
         }
       `,
@@ -144,6 +159,15 @@ export class RrPresets extends WindowDelegate(LitElement) {
               </tr>`
           )}
         </table>
+        ${this.presets.length == 0
+          ? html`<p>
+              You can use Presets to flip quickly to your favorite stations or
+              frequencies. Click the
+              <button disabled class="buttonIllustration">${Icons.Add}</button>
+              button on this window's top left corner to add the current
+              frequency to the presets.
+            </p>`
+          : nothing}
       </rr-window>
 
       <rr-window
@@ -190,10 +214,12 @@ export class RrPresets extends WindowDelegate(LitElement) {
         </div>
         <div>
           Gain:
-          <b>${this.gain === null ? "Auto" : this.gain}</b>${hasSquelch(
-            this.editorContent.scheme
-          )
-            ? html`, Squelch: <b>${this.squelch}</b>`
+          <b
+            >${this.editorContent.gain === null
+              ? "Auto"
+              : this.editorContent.gain}</b
+          >${hasSquelch(this.editorContent.scheme)
+            ? html`, Squelch: <b>${this.editorContent.squelch}</b>`
             : nothing}
         </div>
         ${this.editorIndex !== undefined
@@ -210,7 +236,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
           >
             Save</button
           >${this.editorValidationError !== undefined
-            ? html`<i>${this.editorValidationError}</i>`
+            ? html` <i>${this.editorValidationError}</i>`
             : nothing}
         </div>
       </rr-window>`;
@@ -337,8 +363,8 @@ export class RrPresets extends WindowDelegate(LitElement) {
     } else {
       presets[this.editorIndex] = { ...this.editorContent };
     }
-    this.presets = presets;
     this.editorOpen = false;
+    this.presets = presets;
     this.dispatchEvent(new PresetsChangedEvent());
   }
 
@@ -377,6 +403,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
     presets.splice(index, 1);
     this.selectedIndex = undefined;
     this.presets = presets;
+    this.dispatchEvent(new PresetsChangedEvent());
   }
 
   private getIndex(e: PointerEvent): number | undefined {
