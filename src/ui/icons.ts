@@ -107,12 +107,12 @@ export const Delete = icon(
 export const Update = icon(
   "Update",
   svg`<g><path d="M1 1L3 3A7 7 0 0 0 1 8A7 7 0 0 0 8 15v-2A5 5 0 0 1 3 8A5 5 0 0 1 4.5 4.5L7 7v-6h-6zM8 1v2A5 5 0 0 1 13 8A5 5 0 0 1 11.5 11.5L9 9v6h6L13 13A7 7 0 0 0 15 8A7 7 0 0 0 8 1z"></path></g>`
-)
+);
 
 export const Presets = icon(
   "Presets",
-  svg`<g><path d="M1 1h4v4h-4zm5 0h4v4h-4zm5 0h4v4h-4zM1 6h4v4h-4zm5 0h4v4h-4zm5 0h4v4h-4zM1 11h4v4h-4zm5 0h4v4h-4zm5 0h4v4h-4z"></path></g>`
-)
+  svg`<g><path d="M1,1h6v6h-6zM3,3v2h2v-2zM9,1h6v6h-6zM11,3v2h2v-2zM1,9h6v6h-6zM3,11v2h2v-2zM9,9h6v6h-6zM11,11v2h2v-2z"></path></g>`
+);
 
 export const SortUp = html`<svg version="1.1" width="10" height="9">
   <g><path d="M1,8h8l-4,-6z"></path></g>
