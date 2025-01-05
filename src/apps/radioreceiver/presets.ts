@@ -160,7 +160,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
           )}
         </table>
         ${this.presets.length == 0
-          ? html`<p>
+          ? html`<p style="max-width: 50ex">
               You can use Presets to flip quickly to your favorite stations or
               frequencies. Click the
               <button disabled class="buttonIllustration">${Icons.Add}</button>

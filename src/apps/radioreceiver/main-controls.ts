@@ -20,6 +20,11 @@ export class RrMainControls extends WindowDelegate(LitElement) {
     return [
       BaseStyle,
       css`
+        rr-window {
+          right: auto;
+          left: 1em;
+        }
+
         .cfgBlock {
           display: inline-flex;
           flex-direction: column;
