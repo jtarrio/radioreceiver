@@ -14,9 +14,9 @@
 
 /** A page that shows the effect of different filters. */
 
-import * as Coefficients from "../src/dsp/coefficients";
-import * as Filters from "../src/dsp/filters";
-import { FFT } from "../src/dsp/fft";
+import * as Coefficients from "@jtarrio/webrtlsdr/dsp/coefficients";
+import * as Filters from "@jtarrio/webrtlsdr/dsp/filters";
+import { FFT } from "@jtarrio/webrtlsdr/dsp/fft";
 
 type Controls = {
   filterType: HTMLSelectElement;

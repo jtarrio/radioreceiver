@@ -7,7 +7,7 @@ import {
   getStereo,
   type Mode,
   type Scheme,
-} from "../../demod/scheme";
+} from "@jtarrio/webrtlsdr/demod/scheme";
 import * as Icons from "../../ui/icons";
 import { RrScope } from "../../ui/spectrum/scope";
 import { RrSpectrum } from "../../ui/spectrum/spectrum";

@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { FFT } from "../src/dsp/fft";
+import { FFT } from "@jtarrio/webrtlsdr/dsp/fft";
 import { RrWaterfall } from "../src/ui/spectrum/waterfall";
 import "../src/ui/spectrum/waterfall";
 

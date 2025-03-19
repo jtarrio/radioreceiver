@@ -12,12 +12,12 @@ import {
   withStereo,
   type Mode,
   type Scheme,
-} from "../src/demod/scheme";
-import { SchemeWBFM } from "../src/demod/scheme-wbfm";
-import { SchemeNBFM } from "../src/demod/scheme-nbfm";
-import { SchemeAM } from "../src/demod/scheme-am";
-import { SchemeSSB } from "../src/demod/scheme-ssb";
-import { SchemeCW } from "../src/demod/scheme-cw";
+} from "@jtarrio/webrtlsdr/demod/scheme";
+import { SchemeWBFM } from "@jtarrio/webrtlsdr/demod/scheme-wbfm";
+import { SchemeNBFM } from "@jtarrio/webrtlsdr/demod/scheme-nbfm";
+import { SchemeAM } from "@jtarrio/webrtlsdr/demod/scheme-am";
+import { SchemeSSB } from "@jtarrio/webrtlsdr/demod/scheme-ssb";
+import { SchemeCW } from "@jtarrio/webrtlsdr/demod/scheme-cw";
 
 @customElement("demod-benchmark")
 class DemodBenchmark extends LitElement {

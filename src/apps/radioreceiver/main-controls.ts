@@ -6,7 +6,7 @@ import {
   hasSquelch,
   hasStereo,
   type Scheme,
-} from "../../demod/scheme";
+} from "@jtarrio/webrtlsdr/demod/scheme";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input";
 import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";

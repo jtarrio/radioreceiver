@@ -1,17 +1,7 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
-import { ConfigProvider, loadConfig } from "./config";
-import {
-  Preset,
-  PresetsChangedEvent,
-  PresetSelectedEvent,
-  PresetsSortedEvent,
-  RrPresets,
-} from "./presets";
-import { RrMainControls } from "./main-controls";
-import { type LowFrequencyMethod, RrSettings } from "./settings";
-import { Demodulator, StereoStatusEvent } from "../../demod/demodulator";
-import { SampleClickEvent, SampleCounter } from "../../demod/sample-counter";
+import { Demodulator, StereoStatusEvent } from "@jtarrio/webrtlsdr/demod/demodulator";
+import { SampleClickEvent, SampleCounter } from "@jtarrio/webrtlsdr/demod/sample-counter";
 import {
   getBandwidth,
   getMode,
@@ -22,20 +12,23 @@ import {
   withSquelch,
   withStereo,
   type Mode,
-} from "../../demod/scheme";
-import { Spectrum } from "../../demod/spectrum";
-import { Float32Buffer } from "../../dsp/buffers";
-import { RadioErrorType } from "../../errors";
-import { Radio, RadioEvent } from "../../radio/radio";
-import { FakeRtlProvider } from "../../rtlsdr/fakertl/fakertl";
+} from "@jtarrio/webrtlsdr/demod/scheme";
+import { Spectrum } from "@jtarrio/webrtlsdr/demod/spectrum";
+import { Float32Buffer } from "@jtarrio/webrtlsdr/dsp/buffers";
+import { RadioErrorType } from "@jtarrio/webrtlsdr/errors";
+import { Radio, RadioEvent } from "@jtarrio/webrtlsdr/radio/radio";
+import { RTL2832U_Provider } from "@jtarrio/webrtlsdr/rtlsdr/rtl2832u";
+import { DirectSampling } from "@jtarrio/webrtlsdr/rtlsdr/rtldevice";
+import { ConfigProvider, loadConfig } from "./config";
 import {
-  AmGenerator,
-  FmGenerator,
-  NoiseGenerator,
-  ToneGenerator,
-} from "../../rtlsdr/fakertl/generators";
-import { RTL2832U_Provider } from "../../rtlsdr/rtl2832u";
-import { DirectSampling, RtlDeviceProvider } from "../../rtlsdr/rtldevice";
+  Preset,
+  PresetsChangedEvent,
+  PresetSelectedEvent,
+  PresetsSortedEvent,
+  RrPresets,
+} from "./presets";
+import { RrMainControls } from "./main-controls";
+import { type LowFrequencyMethod, RrSettings } from "./settings";
 import {
   CreateWindowRegistry,
   RrWindow,
@@ -72,20 +65,6 @@ type WindowState = {
     size?: WindowSize;
   };
 };
-
-const FAKE_RTL = false;
-
-function getRtlProvider(): RtlDeviceProvider {
-  if (FAKE_RTL) {
-    return new FakeRtlProvider([
-      new FmGenerator(-20, 88500000, 75000, new ToneGenerator(-6, 600)),
-      new AmGenerator(-20, 120000000, new ToneGenerator(-6, 450)),
-      new ToneGenerator(-20, 110000000),
-      new NoiseGenerator(-40),
-    ]);
-  }
-  return new RTL2832U_Provider();
-}
 
 @customElement("radioreceiver-main")
 export class RadioReceiverMain extends LitElement {
@@ -277,7 +256,7 @@ export class RadioReceiverMain extends LitElement {
     this.demodulator = new Demodulator(this.sampleRate);
     this.sampleCounter = new SampleCounter(this.sampleRate, 20);
     this.radio = new Radio(
-      getRtlProvider(),
+      new RTL2832U_Provider(),
       this.spectrum.andThen(this.demodulator).andThen(this.sampleCounter),
       this.sampleRate
     );
