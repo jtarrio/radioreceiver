@@ -1,24 +1,24 @@
 import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
-import { Demodulator, StereoStatusEvent } from "@jtarrio/webrtlsdr/demod/demodulator";
-import { SampleClickEvent, SampleCounter } from "@jtarrio/webrtlsdr/demod/sample-counter";
 import {
-  getBandwidth,
+  Demodulator,
+  StereoStatusEvent,
+} from "@jtarrio/webrtlsdr/demod/demodulator";
+import {
+  SampleClickEvent,
+  SampleCounter,
+} from "@jtarrio/webrtlsdr/demod/sample-counter";
+import {
   getMode,
+  getParameters,
   getSchemes,
-  getSquelch,
-  getStereo,
-  withBandwidth,
-  withSquelch,
-  withStereo,
   type Mode,
-} from "@jtarrio/webrtlsdr/demod/scheme";
+} from "@jtarrio/webrtlsdr/demod/modes";
 import { Spectrum } from "@jtarrio/webrtlsdr/demod/spectrum";
 import { Float32Buffer } from "@jtarrio/webrtlsdr/dsp/buffers";
 import { RadioErrorType } from "@jtarrio/webrtlsdr/errors";
-import { Radio, RadioEvent } from "@jtarrio/webrtlsdr/radio/radio";
-import { RTL2832U_Provider } from "@jtarrio/webrtlsdr/rtlsdr/rtl2832u";
-import { DirectSampling } from "@jtarrio/webrtlsdr/rtlsdr/rtldevice";
+import { Radio, RadioEvent } from "@jtarrio/webrtlsdr/radio";
+import { DirectSampling, RTL2832U_Provider } from "@jtarrio/webrtlsdr/rtlsdr";
 import { ConfigProvider, loadConfig } from "./config";
 import {
   Preset,
@@ -133,9 +133,9 @@ export class RadioReceiverMain extends LitElement {
         .scale=${this.scale}
         .availableModes=${getSchemes()}
         .scheme=${this.mode.scheme}
-        .bandwidth=${getBandwidth(this.mode)}
-        .stereo=${getStereo(this.mode)}
-        .squelch=${getSquelch(this.mode)}
+        .bandwidth=${getParameters(this.mode).getBandwidth()}
+        .stereo=${getParameters(this.mode).getStereo()}
+        .squelch=${getParameters(this.mode).getSquelch()}
         .stereoStatus=${this.stereoStatus}
         .gain=${this.gain}
         .gainDisabled=${this.gainDisabled}
@@ -182,9 +182,9 @@ export class RadioReceiverMain extends LitElement {
         .scale=${this.scale}
         .availableModes=${getSchemes()}
         .scheme=${this.mode.scheme}
-        .bandwidth=${getBandwidth(this.mode)}
-        .stereo=${getStereo(this.mode)}
-        .squelch=${getSquelch(this.mode)}
+        .bandwidth=${getParameters(this.mode).getBandwidth()}
+        .stereo=${getParameters(this.mode).getStereo()}
+        .squelch=${getParameters(this.mode).getSquelch()}
         .gain=${this.gain}
         .presets=${this.presets}
         .sortColumn=${this.presetSortColumn}
@@ -484,19 +484,19 @@ export class RadioReceiverMain extends LitElement {
   private onBandwidthChange(e: Event) {
     let target = e.target as RrMainControls;
     let value = target.bandwidth;
-    this.setMode(withBandwidth(value, this.mode));
+    this.setMode(getParameters(this.mode).setBandwidth(value).mode);
   }
 
   private onStereoChange(e: Event) {
     let target = e.target as RrMainControls;
     let value = target.stereo;
-    this.setMode(withStereo(value, this.mode));
+    this.setMode(getParameters(this.mode).setStereo(value).mode);
   }
 
   private onSquelchChange(e: Event) {
     let target = e.target as RrMainControls;
     let value = target.squelch;
-    this.setMode(withSquelch(value, this.mode));
+    this.setMode(getParameters(this.mode).setSquelch(value).mode);
   }
 
   private setMode(mode: Mode) {
@@ -512,15 +512,16 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private updateFrequencyBands() {
+    let bandwidth = getParameters(this.mode).getBandwidth();
     let newFreq = { ...this.frequency };
     if (this.mode.scheme == "USB") {
       newFreq.leftBand = 0;
-      newFreq.rightBand = getBandwidth(this.mode);
+      newFreq.rightBand = bandwidth;
     } else if (this.mode.scheme == "LSB") {
-      newFreq.leftBand = getBandwidth(this.mode);
+      newFreq.leftBand = bandwidth;
       newFreq.rightBand = 0;
     } else {
-      newFreq.leftBand = newFreq.rightBand = getBandwidth(this.mode) / 2;
+      newFreq.leftBand = newFreq.rightBand = bandwidth / 2;
     }
     if (!this.isFrequencyValid(newFreq)) {
       newFreq = {
@@ -617,13 +618,10 @@ export class RadioReceiverMain extends LitElement {
     this.scale = preset.scale;
     this.tuningStep = preset.tuningStep;
     this.setMode(
-      withBandwidth(
-        preset.bandwidth,
-        withStereo(
-          preset.stereo,
-          withSquelch(preset.squelch, getMode(preset.scheme))
-        )
-      )
+      getParameters(preset.scheme)
+        .setBandwidth(preset.bandwidth)
+        .setStereo(preset.stereo)
+        .setSquelch(preset.squelch).mode
     );
     this.setGain(preset.gain);
   }
@@ -709,28 +707,25 @@ export class RadioReceiverMain extends LitElement {
     const size = Math.floor(
       Math.abs(this.frequency.offset - this.bandwidth * (fraction - 0.5))
     );
-    let newMode;
+    let modeParams = getParameters(this.mode);
     switch (this.mode.scheme) {
       case "WBFM":
         return;
       case "NBFM":
       case "AM":
       case "CW":
-        newMode = withBandwidth(
-          Math.min(size, maxLeftSize, maxRightSize) * 2,
-          this.mode
-        );
+        modeParams.setBandwidth(Math.min(size, maxLeftSize, maxRightSize) * 2);
         break;
       case "LSB":
         if (sideband == "right") return;
-        newMode = withBandwidth(Math.min(size, maxLeftSize), this.mode);
+        modeParams.setBandwidth(Math.min(size, maxLeftSize));
         break;
       case "USB":
         if (sideband == "left") return;
-        newMode = withBandwidth(Math.min(size, maxRightSize), this.mode);
+        modeParams.setBandwidth(Math.min(size, maxRightSize));
         break;
     }
-    this.setMode(newMode);
+    this.setMode(modeParams.mode);
   }
 
   private onStereoStatusEvent(e: StereoStatusEvent) {

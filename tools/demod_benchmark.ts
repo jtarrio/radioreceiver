@@ -1,18 +1,13 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
-  getBandwidth,
   getMode,
+  getParameters,
   getSchemes,
-  getStereo,
-  hasBandwidth,
-  hasStereo,
   ModulationScheme,
-  withBandwidth,
-  withStereo,
   type Mode,
   type Scheme,
-} from "@jtarrio/webrtlsdr/demod/scheme";
+} from "@jtarrio/webrtlsdr/demod/modes";
 import { SchemeWBFM } from "@jtarrio/webrtlsdr/demod/scheme-wbfm";
 import { SchemeNBFM } from "@jtarrio/webrtlsdr/demod/scheme-nbfm";
 import { SchemeAM } from "@jtarrio/webrtlsdr/demod/scheme-am";
@@ -48,7 +43,7 @@ class DemodBenchmark extends LitElement {
               </option>`
           )}
       </select>
-      <label for="bandwidth" .hidden=${!hasBandwidth(this.mode)}
+      <label for="bandwidth" .hidden=${!getParameters(this.mode).hasBandwidth()}
         >Bandwidth: </label
       ><input
         type="number"
@@ -56,16 +51,17 @@ class DemodBenchmark extends LitElement {
         min="0"
         max="20000"
         step="1"
-        .value=${String(getBandwidth(this.mode))}
-        .hidden=${!hasBandwidth(this.mode)}
+        .value=${String(getParameters(this.mode).getBandwidth())}
+        .hidden=${!getParameters(this.mode).hasBandwidth()}
         @change=${this.onBandwidthChange}
       />
-      <label for="stereo" .hidden=${!hasStereo(this.mode)}>Stereo: </label
+      <label for="stereo" .hidden=${!getParameters(this.mode).hasStereo()}
+        >Stereo: </label
       ><input
         type="checkbox"
         id="stereo"
-        .checked=${getStereo(this.mode)}
-        .hidden=${!hasStereo(this.mode)}
+        .checked=${getParameters(this.mode).getStereo()}
+        .hidden=${!getParameters(this.mode).hasStereo()}
         @change=${this.onStereoChange}
       />
       <button id="run" .hidden=${this.running} @click=${this.onRun}>
@@ -112,18 +108,19 @@ class DemodBenchmark extends LitElement {
   }
 
   onBandwidthChange(e: Event) {
+    let modeParams = getParameters(this.mode);
     let input = e.target as HTMLInputElement;
     let value = Number(input.value);
     if (isNaN(value)) {
-      input.value = String(getBandwidth(this.mode));
+      input.value = String(modeParams.getBandwidth());
       return;
     }
-    this.mode = withBandwidth(value, this.mode);
+    this.mode = modeParams.setBandwidth(value).mode;
   }
 
   onStereoChange(e: Event) {
     let input = e.target as HTMLInputElement;
-    this.mode = withStereo(input.checked, this.mode);
+    this.mode = getParameters(this.mode).setStereo(input.checked).mode;
   }
 
   onRun() {

@@ -1,12 +1,10 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import {
+  getParameters,
   getSchemes,
-  hasBandwidth,
-  hasSquelch,
-  hasStereo,
   type Scheme,
-} from "@jtarrio/webrtlsdr/demod/scheme";
+} from "@jtarrio/webrtlsdr/demod/modes";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input";
 import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
@@ -154,7 +152,7 @@ export class RrMainControls extends WindowDelegate(LitElement) {
           )}
         </select>
         <div class="cfgBlock">
-          <span .hidden=${!hasBandwidth(this.scheme)}
+          <span .hidden=${!getParameters(this.scheme).hasBandwidth()}
             ><label for="bandwidth">Bandwidth: </label
             ><input
               type="number"
@@ -164,7 +162,7 @@ export class RrMainControls extends WindowDelegate(LitElement) {
               step="1"
               .value=${String(this.bandwidth)}
               @change=${this.onBandwidthChange} /></span
-          ><span .hidden=${!hasStereo(this.scheme)}>
+          ><span .hidden=${!getParameters(this.scheme).hasStereo()}>
             <label for="stereo">Stereo: </label
             ><input
               type="checkbox"
@@ -175,10 +173,10 @@ export class RrMainControls extends WindowDelegate(LitElement) {
             <span
               id="stereoIcon"
               class=${this.stereoStatus ? "stereo" : "mono"}
-              .hidden=${!hasStereo(this.scheme) || !this.stereo}
+              .hidden=${!getParameters(this.scheme).hasStereo() || !this.stereo}
               >${Icons.Stereo}</span
             ></span
-          ><span .hidden=${!hasSquelch(this.scheme)}>
+          ><span .hidden=${!getParameters(this.scheme).hasSquelch()}>
             <label for="squelch">Squelch: </label
             ><input
               type="range"

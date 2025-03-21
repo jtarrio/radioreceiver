@@ -1,11 +1,6 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import {
-  hasBandwidth,
-  hasSquelch,
-  hasStereo,
-  type Scheme,
-} from "@jtarrio/webrtlsdr/demod/scheme";
+import { getParameters, type Scheme } from "@jtarrio/webrtlsdr/demod/modes";
 import { RrWindow, WindowDelegate } from "../../ui/controls/window";
 import * as Icons from "../../ui/icons";
 import { BaseStyle } from "../../ui/styles";
@@ -202,12 +197,14 @@ export class RrPresets extends WindowDelegate(LitElement) {
         <div>
           Modulation:
           <b
-            >${this.editorContent.scheme}${hasStereo(this.editorContent.scheme)
+            >${this.editorContent.scheme}${getParameters(
+              this.editorContent.scheme
+            ).hasStereo()
               ? this.editorContent.stereo
                 ? " Stereo"
                 : " Mono"
               : nothing}</b
-          >${hasBandwidth(this.editorContent.scheme)
+          >${getParameters(this.editorContent.scheme).hasBandwidth()
             ? html`, Bandwidth:
                 <b>${humanFrequency(this.editorContent.bandwidth, 1)}</b>`
             : nothing}
@@ -218,7 +215,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
             >${this.editorContent.gain === null
               ? "Auto"
               : this.editorContent.gain}</b
-          >${hasSquelch(this.editorContent.scheme)
+          >${getParameters(this.editorContent.scheme).hasSquelch()
             ? html`, Squelch: <b>${this.editorContent.squelch}</b>`
             : nothing}
         </div>
