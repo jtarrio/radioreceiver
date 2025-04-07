@@ -2,8 +2,8 @@ import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
   getMode,
-  getParameters,
   getSchemes,
+  modeParameters,
   ModulationScheme,
   type Mode,
   type Scheme,
@@ -43,7 +43,9 @@ class DemodBenchmark extends LitElement {
               </option>`
           )}
       </select>
-      <label for="bandwidth" .hidden=${!getParameters(this.mode).hasBandwidth()}
+      <label
+        for="bandwidth"
+        .hidden=${!modeParameters(this.mode).hasBandwidth()}
         >Bandwidth: </label
       ><input
         type="number"
@@ -51,17 +53,17 @@ class DemodBenchmark extends LitElement {
         min="0"
         max="20000"
         step="1"
-        .value=${String(getParameters(this.mode).getBandwidth())}
-        .hidden=${!getParameters(this.mode).hasBandwidth()}
+        .value=${String(modeParameters(this.mode).getBandwidth())}
+        .hidden=${!modeParameters(this.mode).hasBandwidth()}
         @change=${this.onBandwidthChange}
       />
-      <label for="stereo" .hidden=${!getParameters(this.mode).hasStereo()}
+      <label for="stereo" .hidden=${!modeParameters(this.mode).hasStereo()}
         >Stereo: </label
       ><input
         type="checkbox"
         id="stereo"
-        .checked=${getParameters(this.mode).getStereo()}
-        .hidden=${!getParameters(this.mode).hasStereo()}
+        .checked=${modeParameters(this.mode).getStereo()}
+        .hidden=${!modeParameters(this.mode).hasStereo()}
         @change=${this.onStereoChange}
       />
       <button id="run" .hidden=${this.running} @click=${this.onRun}>
@@ -108,7 +110,7 @@ class DemodBenchmark extends LitElement {
   }
 
   onBandwidthChange(e: Event) {
-    let modeParams = getParameters(this.mode);
+    let modeParams = modeParameters(this.mode);
     let input = e.target as HTMLInputElement;
     let value = Number(input.value);
     if (isNaN(value)) {
@@ -120,7 +122,7 @@ class DemodBenchmark extends LitElement {
 
   onStereoChange(e: Event) {
     let input = e.target as HTMLInputElement;
-    this.mode = getParameters(this.mode).setStereo(input.checked).mode;
+    this.mode = modeParameters(this.mode).setStereo(input.checked).mode;
   }
 
   onRun() {

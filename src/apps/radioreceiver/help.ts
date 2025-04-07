@@ -2,7 +2,7 @@ import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import {
   getMode,
-  getParameters,
+  modeParameters,
   type Mode,
   type Scheme,
 } from "@jtarrio/webrtlsdr/demod/modes";
@@ -231,10 +231,10 @@ export class RrDemoControls extends LitElement {
         .centerFrequency=${93900000}
         .frequencyScale=${1000000}
         .scheme=${this.mode.scheme}
-        .bandwidth=${getParameters(this.mode).getBandwidth()}
-        .stereo=${getParameters(this.mode).getStereo()}
+        .bandwidth=${modeParameters(this.mode).getBandwidth()}
+        .stereo=${modeParameters(this.mode).getStereo()}
         .stereoStatus=${true}
-        .squelch=${getParameters(this.mode).getSquelch()}
+        .squelch=${modeParameters(this.mode).getSquelch()}
         @rr-scheme-changed=${this.onSchemeChanged}
       ></rr-main-controls>
     </div>`;
