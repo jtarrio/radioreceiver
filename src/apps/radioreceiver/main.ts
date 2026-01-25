@@ -127,7 +127,7 @@ export class RadioReceiverMain extends LitElement {
       <rr-main-controls
         .position=${this.windowState.controls.position}
         .playing=${this.playing}
-        .errorState=${this.errorState}
+        .needsReload=${this.needsReload || this.errorState}
         .centerFrequency=${this.frequency.center}
         .tunedFrequency=${this.frequency.center + this.frequency.offset}
         .tuningStep=${this.tuningStep}
@@ -217,6 +217,7 @@ export class RadioReceiverMain extends LitElement {
   @state() private maxDecibels: number = -20;
   @state() private playing: boolean = false;
   @state() private errorState: boolean = false;
+  @state() private needsReload: boolean = false;
   @state() private scale: number = 1000;
   @state() private frequency: Frequency = {
     center: 88500000,

@@ -71,9 +71,9 @@ export class RrMainControls extends WindowDelegate(LitElement) {
       .position=${this.position}
       .fixed=${this.inline}
     >
-      ${this.errorState
-        ? html`<button slot="label-left" id="errorState" disabled>
-            ${Icons.ErrorState}
+      ${this.needsReload
+        ? html`<button slot="label-left" id="needsReload" @click=${this.onReload}>
+            ${Icons.Reload}
           </button>`
         : this.playing
           ? html`<button slot="label-left" id="stop" @click=${this.onStop}>
@@ -215,7 +215,7 @@ export class RrMainControls extends WindowDelegate(LitElement) {
   @property({ attribute: false }) inline: boolean = false;
   @property({ attribute: false }) showSettings: boolean = true;
   @property({ attribute: false }) showHelp: boolean = true;
-  @property({ attribute: false }) errorState: boolean = false;
+  @property({ attribute: false }) needsReload: boolean = false;
   @property({ attribute: false }) playing: boolean = false;
   @property({ attribute: false }) scale: number = 1000;
   @property({ attribute: false }) centerFrequency: number = 88500000;
@@ -238,6 +238,10 @@ export class RrMainControls extends WindowDelegate(LitElement) {
 
   private onStop() {
     this.dispatchEvent(new StopEvent());
+  }
+
+  private onReload() {
+    location.reload();
   }
 
   private onPresets() {
