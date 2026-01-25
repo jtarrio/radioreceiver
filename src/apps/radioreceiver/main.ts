@@ -3,29 +3,23 @@ import { customElement, query, state } from "lit/decorators.js";
 import {
   Demodulator,
   StereoStatusEvent,
-} from "@jtarrio/webrtlsdr/demod/demodulator.js";
+} from "@jtarrio/signals/demod/demodulator.js";
 import {
   SampleClickEvent,
   SampleCounter,
-} from "@jtarrio/webrtlsdr/demod/sample-counter.js";
+} from "@jtarrio/signals/demod/sample-counter.js";
 import {
   getMode,
   getSchemes,
   modeParameters,
   type Mode,
-} from "@jtarrio/webrtlsdr/demod/modes.js";
-import { Spectrum } from "@jtarrio/webrtlsdr/demod/spectrum.js";
-import { Float32Buffer } from "@jtarrio/webrtlsdr/dsp/buffers.js";
+} from "@jtarrio/signals/demod/modes.js";
+import { Spectrum } from "@jtarrio/signals/demod/spectrum.js";
+import { Float32Pool } from "@jtarrio/signals/dsp/buffers.js";
 import { RadioErrorType } from "@jtarrio/webrtlsdr/errors.js";
-import {
-  Radio,
-  RadioEvent,
-  CompositeReceiver,
-} from "@jtarrio/webrtlsdr/radio.js";
-import {
-  DirectSampling,
-  RTL2832U_Provider,
-} from "@jtarrio/webrtlsdr/rtlsdr.js";
+import { Radio, RadioEvent, RtlProvider } from "@jtarrio/webrtlsdr/radio.js";
+import { CompositeReceiver } from "@jtarrio/signals/radio.js";
+import { DirectSampling } from "@jtarrio/webrtlsdr/rtlsdr.js";
 import { ConfigProvider, loadConfig } from "./config.js";
 import {
   Preset,
@@ -205,7 +199,7 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private configProvider: ConfigProvider;
-  private spectrumBuffer: Float32Buffer;
+  private spectrumPool: Float32Pool;
   private spectrum: Spectrum;
   private demodulator: Demodulator;
   private sampleCounter: SampleCounter;
@@ -257,25 +251,25 @@ export class RadioReceiverMain extends LitElement {
   constructor() {
     super();
     this.configProvider = loadConfig();
-    this.spectrumBuffer = new Float32Buffer(2, 2048);
+    this.spectrumPool = new Float32Pool(2, 2048);
     this.spectrum = new Spectrum();
     this.spectrum.size = this.fftSize;
     this.demodulator = new Demodulator();
     this.sampleCounter = new SampleCounter(20);
     this.radio = new Radio(
-      new RTL2832U_Provider(),
-      CompositeReceiver.of(this.spectrum, this.demodulator, this.sampleCounter)
+      new RtlProvider(),
+      CompositeReceiver.of(this.spectrum, this.demodulator, this.sampleCounter),
     );
 
     this.demodulator.setVolume(1);
     this.demodulator.setMode(this.mode);
     this.demodulator.addEventListener("stereo-status", (e) =>
-      this.onStereoStatusEvent(e)
+      this.onStereoStatusEvent(e),
     );
 
     this.radio.addEventListener("radio", (e) => this.onRadioEvent(e));
     this.sampleCounter.addEventListener("sample-click", (e) =>
-      this.onSampleClickEvent(e)
+      this.onSampleClickEvent(e),
     );
   }
 
@@ -329,7 +323,7 @@ export class RadioReceiverMain extends LitElement {
   }
 
   private onSampleClickEvent(e: SampleClickEvent) {
-    let spectrum = this.spectrumBuffer.get(this.spectrum.size);
+    let spectrum = this.spectrumPool.get(this.spectrum.size);
     this.spectrum.getSpectrum(spectrum);
     this.spectrumView!.addFloatSpectrum(this.spectrum.frequency(), spectrum);
   }
@@ -462,12 +456,12 @@ export class RadioReceiverMain extends LitElement {
       if (newFreq.offset != this.frequency.offset) {
         this.demodulator.expectFrequencyAndSetOffset(
           newFreq.center + deltaFrequency,
-          newFreq.offset
+          newFreq.offset,
         );
       }
       this.radio.setFrequency(newFreq.center + deltaFrequency);
       this.radio.enableBiasTee(
-        this.biasTee || (upconverting && this.lowFrequencyMethod.biasTee)
+        this.biasTee || (upconverting && this.lowFrequencyMethod.biasTee),
       );
     } else if (newFreq.offset != this.frequency.offset) {
       this.demodulator.setFrequencyOffset(newFreq.offset);
@@ -627,7 +621,7 @@ export class RadioReceiverMain extends LitElement {
       modeParameters(preset.scheme)
         .setBandwidth(preset.bandwidth)
         .setStereo(preset.stereo)
-        .setSquelch(preset.squelch).mode
+        .setSquelch(preset.squelch).mode,
     );
     this.setGain(preset.gain);
   }
@@ -657,7 +651,7 @@ export class RadioReceiverMain extends LitElement {
         this.bandwidth,
         this.scale,
         this.frequency,
-        (f: Frequency) => this.setFrequency(f)
+        (f: Frequency) => this.setFrequency(f),
       );
     } else if (e.detail.operation == "cancel") {
       this.centerFrequencyScroller?.cancel();
@@ -699,7 +693,7 @@ export class RadioReceiverMain extends LitElement {
       this.frequency.center + this.bandwidth / 2 - this.frequency.rightBand;
     let frequency = Math.max(
       min,
-      Math.min(this.frequency.center + this.bandwidth * (fraction - 0.5), max)
+      Math.min(this.frequency.center + this.bandwidth * (fraction - 0.5), max),
     );
     frequency = this.tuningStep * Math.round(frequency / this.tuningStep);
     if (frequency < min) frequency += this.tuningStep;
@@ -711,7 +705,7 @@ export class RadioReceiverMain extends LitElement {
     const maxLeftSize = Math.floor(this.frequency.offset + this.bandwidth / 2);
     const maxRightSize = Math.floor(this.bandwidth / 2 - this.frequency.offset);
     const size = Math.floor(
-      Math.abs(this.frequency.offset - this.bandwidth * (fraction - 0.5))
+      Math.abs(this.frequency.offset - this.bandwidth * (fraction - 0.5)),
     );
     let modeParams = modeParameters(this.mode);
     switch (this.mode.scheme) {
@@ -758,7 +752,7 @@ export class RadioReceiverMain extends LitElement {
           return;
         } else if (error.type == RadioErrorType.NoUsbSupport) {
           alert(
-            "This browser does not support the HTML5 USB API. Please try Chrome, Edge, or Opera on a computer or Android."
+            "This browser does not support the HTML5 USB API. Please try Chrome, Edge, or Opera on a computer or Android.",
           );
         } else if (!this.errorState) {
           this.errorState = true;
@@ -785,7 +779,7 @@ class CenterFrequencyScroller {
     private bandwidth: number,
     private scale: number,
     frequency: Frequency,
-    private setFrequency: (newFreq: Frequency) => void
+    private setFrequency: (newFreq: Frequency) => void,
   ) {
     this.original = { ...frequency };
   }

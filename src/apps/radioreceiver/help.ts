@@ -4,7 +4,7 @@ import {
   getMode,
   modeParameters,
   type Mode,
-} from "@jtarrio/webrtlsdr/demod/modes.js";
+} from "@jtarrio/signals/demod/modes.js";
 import * as Icons from "../../ui/icons.js";
 import { RrScope } from "../../ui/spectrum/scope.js";
 import { RrSpectrum } from "../../ui/spectrum/spectrum.js";
@@ -485,7 +485,7 @@ class SpectrumGenerator {
   constructor(
     private fraction: number,
     private width: number,
-    private pulses: Pulse[]
+    private pulses: Pulse[],
   ) {}
 
   private sample: number = 0;

@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { getSchemes, modeParameters } from "@jtarrio/webrtlsdr/demod/modes.js";
+import { getSchemes, modeParameters } from "@jtarrio/signals/demod/modes.js";
 import { RrFrequencyInput } from "../../ui/controls/frequency-input.js";
 import { RrWindow, WindowDelegate } from "../../ui/controls/window.js";
 import * as Icons from "../../ui/icons.js";

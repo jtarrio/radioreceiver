@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { modeParameters } from "@jtarrio/webrtlsdr/demod/modes.js";
+import { modeParameters } from "@jtarrio/signals/demod/modes.js";
 import { RrWindow, WindowDelegate } from "../../ui/controls/window.js";
 import * as Icons from "../../ui/icons.js";
 import { BaseStyle } from "../../ui/styles.js";
@@ -140,7 +140,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
                 <td>
                   ${humanFrequency(
                     this.presets[index].tunedFrequency,
-                    this.presets[index].scale
+                    this.presets[index].scale,
                   )}
                 </td>
                 <td>${this.presets[index].scheme}</td>
@@ -151,7 +151,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
                     >${Icons.Delete}</a
                   >
                 </td>
-              </tr>`
+              </tr>`,
           )}
         </table>
         ${this.presets.length == 0
@@ -189,7 +189,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
           <b
             >${humanFrequency(
               this.editorContent.tunedFrequency,
-              this.editorContent.scale
+              this.editorContent.scale,
             )}</b
           >, Tuning step:
           <b>${humanFrequency(this.editorContent.tuningStep, 1)}</b>
@@ -198,7 +198,7 @@ export class RrPresets extends WindowDelegate(LitElement) {
           Modulation:
           <b
             >${this.editorContent.scheme}${modeParameters(
-              this.editorContent.scheme
+              this.editorContent.scheme,
             ).hasStereo()
               ? this.editorContent.stereo
                 ? " Stereo"

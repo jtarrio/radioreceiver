@@ -23,7 +23,8 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@jtarrio/webrtlsdr": "^2.0.3",
+    "@jtarrio/signals": "^0.9.4",
+    "@jtarrio/webrtlsdr": "^3.0.3",
     "@types/w3c-web-usb": "^1.0.10",
     "lit": "^3.2.1"
   }

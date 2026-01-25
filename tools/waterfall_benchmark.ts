@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { FFT } from "@jtarrio/webrtlsdr/dsp/fft.js";
+import { FFT } from "@jtarrio/signals/dsp/fft.js";
 import { RrWaterfall } from "../src/ui/spectrum/waterfall.js";
 import "../src/ui/spectrum/waterfall.js";
 
@@ -187,7 +187,7 @@ async function runBenchmark(
   for (let i = 0; i < rounds; ++i) {
     const startFft = performance.now();
     const out = fft.transform(samplesI, samplesQ);
-    toSpectrum(out.real, out.imag, spectrum);
+    toSpectrum(out[0], out[1], spectrum);
     fftTime += performance.now() - startFft;
     const startAdd = performance.now();
     waterfall.addFloatSpectrum(frequency, spectrum);
