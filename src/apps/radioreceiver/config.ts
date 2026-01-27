@@ -63,6 +63,7 @@ function blankConfig(): RawConfig {
       sampleRate: 1024000,
       ppm: 0,
       fftSize: 2048,
+      fmDeemph: 50,
       biasTee: false,
       lowFrequencyMethod: {
         name: "directSampling",
@@ -70,6 +71,7 @@ function blankConfig(): RawConfig {
         frequency: 100000000,
         biasTee: false,
       },
+      performanceTradeoff: "cpu",
       minDecibels: -90,
       maxDecibels: -20,
       presets: {
@@ -117,10 +119,14 @@ type ConfigV1 = {
   ppm: number;
   /** Size of the spectrum display. */
   fftSize: number;
+  /** FM de-emphasis time constant in microseconds. */
+  fmDeemph: number;
   /** Whether the bias tee is enabled. */
   biasTee: boolean;
   /** The method for receiving 0-29 MHz signals. */
   lowFrequencyMethod: ConfigV1LowFrequencyMethod;
+  /** The performance trade-off: cpu, latency, or quality. */
+  performanceTradeoff: ConfigV1PerformanceTradeoff;
   /** Minimum number of decibels for scope. */
   minDecibels: number;
   /** Maximum number of decibels for scope. */
@@ -132,6 +138,9 @@ type ConfigV1 = {
     [k in ConfigV1WindowName]: ConfigV1Window;
   };
 };
+
+/** Names of performance tradeoffs */
+type ConfigV1PerformanceTradeoff = "cpu" | "latency" | "quality";
 
 /** Names of the windows whose configurations can be saved. */
 type ConfigV1WindowName = "controls" | "settings" | "presets";

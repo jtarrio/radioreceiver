@@ -2,6 +2,7 @@ import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import {
   Demodulator,
+  DemodulatorOptions,
   StereoStatusEvent,
 } from "@jtarrio/signals/demod/demodulator.js";
 import {
@@ -29,7 +30,11 @@ import {
   RrPresets,
 } from "./presets.js";
 import { RrMainControls } from "./main-controls.js";
-import { type LowFrequencyMethod, RrSettings } from "./settings.js";
+import {
+  type LowFrequencyMethod,
+  type PerformanceTradeoff,
+  RrSettings,
+} from "./settings.js";
 import {
   CreateWindowRegistry,
   RrWindow,
@@ -51,6 +56,11 @@ import "./main-controls.js";
 import "./settings.js";
 import "./presets.js";
 import "../../ui/spectrum/spectrum.js";
+import { OptionsWBFM } from "@jtarrio/signals/demod/demod-wbfm.js";
+import { OptionsNBFM } from "@jtarrio/signals/demod/demod-nbfm.js";
+import { OptionsAM } from "@jtarrio/signals/demod/demod-am.js";
+import { OptionsSSB } from "@jtarrio/signals/demod/demod-ssb.js";
+import { OptionsCW } from "@jtarrio/signals/demod/demod-cw.js";
 
 type Frequency = {
   center: number;
@@ -163,13 +173,17 @@ export class RadioReceiverMain extends LitElement {
         .sampleRate=${this.sampleRate}
         .ppm=${this.ppm}
         .fftSize=${this.fftSize}
+        .fmDeemph=${this.fmDeemph}
         .biasTee=${this.biasTee}
         .lowFrequencyMethod=${this.lowFrequencyMethod}
+        .performanceTradeoff=${this.performanceTradeoff}
         @rr-sample-rate-changed=${this.onSampleRateChange}
         @rr-ppm-changed=${this.onPpmChange}
         @rr-fft-size-changed=${this.onFftSizeChange}
+        @rr-fm-deemph-changed=${this.onFmDeemphChange}
         @rr-bias-tee-changed=${this.onBiasTeeChange}
         @rr-low-frequency-method-changed=${this.onLowFrequencyMethodChange}
+        @rr-performance-tradeoff-changed=${this.onPerformanceTradeoffChange}
         @rr-window-moved=${this.onWindowMoved}
         @rr-window-closed=${this.onWindowClosed}
       ></rr-settings>
@@ -235,6 +249,8 @@ export class RadioReceiverMain extends LitElement {
     frequency: 100000000,
     biasTee: false,
   };
+  @state() private fmDeemph: number = 50;
+  @state() private performanceTradeoff: PerformanceTradeoff = "cpu";
   @state() private windowState: WindowState = {
     controls: { position: undefined },
     settings: { open: false, position: undefined },
@@ -255,7 +271,7 @@ export class RadioReceiverMain extends LitElement {
     this.spectrumPool = new Float32Pool(2, 2048);
     this.spectrum = new Spectrum();
     this.spectrum.size = this.fftSize;
-    this.demodulator = new Demodulator();
+    this.demodulator = new Demodulator(this.getDemodulatorOptions());
     this.sampleCounter = new SampleCounter(20);
     this.radio = new Radio(
       new RtlProvider(),
@@ -272,6 +288,59 @@ export class RadioReceiverMain extends LitElement {
     this.sampleCounter.addEventListener("sample-click", (e) =>
       this.onSampleClickEvent(e),
     );
+  }
+
+  private getDemodulatorOptions(): DemodulatorOptions {
+    let cfg = this.configProvider.get();
+    let fmDeemph = cfg.fmDeemph;
+    let performanceTradeoff = cfg.performanceTradeoff;
+    let latency = performanceTradeoff === "latency";
+    let quality = performanceTradeoff === "quality";
+    let options: {
+      modeOptions: {
+        AM: OptionsAM;
+        CW: OptionsCW;
+        NBFM: OptionsNBFM;
+        USB: OptionsSSB;
+        LSB: OptionsSSB;
+        WBFM: OptionsWBFM;
+      };
+    } = {
+      modeOptions: {
+        AM: {
+          downsamplerTaps: quality ? 75 : undefined,
+          rfTaps: latency ? 257 : quality ? 75 : undefined,
+          useFftFilter: latency,
+        },
+        CW: {
+          downsamplerTaps: quality ? 75 : undefined,
+          audioTaps: latency ? 513 : quality ? 95 : undefined,
+          useFftFilter: latency,
+        },
+        NBFM: {
+          downsamplerTaps: quality ? 75 : undefined,
+          rfTaps: latency ? 257 : quality ? 41 : undefined,
+          useFftFilter: latency,
+        },
+        USB: {
+          downsamplerTaps: quality ? 75 : undefined,
+          rfTaps: latency ? 257 : quality ? 41 : undefined,
+          useFftFilter: latency,
+        },
+        LSB: {
+          downsamplerTaps: quality ? 75 : undefined,
+          rfTaps: latency ? 257 : quality ? 75 : undefined,
+          useFftFilter: latency,
+        },
+        WBFM: {
+          deemphasizerTc: fmDeemph,
+          downsamplerTaps: quality ? 75 : undefined,
+          rfTaps: latency ? 75 : quality ? 75 : undefined,
+          useFftFilter: latency,
+        },
+      },
+    };
+    return options;
   }
 
   connectedCallback(): void {
@@ -310,6 +379,8 @@ export class RadioReceiverMain extends LitElement {
     this.setPpm(cfg.ppm);
     this.setFftSize(cfg.fftSize);
     this.enableBiasTee(cfg.biasTee);
+    this.fmDeemph = cfg.fmDeemph;
+    this.performanceTradeoff = cfg.performanceTradeoff;
     this.minDecibels = cfg.minDecibels;
     this.maxDecibels = cfg.maxDecibels;
     this.presetSortColumn = cfg.presets.sortColumn;
@@ -579,6 +650,20 @@ export class RadioReceiverMain extends LitElement {
     this.fftSize = fftSize;
     this.spectrum.size = fftSize;
     this.configProvider.update((cfg) => (cfg.fftSize = fftSize));
+  }
+
+  private onFmDeemphChange(e: Event) {
+    let target = e.target as RrSettings;
+    this.configProvider.update((cfg) => (cfg.fmDeemph = target.fmDeemph));
+    this.needsReload = true;
+  }
+
+  private onPerformanceTradeoffChange(e: Event) {
+    let target = e.target as RrSettings;
+    this.configProvider.update(
+      (cfg) => (cfg.performanceTradeoff = target.performanceTradeoff),
+    );
+    this.needsReload = true;
   }
 
   private onBiasTeeChange(e: Event) {

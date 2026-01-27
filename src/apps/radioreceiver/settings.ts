@@ -43,6 +43,19 @@ const DIRECT_SAMPLING_CHANNELS: Map<DirectSamplingChannel, string> = new Map([
   ["I", "I"],
 ]);
 
+const FM_DEEMPH_TCS: Map<number, string> = new Map([
+  [50, "Europe"],
+  [75, "USA"],
+]);
+
+export type PerformanceTradeoff = "cpu" | "latency" | "quality";
+
+const PERFORMANCE_TRADEOFFS: Map<PerformanceTradeoff, string> = new Map([
+  ["cpu", "Use more CPU"],
+  ["latency", "Have more latency"],
+  ["quality", "Have worse quality"],
+]);
+
 @customElement("rr-settings")
 export class RrSettings extends WindowDelegate(LitElement) {
   static get styles() {
@@ -69,7 +82,7 @@ export class RrSettings extends WindowDelegate(LitElement) {
             (r) =>
               html`<option value=${r} .selected=${this.sampleRate == r}>
                 ${r}
-              </option>`
+              </option>`,
           )}
         </select>
       </div>
@@ -92,7 +105,22 @@ export class RrSettings extends WindowDelegate(LitElement) {
             (s) =>
               html`<option value=${s} .selected=${this.fftSize == s}>
                 ${s}
-              </option>`
+              </option>`,
+          )}
+        </select>
+      </div>
+      <div>
+        <label for="fmDeemph">WBFM de-emphasis: </label
+        ><select
+          id="fmDeemph"
+          .disabled=${this.playing}
+          @change=${this.onFmDeemphChange}
+        >
+          ${FM_DEEMPH_TCS.entries().map(
+            (r) =>
+              html`<option value=${r[0]} .selected=${this.fmDeemph == r[0]}>
+                ${r[0]}µs &mdash; ${r[1]}
+              </option>`,
           )}
         </select>
       </div>
@@ -115,7 +143,7 @@ export class RrSettings extends WindowDelegate(LitElement) {
                 .selected=${this.lowFrequencyMethod.name == k}
               >
                 ${v}
-              </option>`
+              </option>`,
           )}
         </select>
       </div>
@@ -132,7 +160,7 @@ export class RrSettings extends WindowDelegate(LitElement) {
                 .selected=${this.lowFrequencyMethod.channel == k}
               >
                 ${v}
-              </option>`
+              </option>`,
           )}
         </select>
       </div>
@@ -157,6 +185,24 @@ export class RrSettings extends WindowDelegate(LitElement) {
           @change=${this.onUpconverterBiasTeeChange}
         />
       </div>
+      <div>
+        <label for="performanceTradeoff">Performance trade-off: </label
+        ><select
+          id="performanceTradeoff"
+          .disabled=${this.playing}
+          @change=${this.onPerformanceTradeoffChange}
+        >
+          ${PERFORMANCE_TRADEOFFS.entries().map(
+            (r) =>
+              html`<option
+                value=${r[0]}
+                .selected=${this.performanceTradeoff == r[0]}
+              >
+                ${r[1]}
+              </option>`,
+          )}
+        </select>
+      </div>
     </rr-window>`;
   }
 
@@ -165,6 +211,7 @@ export class RrSettings extends WindowDelegate(LitElement) {
   @property({ attribute: false }) sampleRate: number = 1024000;
   @property({ attribute: false }) ppm: number = 0;
   @property({ attribute: false }) fftSize: number = 2048;
+  @property({ attribute: false }) fmDeemph: number = 50;
   @property({ attribute: false }) biasTee: boolean = false;
   @property({ attribute: false }) lowFrequencyMethod: LowFrequencyMethod = {
     name: "default",
@@ -172,11 +219,12 @@ export class RrSettings extends WindowDelegate(LitElement) {
     frequency: 100000000,
     biasTee: false,
   };
+  @property({ attribute: false }) performanceTradeoff: PerformanceTradeoff = "cpu";
   @query("rr-window") protected window?: RrWindow;
 
   private onSampleRateChange(e: Event) {
     this.sampleRate = Number(
-      (e.target as HTMLSelectElement).selectedOptions[0].value
+      (e.target as HTMLSelectElement).selectedOptions[0].value,
     );
     this.dispatchEvent(new SampleRateChangedEvent());
   }
@@ -194,9 +242,16 @@ export class RrSettings extends WindowDelegate(LitElement) {
 
   private onFftSizeChange(e: Event) {
     this.fftSize = Number(
-      (e.target as HTMLSelectElement).selectedOptions[0].value
+      (e.target as HTMLSelectElement).selectedOptions[0].value,
     );
     this.dispatchEvent(new FftSizeChangedEvent());
+  }
+
+  private onFmDeemphChange(e: Event) {
+    this.fmDeemph = Number(
+      (e.target as HTMLSelectElement).selectedOptions[0].value,
+    );
+    this.dispatchEvent(new FmDeemphChangedEvent());
   }
 
   private onBiasTeeChange(e: Event) {
@@ -239,6 +294,13 @@ export class RrSettings extends WindowDelegate(LitElement) {
     this.lowFrequencyMethod = method;
     this.dispatchEvent(new LowFrequencyMethodChangedEvent());
   }
+
+  private onPerformanceTradeoffChange(e: Event) {
+    this.performanceTradeoff = (
+      e.target as HTMLSelectElement
+    ).selectedOptions[0].value as PerformanceTradeoff;
+    this.dispatchEvent(new PerformanceTradeoffChangedEvent());
+  }
 }
 
 class SampleRateChangedEvent extends Event {
@@ -259,6 +321,12 @@ class FftSizeChangedEvent extends Event {
   }
 }
 
+class FmDeemphChangedEvent extends Event {
+  constructor() {
+    super("rr-fm-deemph-changed", { bubbles: true, composed: true });
+  }
+}
+
 class BiasTeeChangedEvent extends Event {
   constructor() {
     super("rr-bias-tee-changed", { bubbles: true, composed: true });
@@ -271,12 +339,20 @@ class LowFrequencyMethodChangedEvent extends Event {
   }
 }
 
+class PerformanceTradeoffChangedEvent extends Event {
+  constructor() {
+    super("rr-performance-tradeoff-changed", { bubbles: true, composed: true });
+  }
+}
+
 declare global {
   interface HTMLElementEventMap {
     "rr-sample-rate-changed": SampleRateChangedEvent;
     "rr-ppm-changed": PpmChangedEvent;
     "rr-fft-size-changed": FftSizeChangedEvent;
+    "rr-fm-deemph-changed": FmDeemphChangedEvent;
     "rr-bias-tee-changed": BiasTeeChangedEvent;
     "rr-low-frequency-method-changed": LowFrequencyMethodChangedEvent;
+    "rr-performance-tradeoff-changed": PerformanceTradeoffChangedEvent;
   }
 }
