@@ -5,6 +5,7 @@ import {
   modeParameters,
   type Mode,
 } from "@jtarrio/signals/demod/modes.js";
+import "@jtarrio/signals/demod/demodulator.js";
 import * as Icons from "../../ui/icons.js";
 import { RrScope } from "../../ui/spectrum/scope.js";
 import { RrSpectrum } from "../../ui/spectrum/spectrum.js";

@@ -87,12 +87,12 @@
         if (navigator.usb)
           document.write(
             "You are reading this in a compatible browser, " +
-              "so you can try Radio Receiver in this one."
+              "so you can try Radio Receiver in this one.",
           );
         else
           document.write(
             "You are reading this in an incompatible browser, " +
-              "so you will need to try a different one to use Radio Receiver."
+              "so you will need to try a different one to use Radio Receiver.",
           );
       </script>
     </p>
@@ -606,6 +606,15 @@
     </p>
 
     <p>
+      The “WBFM de-emphasis” setting lets you adjust the filters that are
+      applied to a broadcast FM signal when it's received. The value you should
+      use depends on the regulations in your country: European countries
+      generally use 50 microseconds (µs), while the United States uses 75 µs. If
+      you don't know the appropriate value for your country, select the one that
+      sounds most pleasant to you.
+    </p>
+
+    <p>
       The “bias T” is a circuit that exists in some RTL-SDR sticks, which can
       power an external device through the antenna connection. When you check
       this setting, you enable the bias T in your stick, if it has one.
@@ -637,5 +646,30 @@
       sticks. Those will always use the default method or the external
       upconverter.)
     </p>
+
+    <p>
+      The “performance trade-off” setting lets you use Radio Receiver in low-CPU
+      computers and phones by choosing to give up some latency or some quality.
+    </p>
+    <ul>
+      <li>
+        The default option is “use more CPU”, which has low latency and high
+        quality. However, some older computers or lower-end phones might not
+        have powerful enough CPUs to keep up, so you may need to choose one of
+        the other options to be able to use Radio Receiver comfortably.
+      </li>
+      <li>
+        The “have more latency” option uses algorithms with lower CPU usage and
+        the same sound quality as the default option, at the cost of higher
+        latency. (The latency is the time that elapses between receiving the
+        signal and hearing it on your speakers.)
+      </li>
+      <li>
+        The “have worse quality” option gives you lower CPU usage and latency
+        than the other two options, but also worse sound quality. You can use
+        this option if your computer or phone isn't even powerful enough for the
+        “have more latency” option.
+      </li>
+    </ul>
   </body>
 </html>
