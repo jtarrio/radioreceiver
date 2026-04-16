@@ -220,6 +220,7 @@ export class RadioReceiverMain extends LitElement {
   private radio: Radio;
   private availableModes = new Map(getSchemes().map((s) => [s, getMode(s)]));
   private centerFrequencyScroller?: CenterFrequencyScroller;
+  private wakelock?: WakeLockSentinel;
 
   @state() private sampleRate: number = 1024000;
   @state() private ppm: number = 0;
@@ -288,6 +289,12 @@ export class RadioReceiverMain extends LitElement {
     this.sampleCounter.addEventListener("sample-click", (e) =>
       this.onSampleClickEvent(e),
     );
+
+    document.addEventListener("visibilitychange", () => {
+      if (this.wakelock && document.visibilityState === "visible") {
+        this.startWakelock();
+      }
+    });
   }
 
   private getDemodulatorOptions(): DemodulatorOptions {
@@ -394,6 +401,19 @@ export class RadioReceiverMain extends LitElement {
     return -this.bandwidth / 2 <= leftEdge && rightEdge <= this.bandwidth / 2;
   }
 
+  private async startWakelock() {
+    if (!navigator.wakeLock) return;
+    if (this.wakelock) await this.wakelock.release();
+    this.wakelock = await navigator.wakeLock.request();
+  }
+
+  private stopWakelock() {
+    if (!this.wakelock) return;
+    let wakelock = this.wakelock;
+    this.wakelock = undefined;
+    wakelock.release();
+  }
+
   private onSampleClickEvent(e: SampleClickEvent) {
     let spectrum = this.spectrumPool.get(this.spectrum.size);
     this.spectrum.getSpectrum(spectrum);
@@ -403,11 +423,13 @@ export class RadioReceiverMain extends LitElement {
   private onStart(e: Event) {
     this.bandwidth = this.radio.getSampleRate();
     this.radio.start();
+    this.startWakelock();
     e.preventDefault();
   }
 
   private onStop(e: Event) {
     this.radio.stop();
+    this.stopWakelock();
     e.preventDefault();
   }
 
@@ -842,6 +864,7 @@ export class RadioReceiverMain extends LitElement {
           );
         } else if (!this.errorState) {
           this.errorState = true;
+          this.stopWakelock();
           if (error.cause) {
             alert(`${error.message}\n\nCaused by: ${error.cause}`);
           } else {
